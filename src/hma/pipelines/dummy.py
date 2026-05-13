@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from hma.config import load_yaml_config
-from hma.data import DummySaliencyDataset
+from hma.datasets import build_dataset
 from hma.metrics import mean_absolute_error, pearson_correlation
 from hma.models import DummySaliencyModel
 
@@ -17,7 +17,7 @@ from hma.models import DummySaliencyModel
 def run_dummy_pipeline(config_path: str | Path) -> dict[str, Any]:
     """Run a deterministic synthetic saliency benchmark."""
     config = load_yaml_config(config_path)
-    dataset = DummySaliencyDataset.from_config(config.get("dataset", {}))
+    dataset = build_dataset(config)
     model = DummySaliencyModel.from_config(config.get("model", {}))
 
     mae_values: list[float] = []
