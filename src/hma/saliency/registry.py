@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import partial
 from typing import Any, Callable
 
+from hma.saliency.attention_rollout import attention_rollout_saliency
 from hma.saliency.gradcam import gradcam_saliency
 from hma.saliency.gradients import vanilla_gradient_saliency
 from hma.saliency.integrated_gradients import integrated_gradients_saliency
@@ -31,6 +32,14 @@ def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
         if not target_layer:
             raise KeyError("Grad-CAM saliency config requires 'target_layer'")
         return partial(gradcam_saliency, target_layer=str(target_layer))
+    if method in {"attention_rollout", "rollout"}:
+        kwargs = {
+            "discard_ratio": float(saliency_config.get("discard_ratio", 0.0)),
+            "head_fusion": saliency_config.get("head_fusion", "mean"),
+            "target_layer": saliency_config.get("target_layer"),
+            "grid_size": saliency_config.get("grid_size"),
+        }
+        return partial(attention_rollout_saliency, **kwargs)
 
     raise KeyError(f"Unknown saliency method: {method}")
 
