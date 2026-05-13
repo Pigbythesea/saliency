@@ -1,0 +1,20 @@
+seed: 123
+device: cpu
+
+dataset:
+  name: dummy_static_saliency
+  root: data/saliency_static
+  max_items: 8
+
+model:
+  name: dummy_vision_encoder
+
+saliency:
+  method: dummy_gradient_free
+
+metrics:
+  - mae
+  - pearson
+
+output:
+  dir: outputs/saliency_static_debug
