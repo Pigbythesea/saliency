@@ -123,7 +123,14 @@ def test_build_model_supports_timm_backend(monkeypatch):
 
 
 def test_timm_wrapper_reports_clear_import_error(monkeypatch):
-    monkeypatch.delitem(sys.modules, "timm", raising=False)
+    import hma.models.timm_wrappers as timm_wrappers
+
+    def missing_timm(module_name):
+        if module_name == "timm":
+            raise ImportError("missing timm")
+        return __import__(module_name)
+
+    monkeypatch.setattr(timm_wrappers.importlib, "import_module", missing_timm)
 
     with pytest.raises(ImportError, match="timm is required"):
         TimmModelWrapper("resnet50", pretrained=False)

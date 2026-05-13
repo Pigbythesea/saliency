@@ -7,6 +7,7 @@ from hma.datasets.registry import build_dataset, get_dataset_class, register_dat
 from hma.datasets.cat2000 import CAT2000Dataset
 from hma.datasets.coco_search18 import COCOSearch18Dataset
 from hma.datasets.dummy import DummySaliencyDataset
+from hma.datasets.nsd_algonauts import NSDAlgonautsDataset
 from hma.datasets.salicon import SALICONDataset
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "CAT2000Dataset",
     "COCOSearch18Dataset",
     "DummySaliencyDataset",
+    "NSDAlgonautsDataset",
     "SALICONDataset",
     "VisionDatasetItem",
     "build_dataset",
