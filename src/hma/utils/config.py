@@ -11,7 +11,7 @@ import yaml
 
 DEFAULT_EXPERIMENT_CONFIG: dict[str, Any] = {
     "seed": 0,
-    "device": "cpu",
+    "device": "auto",
     "dataset": {
         "name": None,
         "root": "data",

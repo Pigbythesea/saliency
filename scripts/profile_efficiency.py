@@ -33,7 +33,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="outputs/efficiency/profile.csv",
         help="Output CSV path.",
     )
-    parser.add_argument("--device", default="cpu")
+    parser.add_argument(
+        "--device",
+        default="auto",
+        help="Device for profiling. 'auto' uses GPU when available, otherwise CPU.",
+    )
     parser.add_argument("--input-shape", default="1,3,224,224")
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--repeats", type=int, default=20)

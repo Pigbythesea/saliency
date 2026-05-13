@@ -8,6 +8,8 @@ import time
 import warnings
 from typing import Any
 
+from hma.utils.device import resolve_device
+
 
 def count_parameters(model: Any) -> int:
     """Count model parameters for modules exposing parameters()."""
@@ -56,25 +58,26 @@ def measure_latency(
         raise ValueError("warmup must be nonnegative")
 
     torch = _require_torch()
+    resolved_device = resolve_device(device)
     module = _unwrap_model(model)
     if hasattr(module, "to"):
-        module = module.to(device)
+        module = module.to(resolved_device)
     if hasattr(module, "eval"):
         module.eval()
 
-    inputs = torch.randn(tuple(input_shape), device=device)
+    inputs = torch.randn(tuple(input_shape), device=resolved_device)
     forward = _get_forward_callable(model, module)
 
     with torch.no_grad():
         for _ in range(warmup):
             forward(inputs)
-        _synchronize_if_needed(torch, device)
+        _synchronize_if_needed(torch, resolved_device)
 
         timings = []
         for _ in range(repeats):
             start = time.perf_counter()
             forward(inputs)
-            _synchronize_if_needed(torch, device)
+            _synchronize_if_needed(torch, resolved_device)
             timings.append((time.perf_counter() - start) * 1000.0)
 
     return {
@@ -92,16 +95,17 @@ def estimate_flops(
 ) -> int | None:
     """Best-effort FLOPs estimate using optional fvcore or ptflops."""
     module = _unwrap_model(model)
+    resolved_device = resolve_device(device)
     torch = _import_optional("torch")
     if torch is None:
         warnings.warn("FLOPs estimation requires torch; returning None", stacklevel=2)
         return None
 
     if hasattr(module, "to"):
-        module = module.to(device)
+        module = module.to(resolved_device)
     if hasattr(module, "eval"):
         module.eval()
-    inputs = torch.randn(tuple(input_shape), device=device)
+    inputs = torch.randn(tuple(input_shape), device=resolved_device)
 
     fvcore = _import_optional("fvcore.nn")
     if fvcore is not None and hasattr(fvcore, "FlopCountAnalysis"):

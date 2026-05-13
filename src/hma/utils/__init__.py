@@ -1,6 +1,7 @@
 """General utility helpers."""
 
 from hma.utils.config import load_experiment_config, load_yaml, merge_dicts, save_yaml
+from hma.utils.device import resolve_device
 from hma.utils.paths import (
     ensure_dir,
     get_data_root,
@@ -17,6 +18,7 @@ __all__ = [
     "load_experiment_config",
     "load_yaml",
     "merge_dicts",
+    "resolve_device",
     "resolve_path",
     "save_yaml",
 ]

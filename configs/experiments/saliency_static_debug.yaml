@@ -1,5 +1,5 @@
 seed: 123
-device: cpu
+device: auto
 
 dataset:
   name: dummy_static_saliency

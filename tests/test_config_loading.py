@@ -42,7 +42,7 @@ def test_load_experiment_config_fills_defaults():
     config = load_experiment_config("configs/experiments/saliency_static_debug.yaml")
 
     assert config["seed"] == 123
-    assert config["device"] == "cpu"
+    assert config["device"] == "auto"
     assert config["dataset"]["name"] == "dummy_static_saliency"
     assert config["dataset"]["root"] == "data/saliency_static"
     assert config["dataset"]["max_items"] == 3

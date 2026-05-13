@@ -7,21 +7,25 @@ from typing import Any, Iterable
 
 import numpy as np
 
+from hma.utils.device import resolve_device
+
 
 def extract_activations(
     model_wrapper: Any,
     dataloader: Iterable,
     layers: list[str],
-    device: str = "cpu",
+    device: str = "auto",
 ) -> dict[str, np.ndarray]:
     """Extract layer activations from item or batch dictionaries."""
     image_ids: list[str] = []
     collected: dict[str, list[np.ndarray]] = {layer: [] for layer in layers}
 
+    resolved_device = resolve_device(device)
+
     for batch in dataloader:
         images = batch["image"]
         image_ids.extend(_as_id_list(batch.get("image_id", "")))
-        images = _move_to_device(images, device)
+        images = _move_to_device(images, resolved_device)
         features = model_wrapper.get_features(images, layers=layers)
         feature_dict = _normalize_feature_output(features, layers)
         for layer in layers:
