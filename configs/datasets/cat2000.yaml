@@ -1,0 +1,8 @@
+name: cat2000
+root: data/cat2000
+manifest_path: data/manifests/cat2000_manifest.csv
+split: val
+categories: null
+image_size: [224, 224]
+max_items: null
+validate_files: true
