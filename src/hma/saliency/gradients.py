@@ -9,6 +9,7 @@ def vanilla_gradient_saliency(
     model_wrapper: Any,
     images: Any,
     target_class: int | list[int] | None = None,
+    **_kwargs: Any,
 ) -> Any:
     """Compute vanilla input-gradient saliency maps as Bx1xHxW tensors."""
     torch = _require_torch()

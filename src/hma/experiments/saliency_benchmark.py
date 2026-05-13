@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Callable
 
@@ -12,10 +14,12 @@ from PIL import Image, ImageOps
 
 from hma.datasets import build_dataset
 from hma.metrics.saliency import mean_absolute_error, pearson_correlation
-from hma.metrics.saliency_metrics import cc, kl_divergence, nss, similarity
+from hma.metrics.saliency_metrics import auc_judd, cc, kl_divergence, nss, similarity
 from hma.models import build_model
+from hma.preprocessing import preprocess_image_for_model
 from hma.saliency import build_saliency_method, postprocess_saliency_map
 from hma.utils.config import load_experiment_config
+from hma.utils.device import resolve_device
 from hma.utils.paths import ensure_dir, resolve_path
 
 
@@ -31,10 +35,20 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
     dataset = build_dataset(config)
     model = build_model(config)
     saliency_method = build_saliency_method(config)
+    saliency_config = config.get("saliency", {})
+    saliency_method_name = str(saliency_config.get("method") or saliency_config.get("name"))
+    target_class = saliency_config.get("target_class")
+    resolved_device = resolve_device(config.get("device", "auto"))
+    if _saliency_requires_torch(saliency_method_name):
+        _move_model_to_device(model, resolved_device)
+
     metric_names = list(config.get("metrics", []))
     metric_fns = _build_metric_functions(metric_names)
+    cache_settings = _build_cache_settings(output_dir, config)
 
     rows: list[dict[str, Any]] = []
+    cache_hits = 0
+    cache_writes = 0
     save_visualizations = bool(config.get("output", {}).get("save_visualizations", False))
     num_visualizations = int(config.get("output", {}).get("num_visualizations", 0))
     if save_visualizations and num_visualizations > 0:
@@ -43,13 +57,27 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
     for item_index, item in enumerate(dataset):
         image = item["image"]
         target = _as_2d_array(item.get("fixation_map"))
-        prediction = saliency_method(
-            model,
-            image,
-            item=item,
-            item_index=item_index,
-            target_map=target,
-        )
+        cache_key = _build_saliency_cache_key(config, item, target.shape)
+        prediction = _load_cached_saliency(cache_settings, cache_key)
+        if prediction is not None:
+            cache_hits += 1
+        else:
+            saliency_input = _prepare_saliency_input(
+                image=image,
+                config=config,
+                device=resolved_device,
+                method_name=saliency_method_name,
+            )
+            prediction = saliency_method(
+                model,
+                saliency_input,
+                item=item,
+                item_index=item_index,
+                target_map=target,
+                target_class=target_class,
+            )
+            if _save_cached_saliency(cache_settings, cache_key, prediction):
+                cache_writes += 1
         prediction_map = _prepare_prediction_map(prediction, target.shape)
 
         row: dict[str, Any] = {
@@ -78,6 +106,8 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
         config_path=config_path,
         per_image_csv=per_image_csv,
         aggregate_json=aggregate_json,
+        cache_hits=cache_hits,
+        cache_writes=cache_writes,
     )
     aggregate_json.write_text(json.dumps(aggregate, indent=2), encoding="utf-8")
     return aggregate
@@ -86,6 +116,7 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
 def _build_metric_functions(metric_names: list[str]) -> dict[str, MetricFn]:
     registry: dict[str, MetricFn] = {
         "nss": lambda prediction, target: nss(prediction, target),
+        "auc_judd": lambda prediction, target: auc_judd(prediction, target),
         "cc": lambda prediction, target: cc(prediction, target),
         "similarity": lambda prediction, target: similarity(prediction, target),
         "kl": lambda prediction, target: kl_divergence(target, prediction),
@@ -97,6 +128,132 @@ def _build_metric_functions(metric_names: list[str]) -> dict[str, MetricFn]:
     if missing:
         raise KeyError(f"Unsupported saliency metrics: {missing}")
     return {name: registry[name] for name in metric_names}
+
+
+def _prepare_saliency_input(
+    image: Any,
+    config: dict[str, Any],
+    device: str,
+    method_name: str,
+) -> Any:
+    if _saliency_requires_torch(method_name):
+        return preprocess_image_for_model(image, config=config, device=device)
+    return image
+
+
+def _saliency_requires_torch(method_name: str | None) -> bool:
+    return str(method_name) in {
+        "vanilla_gradient",
+        "integrated_gradients",
+        "gradcam",
+        "attention_rollout",
+        "rollout",
+    }
+
+
+def _move_model_to_device(model: Any, device: str) -> None:
+    module = getattr(model, "model", model)
+    to = getattr(module, "to", None)
+    if callable(to):
+        to(device)
+    eval_fn = getattr(module, "eval", None)
+    if callable(eval_fn):
+        eval_fn()
+
+
+def _build_cache_settings(output_dir: Path, config: dict[str, Any]) -> dict[str, Any]:
+    cache_config = config.get("cache", {})
+    enabled = bool(cache_config.get("enabled", False))
+    cache_dir_config = Path(str(cache_config.get("dir", "saliency_maps")))
+    cache_dir = (
+        cache_dir_config
+        if cache_dir_config.is_absolute()
+        else output_dir / cache_dir_config
+    )
+    if enabled:
+        ensure_dir(cache_dir)
+    return {
+        "enabled": enabled,
+        "reuse": bool(cache_config.get("reuse", True)),
+        "dir": cache_dir,
+    }
+
+
+def _build_saliency_cache_key(
+    config: dict[str, Any],
+    item: dict[str, Any],
+    target_shape: tuple[int, int],
+) -> dict[str, Any]:
+    dataset_config = config.get("dataset", {})
+    return {
+        "dataset": dataset_config.get("name"),
+        "split": dataset_config.get("split"),
+        "image_id": item.get("image_id"),
+        "image_path": item.get("image_path", ""),
+        "target_shape": list(target_shape),
+        "model": config.get("model", {}),
+        "saliency": config.get("saliency", {}),
+        "preprocessing": config.get("preprocessing", {}),
+    }
+
+
+def _load_cached_saliency(
+    cache_settings: dict[str, Any],
+    cache_key: dict[str, Any],
+) -> np.ndarray | None:
+    if not cache_settings["enabled"] or not cache_settings["reuse"]:
+        return None
+    map_path, metadata_path = _cache_paths(cache_settings["dir"], cache_key)
+    if not map_path.is_file() or not metadata_path.is_file():
+        return None
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    if metadata.get("cache_key") != cache_key:
+        return None
+    return np.load(map_path)
+
+
+def _save_cached_saliency(
+    cache_settings: dict[str, Any],
+    cache_key: dict[str, Any],
+    prediction: Any,
+) -> bool:
+    if not cache_settings["enabled"]:
+        return False
+    map_path, metadata_path = _cache_paths(cache_settings["dir"], cache_key)
+    np.save(map_path, _to_numpy(prediction).astype(np.float32))
+    metadata_path.write_text(
+        json.dumps({"cache_key": cache_key}, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    return True
+
+
+def _cache_paths(cache_dir: Path, cache_key: dict[str, Any]) -> tuple[Path, Path]:
+    encoded = json.dumps(cache_key, sort_keys=True, default=str).encode("utf-8")
+    digest = hashlib.sha256(encoded).hexdigest()[:16]
+    image_id = _safe_cache_stem(str(cache_key.get("image_id") or "item"))
+    stem = f"{image_id}_{digest}"
+    return cache_dir / f"{stem}.npy", cache_dir / f"{stem}.json"
+
+
+def _safe_cache_stem(value: str) -> str:
+    stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._")
+    return stem[:80] or "item"
+
+
+def _saliency_family(method_name: Any) -> str:
+    if method_name in {"vanilla_gradient", "integrated_gradients"}:
+        return "evidence_sensitivity"
+    if method_name == "gradcam":
+        return "class_localization"
+    if method_name in {"attention_rollout", "rollout"}:
+        return "internal_routing"
+    if method_name in {"center_bias", "random_saliency"}:
+        return "baseline"
+    return "unknown"
 
 
 def _prepare_prediction_map(prediction: Any, target_shape: tuple[int, int]) -> np.ndarray:
@@ -148,6 +305,8 @@ def _build_aggregate(
     config_path: str | Path,
     per_image_csv: Path,
     aggregate_json: Path,
+    cache_hits: int = 0,
+    cache_writes: int = 0,
 ) -> dict[str, Any]:
     metric_means = {
         metric: float(np.mean([float(row[metric]) for row in rows])) if rows else 0.0
@@ -163,6 +322,9 @@ def _build_aggregate(
         "dataset": config.get("dataset", {}).get("name"),
         "model": config.get("model", {}).get("name"),
         "saliency_method": config.get("saliency", {}).get("method"),
+        "saliency_family": _saliency_family(config.get("saliency", {}).get("method")),
+        "cache_hits": int(cache_hits),
+        "cache_writes": int(cache_writes),
         "per_image_csv": str(per_image_csv),
         "aggregate_json": str(aggregate_json),
     }

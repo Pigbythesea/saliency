@@ -107,6 +107,7 @@ def attention_rollout_saliency(
     discard_ratio: float = 0.0,
     head_fusion: str = "mean",
     grid_size: tuple[int, int] | list[int] | None = None,
+    **_kwargs: Any,
 ) -> Any:
     """Compute attention rollout saliency for wrappers exposing attention matrices."""
     del target_class

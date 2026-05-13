@@ -1,13 +1,17 @@
+import numpy as np
 import pytest
 
 torch = pytest.importorskip("torch")
 
 from hma.saliency import (  # noqa: E402
+    center_bias_saliency,
     build_saliency_method,
     gradcam_saliency,
     integrated_gradients_saliency,
+    random_saliency,
     vanilla_gradient_saliency,
 )
+from hma.metrics.saliency_metrics import cc, nss, simple_center_bias_map  # noqa: E402
 
 
 class TinyCNN(torch.nn.Module):
@@ -89,3 +93,30 @@ def test_build_saliency_method_returns_configured_callables(tiny_wrapper, images
     _assert_valid_saliency_map(vanilla(tiny_wrapper, images))
     _assert_valid_saliency_map(integrated(tiny_wrapper, images))
     _assert_valid_saliency_map(gradcam(tiny_wrapper, images))
+
+
+def test_baseline_saliency_methods_are_valid_and_reproducible():
+    target = simple_center_bias_map(16, 16)
+    image = torch.zeros(1, 3, 16, 16)
+
+    center = center_bias_saliency(None, image, target_map=target)
+    random_a = random_saliency(None, image, target_map=target, seed=11, item_index=3)
+    random_b = random_saliency(None, image, target_map=target, seed=11, item_index=3)
+
+    assert center.shape == (16, 16)
+    assert np.isclose(center.max(), 1.0)
+    assert np.allclose(random_a, random_b)
+    assert random_a.min() >= 0.0
+    assert random_a.max() <= 1.0
+
+
+def test_center_bias_beats_random_on_synthetic_center_fixation():
+    fixation_map = np.zeros((16, 16), dtype=np.float32)
+    fixation_map[8, 8] = 1.0
+    image = torch.zeros(1, 3, 16, 16)
+
+    center = center_bias_saliency(None, image, target_map=fixation_map)
+    random = random_saliency(None, image, target_map=fixation_map, seed=0)
+
+    assert nss(center, fixation_map) > nss(random, fixation_map)
+    assert cc(center, simple_center_bias_map(16, 16)) > cc(random, simple_center_bias_map(16, 16))

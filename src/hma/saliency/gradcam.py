@@ -12,6 +12,7 @@ def gradcam_saliency(
     images: Any,
     target_layer: str,
     target_class: int | list[int] | None = None,
+    **_kwargs: Any,
 ) -> Any:
     """Compute Grad-CAM maps for a named CNN-like target layer."""
     torch = _require_torch()

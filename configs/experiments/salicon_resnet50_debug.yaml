@@ -1,0 +1,47 @@
+seed: 123
+device: auto
+
+experiment:
+  name: salicon_resnet50_debug
+
+dataset:
+  name: salicon
+  root: data/salicon
+  manifest_path: data/manifests/salicon_manifest.csv
+  split: val
+  image_size: [224, 224]
+  max_items: 5
+  validate_files: true
+
+model:
+  name: resnet50
+  backend: timm
+  # Keep false for offline reproducibility; set true for meaningful model results.
+  pretrained: false
+  eval_mode: true
+
+preprocessing:
+  input_size: [224, 224]
+  mean: imagenet
+  std: imagenet
+
+saliency:
+  method: gradcam
+  target_layer: layer4
+
+cache:
+  enabled: true
+  dir: saliency_maps
+  reuse: true
+
+metrics:
+  - nss
+  - auc_judd
+  - cc
+  - similarity
+  - kl
+
+output:
+  dir: outputs/salicon_resnet50_debug
+  save_visualizations: true
+  num_visualizations: 3

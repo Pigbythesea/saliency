@@ -6,6 +6,7 @@ from functools import partial
 from typing import Any, Callable
 
 from hma.saliency.attention_rollout import attention_rollout_saliency
+from hma.saliency.baselines import center_bias_saliency, random_saliency
 from hma.saliency.gradcam import gradcam_saliency
 from hma.saliency.gradients import vanilla_gradient_saliency
 from hma.saliency.integrated_gradients import integrated_gradients_saliency
@@ -20,6 +21,16 @@ def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
 
     if method == "vanilla_gradient":
         return vanilla_gradient_saliency
+    if method == "center_bias":
+        return partial(
+            center_bias_saliency,
+            sigma=saliency_config.get("sigma"),
+        )
+    if method == "random_saliency":
+        return partial(
+            random_saliency,
+            seed=int(saliency_config.get("seed", 0)),
+        )
     if method == "dummy_gradient_free":
         return _dummy_gradient_free_saliency
     if method == "integrated_gradients":

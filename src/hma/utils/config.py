@@ -23,6 +23,16 @@ DEFAULT_EXPERIMENT_CONFIG: dict[str, Any] = {
     "saliency": {
         "method": None,
     },
+    "preprocessing": {
+        "input_size": [224, 224],
+        "mean": "imagenet",
+        "std": "imagenet",
+    },
+    "cache": {
+        "enabled": False,
+        "dir": "saliency_maps",
+        "reuse": True,
+    },
     "metrics": [],
     "output": {
         "dir": "outputs/default",

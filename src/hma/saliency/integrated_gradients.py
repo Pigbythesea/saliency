@@ -12,6 +12,7 @@ def integrated_gradients_saliency(
     images: Any,
     target_class: int | list[int] | None = None,
     steps: int = 16,
+    **_kwargs: Any,
 ) -> Any:
     """Compute simple integrated gradients saliency maps as Bx1xHxW tensors."""
     if steps <= 0:
