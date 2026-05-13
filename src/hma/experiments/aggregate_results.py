@@ -19,6 +19,7 @@ AGGREGATE_FIELDNAMES = [
     "dataset",
     "model",
     "saliency_method",
+    "saliency_family",
     "metric",
     "n",
     "mean",
@@ -76,6 +77,7 @@ def load_per_image_records(csv_path: str | Path) -> list[dict[str, Any]]:
                         "dataset": metadata["dataset"],
                         "model": metadata["model"],
                         "saliency_method": metadata["saliency_method"],
+                        "saliency_family": metadata["saliency_family"],
                         "experiment": metadata["experiment"],
                         "metric": metric,
                         "value": value,
@@ -97,13 +99,14 @@ def aggregate_result_files(paths: Iterable[str | Path]) -> list[dict[str, Any]]:
 
 
 def aggregate_records(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Aggregate long metric records by dataset/model/saliency method/metric."""
-    grouped: dict[tuple[str, str, str, str], list[float]] = defaultdict(list)
+    """Aggregate long metric records by dataset/model/saliency family/method/metric."""
+    grouped: dict[tuple[str, str, str, str, str], list[float]] = defaultdict(list)
     for record in records:
         key = (
             str(record.get("dataset", "unknown")),
             str(record.get("model", "unknown")),
             str(record.get("saliency_method", "unknown")),
+            str(record.get("saliency_family", "unknown")),
             str(record.get("metric", "unknown")),
         )
         value = _parse_finite_float(record.get("value"))
@@ -118,12 +121,13 @@ def aggregate_records(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
         std = float(np.std(values, ddof=1)) if n > 1 else 0.0
         stderr = float(std / math.sqrt(n)) if n else 0.0
         margin = 1.96 * stderr
-        dataset, model, saliency_method, metric = key
+        dataset, model, saliency_method, saliency_family, metric = key
         rows.append(
             {
                 "dataset": dataset,
                 "model": model,
                 "saliency_method": saliency_method,
+                "saliency_family": saliency_family,
                 "metric": metric,
                 "n": n,
                 "mean": mean,
@@ -172,6 +176,7 @@ def _load_sibling_metadata(csv_path: Path) -> dict[str, str]:
         "dataset": "unknown",
         "model": "unknown",
         "saliency_method": "unknown",
+        "saliency_family": "unknown",
         "experiment": "unknown",
     }
     json_path = csv_path.parent / "aggregate_metrics.json"

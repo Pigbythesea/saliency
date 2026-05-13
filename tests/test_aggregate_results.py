@@ -32,6 +32,7 @@ def _write_result_dir(path, model, nss_values, cc_values):
                 "dataset": "dummy_static_saliency",
                 "model": model,
                 "saliency_method": "dummy_gradient_free",
+                "saliency_family": "unknown",
             }
         ),
         encoding="utf-8",
@@ -56,6 +57,7 @@ def test_aggregate_result_files_computes_expected_columns_and_stats(tmp_path):
         "dataset",
         "model",
         "saliency_method",
+        "saliency_family",
         "metric",
         "n",
         "mean",
@@ -71,6 +73,7 @@ def test_aggregate_result_files_computes_expected_columns_and_stats(tmp_path):
     model_a_nss = next(row for row in rows if row["model"] == "model_a" and row["metric"] == "nss")
     assert model_a_nss["dataset"] == "dummy_static_saliency"
     assert model_a_nss["saliency_method"] == "dummy_gradient_free"
+    assert model_a_nss["saliency_family"] == "unknown"
     assert model_a_nss["n"] == 2
     assert model_a_nss["mean"] == pytest.approx(2.0)
     assert model_a_nss["std"] == pytest.approx(math.sqrt(2.0))
@@ -85,6 +88,7 @@ def test_save_aggregate_table_writes_csv(tmp_path):
             "dataset": "d",
             "model": "m",
             "saliency_method": "s",
+            "saliency_family": "baseline",
             "metric": "nss",
             "n": 1,
             "mean": 1.0,

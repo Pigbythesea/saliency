@@ -1,0 +1,43 @@
+seed: 123
+device: auto
+experiment:
+  name: cat2000_pilot500_convnext_tiny_vanilla_gradient
+dataset:
+  name: cat2000
+  label: cat2000_pilot500
+  root: data/raw/CAT2000
+  manifest_path: data/manifests/pilot/cat2000_pilot500_manifest.csv
+  split: train
+  image_size:
+  - 224
+  - 224
+  max_items: null
+  validate_files: true
+  categories: null
+model:
+  name: convnext_tiny
+  backend: timm
+  pretrained: true
+  eval_mode: true
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  mean: imagenet
+  std: imagenet
+saliency:
+  method: vanilla_gradient
+cache:
+  enabled: true
+  dir: saliency_maps
+  reuse: true
+metrics:
+- nss
+- auc_judd
+- cc
+- similarity
+- kl
+output:
+  dir: outputs/real_matrix_v1/cat2000_pilot500/convnext_tiny_vanilla_gradient
+  save_visualizations: true
+  num_visualizations: 5

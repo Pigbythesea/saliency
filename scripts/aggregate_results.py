@@ -40,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Metric to plot. Defaults to the first metric in the aggregate table.",
     )
     parser.add_argument(
+        "--lower-is-better",
+        action="store_true",
+        help="Sort ranking plots with lower metric values first.",
+    )
+    parser.add_argument(
         "--efficiency-csv",
         default=None,
         help="Optional efficiency CSV for alignment-vs-efficiency scatter plot.",
@@ -64,7 +69,12 @@ def main() -> None:
 
     plots_dir = ensure_dir(args.plots_dir)
     metric = args.plot_metric or str(rows[0]["metric"])
-    ranking_paths = plot_model_ranking(rows, metric, plots_dir / f"ranking_{metric}.png")
+    ranking_paths = plot_model_ranking(
+        rows,
+        metric,
+        plots_dir / f"ranking_{metric}.png",
+        higher_is_better=not args.lower_is_better,
+    )
     print(f"Ranking plot: {ranking_paths[0]} and {ranking_paths[1]}")
 
     if args.efficiency_csv:

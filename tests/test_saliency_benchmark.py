@@ -207,3 +207,33 @@ def test_saliency_benchmark_cache_writes_reuses_and_invalidates(tmp_path, monkey
     assert calls["count"] == 4
     assert changed["cache_hits"] == 0
     assert changed["cache_writes"] == 2
+
+
+def test_model_independent_baseline_uses_configured_model_label(tmp_path):
+    config_path = tmp_path / "center_bias.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {
+                "name": "dummy_static_saliency",
+                "label": "dummy_pilot",
+                "max_items": 1,
+                "image_shape": [3, 8, 8],
+                "map_shape": [8, 8],
+                "seed": 5,
+            },
+            "model": {"name": "center_bias_baseline"},
+            "saliency": {"method": "center_bias"},
+            "metrics": ["nss"],
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+
+    aggregate = run_saliency_benchmark(config_path)
+
+    assert aggregate["dataset"] == "dummy_pilot"
+    assert aggregate["model"] == "center_bias_baseline"
+    assert aggregate["saliency_method"] == "center_bias"
+    assert aggregate["saliency_family"] == "baseline"

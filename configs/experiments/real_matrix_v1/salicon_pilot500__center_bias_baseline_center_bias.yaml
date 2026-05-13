@@ -1,0 +1,39 @@
+seed: 123
+device: auto
+experiment:
+  name: salicon_pilot500_center_bias_baseline_center_bias
+dataset:
+  name: salicon
+  label: salicon_pilot500
+  root: data/raw/SALICON
+  manifest_path: data/manifests/pilot/salicon_pilot500_manifest.csv
+  split: val
+  image_size:
+  - 224
+  - 224
+  max_items: null
+  validate_files: true
+model:
+  name: center_bias_baseline
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  mean: imagenet
+  std: imagenet
+saliency:
+  method: center_bias
+cache:
+  enabled: true
+  dir: saliency_maps
+  reuse: true
+metrics:
+- nss
+- auc_judd
+- cc
+- similarity
+- kl
+output:
+  dir: outputs/real_matrix_v1/salicon_pilot500/center_bias_baseline_center_bias
+  save_visualizations: true
+  num_visualizations: 5

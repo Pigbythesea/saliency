@@ -4,13 +4,7 @@ Date: 2026-05-13
 
 ## Current Status
 
-The repository is now a working Python benchmark for Phase 1 of the Human-Machine Visual Alignment project. It can load configs, build datasets/models/saliency methods, run dummy and torch-backed static saliency benchmarks, compute metrics, cache saliency maps, write result artifacts, aggregate result CSVs, plot summaries, and run neural-alignment utilities on synthetic data.
-
-The local raw datasets are now present under `data/raw/`, and manifests have been generated for all three prepared behavioral datasets:
-
-- SALICON: `data/manifests/salicon_manifest.csv`, 15,000 rows.
-- CAT2000: `data/manifests/cat2000_manifest.csv`, 2,000 rows.
-- COCO-Search18: `data/manifests/coco_search18_manifest.csv`, 49,760 rows.
+The repository now has a first real behavioral-saliency comparison result set for Phase 1 of the Human-Machine Visual Alignment project. It can load real SALICON, CAT2000, and COCO-Search18 manifests, run baseline and pretrained `timm` model saliency methods, cache saliency maps, aggregate metrics, plot rankings, and profile model efficiency.
 
 Latest verification:
 
@@ -18,34 +12,127 @@ Latest verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result: `87 passed, 4 warnings`.
+Result: `91 passed, 4 warnings`.
 
 The remaining warnings are not blocking:
 
 - PyTorch Grad-CAM backward-hook warning in tests.
 - `.pytest_cache` permission warning on Windows.
 
-The first real-data SALICON debug benchmark now runs successfully:
+## Dataset State
+
+Full manifests:
+
+- SALICON: `data/manifests/salicon_manifest.csv`, 15,000 rows.
+- CAT2000: `data/manifests/cat2000_manifest.csv`, 2,000 rows.
+- COCO-Search18: `data/manifests/coco_search18_manifest.csv`, 49,760 rows.
+
+Pilot manifests for the first meaningful output:
+
+- SALICON validation pilot: `data/manifests/pilot/salicon_pilot500_manifest.csv`, 500 rows.
+- CAT2000 train pilot: `data/manifests/pilot/cat2000_pilot500_manifest.csv`, 500 rows balanced across categories where possible.
+- COCO-Search18 validation pilot: `data/manifests/pilot/coco_search18_pilot500_manifest.csv`, 500 rows balanced across target categories where possible.
+
+Pilot manifests are generated deterministically with:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/run_saliency_benchmark.py --config configs/experiments/salicon_resnet50_debug.yaml
+.\.venv\Scripts\python.exe scripts/create_pilot_manifests.py --max-rows 500 --seed 123
 ```
 
-Output directory:
+## Completed Model-Matrix Output
+
+The first real model-matrix output is under:
 
 ```text
-outputs/salicon_resnet50_debug/
+outputs/real_matrix_v1/
 ```
 
-Debug-run aggregate metrics over 5 SALICON validation images with `resnet50`, `pretrained: false`, and Grad-CAM:
+Generated configs:
 
-- `nss`: 0.13321189284324647
-- `auc_judd`: 0.6146952838634981
-- `cc`: 0.17930675074458122
-- `similarity`: 0.45056723356246947
-- `kl`: 1.1277051389217376
+- Matrix experiment configs: `configs/experiments/real_matrix_v1/`
+- Selected pretrained model config: `configs/models/selected_pretrained_matrix.yaml`
 
-These numbers prove the real-data path works, but they should not be interpreted scientifically because the model config currently uses `pretrained: false`.
+Config generation command:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/create_real_matrix_v1_configs.py
+```
+
+Completed runs:
+
+- Baselines on all three pilot datasets:
+  - `center_bias`
+  - `random_saliency`
+- Pretrained `vanilla_gradient` on all three pilot datasets for:
+  - `resnet50`
+  - `convnext_tiny`
+  - `vit_base_patch16_224`
+  - `deit_small_patch16_224`
+  - `swin_tiny_patch4_window7_224`
+- Pretrained `resnet50 + gradcam` references on:
+  - SALICON pilot
+  - CAT2000 pilot
+
+Aggregate output:
+
+```text
+outputs/real_matrix_v1/aggregated/results.csv
+```
+
+The aggregate table contains 115 rows across:
+
+- 3 pilot datasets.
+- 7 model labels, including baselines.
+- 4 saliency methods: `center_bias`, `random_saliency`, `vanilla_gradient`, and `gradcam`.
+- 5 metrics: `nss`, `auc_judd`, `cc`, `similarity`, and `kl`.
+
+Ranking and efficiency plots were generated under:
+
+```text
+outputs/real_matrix_v1/aggregated/
+```
+
+Efficiency profile:
+
+```text
+outputs/real_matrix_v1/efficiency/model_efficiency.csv
+```
+
+The efficiency profile uses pretrained models, input shape `1,3,224,224`, and short latency settings: `warmup=1`, `repeats=3`.
+
+## Headline Pilot Results
+
+Top NSS rows by dataset:
+
+SALICON pilot:
+
+- `center_bias_baseline + center_bias`: 0.4967273755755741
+- `resnet50 + gradcam`: 0.3253708058288321
+- `resnet50 + vanilla_gradient`: 0.1827250827938551
+- `convnext_tiny + vanilla_gradient`: 0.128814539164654
+- `swin_tiny_patch4_window7_224 + vanilla_gradient`: 0.02040343557302549
+
+CAT2000 pilot:
+
+- `center_bias_baseline + center_bias`: 0.5205845055580139
+- `resnet50 + gradcam`: 0.38764822678710337
+- `resnet50 + vanilla_gradient`: 0.23906351370131598
+- `convnext_tiny + vanilla_gradient`: 0.15983615024911704
+- `random_baseline + random_saliency`: -0.00023580646698610508
+
+COCO-Search18 pilot:
+
+- `center_bias_baseline + center_bias`: 0.013211032435787274
+- `resnet50 + vanilla_gradient`: 0.009633028535892664
+- `convnext_tiny + vanilla_gradient`: 0.007855317291072424
+- `vit_base_patch16_224 + vanilla_gradient`: 0.003890672454595915
+- `swin_tiny_patch4_window7_224 + vanilla_gradient`: 0.0007335475623306138
+
+Interpretation caveat:
+
+- These are pilot-scale results, not final scientific claims.
+- The strong center-bias baseline on SALICON/CAT2000 confirms the proposal's concern that center bias must be controlled explicitly.
+- COCO-Search18 NSS values are much smaller because the task-driven fixation maps are sparse and generated from fixation points.
 
 ## What Has Been Built
 
@@ -53,192 +140,97 @@ Core infrastructure:
 
 - Python package `hma` with config/path utilities.
 - Dataset and model registries.
-- Script entrypoints for dummy pipeline, dataset preparation, saliency benchmarking, efficiency profiling, and result aggregation.
-- Synced virtual environment with dependencies including `torch`, `timm`, `scipy`, `sklearn`, `pandas`, `matplotlib`, and optional profiling packages.
-- Default model-running device policy: `device: auto`, which resolves to GPU when available and CPU otherwise.
+- Script entrypoints for dataset preparation, pilot manifest generation, matrix config generation, saliency benchmarking, efficiency profiling, and result aggregation.
+- Default model-running device policy: `device: auto`.
 - Config defaults for preprocessing and saliency-map caching.
 
 Datasets and manifests:
 
-- Dummy saliency dataset.
 - Manifest-based SALICON loader.
 - Manifest-based CAT2000 loader with category filtering.
 - COCO-Search18 loader with task-driven fixation points and generated fixation maps.
 - NSD / Algonauts-style manifest loader for image, subject, and ROI-response data.
-- Dataset preparation support for SALICON, CAT2000, and COCO-Search18.
-- `scripts/prepare_dataset.py` now handles the local raw layouts:
-  - `data/raw/SALICON/images`, `maps`, and `fixations`.
-  - `data/raw/CAT2000/trainSet/Stimuli` and `FIXATIONMAPS`.
-  - COCO-Search18 fixation JSONs using `name`, `task`, `condition`, `X`, and `Y`.
-- Dataset config roots now point to the prepared raw data folders:
-  - `data/raw/SALICON`
-  - `data/raw/CAT2000`
-  - `data/raw/COCO-Search18`
-
-Manifest summaries:
-
-- SALICON: 10,000 train rows and 5,000 validation rows.
-- CAT2000: 2,000 train rows across 20 categories.
-- COCO-Search18: 42,485 train rows and 7,275 validation rows.
+- Dataset preparation for the local raw layouts under `data/raw/`.
+- Deterministic pilot manifest generation with optional stratification.
 
 Metrics and analysis:
 
 - Static saliency metrics: `NSS`, `AUC-Judd`, `CC`, `SIM`, `KL`, `MAE`, and Pearson.
-- `auc_judd` is wired into the saliency benchmark config path.
 - Center-bias map utility.
 - Efficiency metrics: parameter count, model size, latency, and optional FLOPs.
-- Neural utilities: ridge encoding, per-voxel/ROI evaluation, RSA, and RDM comparison.
+- Aggregate result tables with `saliency_family` preserved.
+- Ranking plots and alignment-vs-efficiency plots.
 
 Models and saliency:
 
-- Base model wrapper.
 - `timm` image model wrapper.
-- Dummy model path for offline tests.
-- Config-driven torch image preprocessing for PIL, NumPy, and tensor inputs.
+- Config-driven torch preprocessing for PIL, NumPy, and tensor inputs.
 - Gradient saliency.
 - Integrated Gradients.
 - Minimal Grad-CAM.
 - Attention rollout for ViT-like attention tensors.
 - First-class `center_bias` and `random_saliency` baselines.
-- Saliency-method registry with saliency-family metadata support.
-
-Experiments and outputs:
-
-- Static saliency benchmark runner.
-- Real torch saliency benchmark path for `vanilla_gradient`, `integrated_gradients`, `gradcam`, and `attention_rollout`.
-- Optional fixed `target_class`; otherwise saliency methods use argmax logits.
-- Saliency-map caching under `outputs/.../saliency_maps/*.npy` with metadata-based reuse and invalidation.
-- Per-image CSV output.
-- Aggregate JSON output with `saliency_family`, cache hit count, and cache write count.
-- Optional visualization PNGs.
-- Result aggregation across runs.
-- Model-ranking plots.
-- Alignment-vs-efficiency scatter plots.
-- Real debug config at `configs/experiments/salicon_resnet50_debug.yaml`.
+- Model-independent baselines no longer require dummy model wrappers.
 
 ## Alignment With Proposal
 
-The proposal frames human-machine visual alignment as a multi-level benchmark rather than a single saliency score. The current codebase now supports the foundation for Phase 1:
+This milestone directly supports the proposal's Phase 1 direction:
 
-- Behavioral fixation/saliency alignment on real SALICON and CAT2000 files.
-- Task-driven gaze alignment through COCO-Search18 manifests.
-- Multiple saliency definitions: gradients, Integrated Gradients, Grad-CAM, attention rollout, center-bias baseline, random baseline, and dummy routing.
-- Explicit saliency families: evidence sensitivity, class localization, internal routing, and baseline controls.
-- Neural-alignment skeleton for NSD / Algonauts-style encoding and RSA.
-- Efficiency profiling.
-- Result aggregation and plotting.
+- Behavioral fixation/saliency alignment now runs on real SALICON, CAT2000, and COCO-Search18 data.
+- Saliency families remain separated:
+  - `baseline`
+  - `evidence_sensitivity`
+  - `class_localization`
+  - `internal_routing`
+- The first comparison shows why center-bias and random controls are essential.
+- Efficiency profiling is available for alignment-per-computation analysis.
 
 Still missing:
 
-- Baseline comparison result set over the same real-data subsets.
-- Pretrained model runs for scientific interpretation.
-- DeepGaze-style upper/reference baseline.
 - Shuffled AUC, AUC-Borji, EMD, and inter-observer ceiling.
-- Larger architecture comparison matrix across CNNs, ViTs, hierarchical transformers, and efficient/adaptive models.
+- DeepGaze-style upper/reference baseline.
+- Larger and more stable sample sizes beyond pilot 500.
+- More saliency families across model architectures, especially attention rollout and perturbation methods.
 - Real fMRI activation extraction over torch dataloaders.
 - Brain-Score integration.
 - Selective-computation models, token pruning, and foveation.
 - Video extension.
 
-## Proposal Review
-
-The proposal's strongest idea is that human-like attention should not be reduced to one heatmap score. It separates:
-
-- Behavioral saliency: agreement with human fixation maps.
-- Evidence sensitivity: gradients, Integrated Gradients, and perturbation.
-- Class localization: Grad-CAM-style maps.
-- Internal routing: attention, rollout, and token masks.
-- Computation allocation: retained tokens, glimpses, and sparse frames.
-- Neural alignment: fMRI encoding and RSA.
-- Efficiency alignment: alignment per parameter, FLOP, or latency.
-
-The codebase should continue preserving this separation. It should not collapse all saliency methods into one undifferentiated attention score.
-
-The main engineering risk now matches the main scientific risk: the benchmark will only be meaningful if preprocessing, saliency generation, caching, and metric aggregation remain standardized across models and datasets.
-
-## Completed Recently
-
-The **Real Static Saliency Benchmark V1** milestone has been implemented and moved from synthetic-only validation to a first real SALICON debug run.
-
-Completed additions:
-
-1. Model preprocessing layer
-   - Converts PIL, NumPy, and torch tensor images into `BxCxHxW` tensors.
-   - Supports resize, RGB/channel handling, float scaling, ImageNet mean/std normalization, batch dimension, and device placement.
-   - Uses config-driven defaults under `preprocessing`.
-
-2. Real torch saliency benchmark path
-   - Benchmark runner preprocesses images for torch saliency methods.
-   - Model is moved to the resolved device before real torch saliency execution.
-   - Supports `vanilla_gradient`, `integrated_gradients`, `gradcam`, and `attention_rollout`.
-   - Supports optional fixed `target_class`; otherwise existing argmax-target behavior remains.
-   - Dummy benchmark behavior remains covered and unchanged.
-
-3. Saliency cache
-   - Saves raw saliency predictions to `outputs/.../saliency_maps/*.npy`.
-   - Saves matching cache metadata as JSON.
-   - Reuses cache entries when dataset, split, image id/path, model config, saliency config, preprocessing config, and target shape match.
-   - Invalidates cache automatically when method/model/preprocessing config changes.
-
-4. Baseline methods
-   - Added `center_bias`.
-   - Added seeded `random_saliency`.
-   - Both are registered as first-class saliency methods.
-
-5. Real dataset onboarding
-   - Generated SALICON, CAT2000, and COCO-Search18 manifests.
-   - Patched dataset preparation for the local CAT2000 and COCO-Search18 layouts.
-   - Updated dataset configs to point to `data/raw/...`.
-   - Confirmed SALICON real-data benchmark execution.
-
-6. Tests
-   - Added preprocessing tests.
-   - Added torch benchmark integration tests with fake PIL images and a tiny torch model.
-   - Added cache write/reuse/invalidation tests.
-   - Added baseline sanity tests showing center bias beats random on synthetic center fixation.
-   - Re-ran full suite after manifest-preparation changes: `87 passed, 4 warnings`.
-
 ## Recommended Next Steps
 
-The next milestone should be **Real Data Static Benchmark V1 Comparisons**.
-
-This should produce the first interpretable comparison tables across real datasets, baselines, and a small set of model/saliency methods.
+The next milestone should be **Metric Controls And Scaled Static Benchmark V2**.
 
 Recommended additions:
 
-1. Add baseline experiment configs
-   - Create SALICON configs for `center_bias` and `random_saliency` using the same split, `max_items`, metrics, and output structure as `salicon_resnet50_debug.yaml`.
-   - Create CAT2000 debug configs for `center_bias`, `random_saliency`, and `resnet50 + gradcam`.
-   - Create COCO-Search18 debug configs for `center_bias`, `random_saliency`, and one torch method if the task-driven setup is stable.
+1. Add center-bias-aware metrics
+   - Implement shuffled AUC using other-image fixation locations as negatives.
+   - Add AUC-Borji.
+   - Add EMD if dependency and performance are acceptable.
+   - Keep `auc_judd` for continuity but do not treat it as sufficient.
 
-2. Run first baseline comparisons
-   - Run SALICON `center_bias`, `random_saliency`, and `resnet50 + gradcam` on the same 5-image validation subset.
-   - Aggregate those outputs and confirm that baseline rows compare correctly by `dataset`, `model`, `saliency_method`, and `saliency_family`.
-   - Increase `max_items` after the debug comparison is stable.
+2. Add inter-observer or upper-bound controls
+   - Use individual fixation data where available.
+   - Start with SALICON/CAT2000 if observer-level data can be extracted reliably.
+   - Add DeepGaze-style baseline only after deciding whether to call a package, import exported predictions, or store precomputed maps.
 
-3. Switch scientific model runs to pretrained weights
-   - Keep `pretrained: false` for offline smoke tests.
-   - Use `pretrained: true` for the first meaningful ResNet/ConvNeXt/ViT comparisons.
-   - Confirm whether pretrained weights are already cached; if not, allow `timm`/PyTorch to download them once.
+3. Scale the static benchmark
+   - Increase from pilot 500 to larger stable subsets, such as 2,000 rows where available.
+   - Keep the pilot manifests for fast regression checks.
+   - Reuse saliency caches instead of recomputing unchanged maps.
 
-4. Run CAT2000 and COCO-Search18 debug comparisons
-   - CAT2000 should use `split: train`, since the prepared manifest has only train rows.
-   - COCO-Search18 can use `split: val` or `split: train`; `val` is better for a compact first check.
-   - Confirm fixation maps and visualizations look reasonable before scaling up.
+4. Improve model-family coverage
+   - Add attention rollout runs for ViT/DeiT where attention extraction is reliable.
+   - Add Grad-CAM or CAM-like references for CNN-compatible models.
+   - Keep cross-model rankings separated by saliency family.
 
-5. Add result aggregation artifacts
-   - Aggregate all debug outputs into one CSV.
-   - Generate model-ranking and alignment-vs-efficiency plots for the debug result set.
-   - Record cache hit/write counts after repeat runs.
+5. Improve reporting
+   - Add a summary script that extracts top rows per dataset/metric/family from `outputs/real_matrix_v1/aggregated/results.csv`.
+   - Add plots that facet by dataset and saliency family.
+   - Add lower-is-better handling for KL in all relevant ranking/reporting paths.
 
-6. Expand metrics after baseline result sanity
-   - Add shuffled AUC to control for dataset center bias.
-   - Add AUC-Borji and EMD.
-   - Add inter-observer ceiling only when the dataset representation exposes individual observer fixation data or equivalent splits.
+6. Update efficiency analysis
+   - Re-run latency with more stable settings, such as `warmup=5`, `repeats=20`.
+   - Add FLOPs if optional dependencies are available and stable.
+   - Report alignment per latency, per parameter, and per model size.
 
-7. Expand model matrix
-   - Start with `resnet50`, `convnext_tiny`, `vit_base_patch16_224`, `deit_small_patch16_224`, and `swin_tiny_patch4_window7_224`.
-   - Compare saliency families separately instead of averaging them into one score.
-   - Join saliency aggregates with efficiency profiles for parameter count, model size, latency, and optional FLOPs.
-
-This next milestone will move the project from a validated real-data debug path to the first reproducible comparison result set.
+This next milestone will move the project from a first real comparison table to a more scientifically controlled static saliency benchmark.

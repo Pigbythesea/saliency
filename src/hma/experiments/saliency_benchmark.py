@@ -32,11 +32,11 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
     output_dir = ensure_dir(resolve_path(config["output"]["dir"]))
     visualization_dir = output_dir / "visualizations"
 
-    dataset = build_dataset(config)
-    model = build_model(config)
-    saliency_method = build_saliency_method(config)
     saliency_config = config.get("saliency", {})
     saliency_method_name = str(saliency_config.get("method") or saliency_config.get("name"))
+    dataset = build_dataset(config)
+    model = None if _saliency_is_model_independent(saliency_method_name) else build_model(config)
+    saliency_method = build_saliency_method(config)
     target_class = saliency_config.get("target_class")
     resolved_device = resolve_device(config.get("device", "auto"))
     if _saliency_requires_torch(saliency_method_name):
@@ -151,6 +151,10 @@ def _saliency_requires_torch(method_name: str | None) -> bool:
     }
 
 
+def _saliency_is_model_independent(method_name: str | None) -> bool:
+    return str(method_name) in {"center_bias", "random_saliency"}
+
+
 def _move_model_to_device(model: Any, device: str) -> None:
     module = getattr(model, "model", model)
     to = getattr(module, "to", None)
@@ -186,7 +190,7 @@ def _build_saliency_cache_key(
 ) -> dict[str, Any]:
     dataset_config = config.get("dataset", {})
     return {
-        "dataset": dataset_config.get("name"),
+        "dataset": dataset_config.get("label") or dataset_config.get("name"),
         "split": dataset_config.get("split"),
         "image_id": item.get("image_id"),
         "image_path": item.get("image_path", ""),
@@ -319,7 +323,7 @@ def _build_aggregate(
         "num_items": len(rows),
         "metrics": metric_means,
         "config_path": str(config_path),
-        "dataset": config.get("dataset", {}).get("name"),
+        "dataset": config.get("dataset", {}).get("label") or config.get("dataset", {}).get("name"),
         "model": config.get("model", {}).get("name"),
         "saliency_method": config.get("saliency", {}).get("method"),
         "saliency_family": _saliency_family(config.get("saliency", {}).get("method")),

@@ -1,0 +1,44 @@
+seed: 123
+device: auto
+experiment:
+  name: coco_search18_pilot500_resnet50_vanilla_gradient
+dataset:
+  name: coco_search18
+  label: coco_search18_pilot500
+  root: data/raw/COCO-Search18
+  manifest_path: data/manifests/pilot/coco_search18_pilot500_manifest.csv
+  split: val
+  image_size:
+  - 224
+  - 224
+  max_items: null
+  validate_files: true
+  generate_fixation_map: true
+  fixation_sigma: 10.0
+model:
+  name: resnet50
+  backend: timm
+  pretrained: true
+  eval_mode: true
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  mean: imagenet
+  std: imagenet
+saliency:
+  method: vanilla_gradient
+cache:
+  enabled: true
+  dir: saliency_maps
+  reuse: true
+metrics:
+- nss
+- auc_judd
+- cc
+- similarity
+- kl
+output:
+  dir: outputs/real_matrix_v1/coco_search18_pilot500/resnet50_vanilla_gradient
+  save_visualizations: true
+  num_visualizations: 5

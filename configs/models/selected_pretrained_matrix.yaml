@@ -1,0 +1,21 @@
+models:
+- name: resnet50
+  backend: timm
+  pretrained: true
+  eval_mode: true
+- name: convnext_tiny
+  backend: timm
+  pretrained: true
+  eval_mode: true
+- name: vit_base_patch16_224
+  backend: timm
+  pretrained: true
+  eval_mode: true
+- name: deit_small_patch16_224
+  backend: timm
+  pretrained: true
+  eval_mode: true
+- name: swin_tiny_patch4_window7_224
+  backend: timm
+  pretrained: true
+  eval_mode: true
