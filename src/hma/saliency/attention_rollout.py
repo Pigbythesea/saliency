@@ -166,6 +166,7 @@ def _get_attention_tensors(
             "Expose get_attention_matrices(images) or choose a valid target_layer."
         )
 
+    restored_fused_attention = _disable_fused_attention(model)
     try:
         forward = getattr(model_wrapper, "get_last_logits", None)
         if callable(forward):
@@ -173,6 +174,7 @@ def _get_attention_tensors(
         else:
             model(images)
     finally:
+        _restore_fused_attention(restored_fused_attention)
         for hook in hooks:
             hook.remove()
 
@@ -207,6 +209,23 @@ def _capture_attention_hook(
         )
     if _looks_like_attention(candidate):
         captured.append(candidate)
+
+
+def _disable_fused_attention(model: Any) -> list[tuple[Any, Any]]:
+    restored = []
+    named_modules = getattr(model, "named_modules", None)
+    if not callable(named_modules):
+        return restored
+    for _name, module in named_modules():
+        if hasattr(module, "fused_attn"):
+            restored.append((module, getattr(module, "fused_attn")))
+            setattr(module, "fused_attn", False)
+    return restored
+
+
+def _restore_fused_attention(restored: list[tuple[Any, Any]]) -> None:
+    for module, value in restored:
+        setattr(module, "fused_attn", value)
 
 
 def _looks_like_attention(value: Any) -> bool:

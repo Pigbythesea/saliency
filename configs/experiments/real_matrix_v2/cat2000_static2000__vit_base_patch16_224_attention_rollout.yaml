@@ -1,0 +1,52 @@
+seed: 123
+device: auto
+experiment:
+  name: cat2000_static2000_vit_base_patch16_224_attention_rollout
+dataset:
+  name: cat2000
+  label: cat2000_static2000
+  root: data/raw/CAT2000
+  manifest_path: data/manifests/v2/cat2000_static2000_manifest.csv
+  split: train
+  image_size:
+  - 224
+  - 224
+  max_items: null
+  validate_files: true
+  categories: null
+model:
+  name: vit_base_patch16_224
+  backend: timm
+  pretrained: true
+  eval_mode: true
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  mean: imagenet
+  std: imagenet
+saliency:
+  method: attention_rollout
+metric_controls:
+  seed: 123
+  auc_borji_splits: 100
+  shuffled_auc_splits: 100
+  max_positive_fixations_per_image: 256
+  shuffled_auc_pool_points_per_image: 256
+  emd_downsample: 32
+cache:
+  enabled: true
+  dir: saliency_maps
+  reuse: true
+metrics:
+- nss
+- shuffled_auc
+- auc_borji
+- auc_judd
+- cc
+- similarity
+- kl
+output:
+  dir: outputs/real_matrix_v2/cat2000_static2000/vit_base_patch16_224_attention_rollout
+  save_visualizations: false
+  num_visualizations: 0

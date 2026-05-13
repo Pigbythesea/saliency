@@ -14,7 +14,16 @@ from PIL import Image, ImageOps
 
 from hma.datasets import build_dataset
 from hma.metrics.saliency import mean_absolute_error, pearson_correlation
-from hma.metrics.saliency_metrics import auc_judd, cc, kl_divergence, nss, similarity
+from hma.metrics.saliency_metrics import (
+    auc_borji,
+    auc_judd,
+    cc,
+    emd_2d,
+    kl_divergence,
+    nss,
+    shuffled_auc,
+    similarity,
+)
 from hma.models import build_model
 from hma.preprocessing import preprocess_image_for_model
 from hma.saliency import build_saliency_method, postprocess_saliency_map
@@ -23,7 +32,8 @@ from hma.utils.device import resolve_device
 from hma.utils.paths import ensure_dir, resolve_path
 
 
-MetricFn = Callable[[np.ndarray, np.ndarray], float]
+MetricContext = dict[str, Any]
+MetricFn = Callable[[np.ndarray, np.ndarray, MetricContext], float]
 
 
 def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
@@ -34,6 +44,9 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
 
     saliency_config = config.get("saliency", {})
     saliency_method_name = str(saliency_config.get("method") or saliency_config.get("name"))
+    metric_names = list(config.get("metrics", []))
+    shuffled_pool = _build_shuffled_fixation_pool(config) if "shuffled_auc" in metric_names else None
+    metric_context_settings = _build_metric_context_settings(config)
     dataset = build_dataset(config)
     model = None if _saliency_is_model_independent(saliency_method_name) else build_model(config)
     saliency_method = build_saliency_method(config)
@@ -42,8 +55,7 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
     if _saliency_requires_torch(saliency_method_name):
         _move_model_to_device(model, resolved_device)
 
-    metric_names = list(config.get("metrics", []))
-    metric_fns = _build_metric_functions(metric_names)
+    metric_fns = _build_metric_functions(metric_names, config)
     cache_settings = _build_cache_settings(output_dir, config)
 
     rows: list[dict[str, Any]] = []
@@ -84,8 +96,15 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
             "image_id": item.get("image_id", f"item_{item_index:04d}"),
             "image_path": item.get("image_path", ""),
         }
+        metric_context = _build_metric_context(
+            item=item,
+            item_index=item_index,
+            target_shape=target.shape,
+            shuffled_pool=shuffled_pool,
+            settings=metric_context_settings,
+        )
         for metric_name, metric_fn in metric_fns.items():
-            row[metric_name] = metric_fn(prediction_map, target)
+            row[metric_name] = metric_fn(prediction_map, target, metric_context)
         rows.append(row)
 
         if save_visualizations and item_index < num_visualizations:
@@ -113,21 +132,163 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
     return aggregate
 
 
-def _build_metric_functions(metric_names: list[str]) -> dict[str, MetricFn]:
+def _build_metric_functions(metric_names: list[str], config: dict[str, Any]) -> dict[str, MetricFn]:
+    controls = config.get("metric_controls", {})
+    seed = int(controls.get("seed", config.get("seed", 0)))
+    auc_borji_splits = int(controls.get("auc_borji_splits", 100))
+    shuffled_auc_splits = int(controls.get("shuffled_auc_splits", 100))
+    emd_downsample = controls.get("emd_downsample", 32)
     registry: dict[str, MetricFn] = {
-        "nss": lambda prediction, target: nss(prediction, target),
-        "auc_judd": lambda prediction, target: auc_judd(prediction, target),
-        "cc": lambda prediction, target: cc(prediction, target),
-        "similarity": lambda prediction, target: similarity(prediction, target),
-        "kl": lambda prediction, target: kl_divergence(target, prediction),
-        "kl_divergence": lambda prediction, target: kl_divergence(target, prediction),
-        "mae": lambda prediction, target: mean_absolute_error(prediction, target),
-        "pearson": lambda prediction, target: pearson_correlation(prediction, target),
+        "nss": lambda prediction, target, _context: nss(prediction, target),
+        "auc_judd": lambda prediction, target, _context: auc_judd(prediction, target),
+        "auc_borji": lambda prediction, target, context: auc_borji(
+            prediction,
+            target,
+            positive_fixations=context.get("positive_fixations"),
+            splits=auc_borji_splits,
+            seed=seed + int(context.get("item_index", 0)),
+        ),
+        "shuffled_auc": lambda prediction, target, context: shuffled_auc(
+            prediction,
+            target,
+            context.get("negative_fixations", np.zeros((0, 2), dtype=np.int64)),
+            positive_fixations=context.get("positive_fixations"),
+            splits=shuffled_auc_splits,
+            seed=seed + int(context.get("item_index", 0)),
+        ),
+        "cc": lambda prediction, target, _context: cc(prediction, target),
+        "similarity": lambda prediction, target, _context: similarity(prediction, target),
+        "kl": lambda prediction, target, _context: kl_divergence(target, prediction),
+        "kl_divergence": lambda prediction, target, _context: kl_divergence(target, prediction),
+        "emd": lambda prediction, target, _context: emd_2d(
+            target,
+            prediction,
+            downsample=None if emd_downsample is None else int(emd_downsample),
+        ),
+        "emd_2d": lambda prediction, target, _context: emd_2d(
+            target,
+            prediction,
+            downsample=None if emd_downsample is None else int(emd_downsample),
+        ),
+        "mae": lambda prediction, target, _context: mean_absolute_error(prediction, target),
+        "pearson": lambda prediction, target, _context: pearson_correlation(prediction, target),
     }
     missing = [name for name in metric_names if name not in registry]
     if missing:
         raise KeyError(f"Unsupported saliency metrics: {missing}")
     return {name: registry[name] for name in metric_names}
+
+
+def _build_metric_context(
+    item: dict[str, Any],
+    item_index: int,
+    target_shape: tuple[int, int],
+    shuffled_pool: dict[str, Any] | None,
+    settings: dict[str, Any],
+) -> MetricContext:
+    image_id = str(item.get("image_id", f"item_{item_index:04d}"))
+    positive_fixations = _sample_coords(
+        _fixation_coords_for_item(item, target_shape),
+        max_points=int(settings["max_positive_fixations_per_image"]),
+        seed=int(settings["seed"]) + item_index,
+    )
+    context: MetricContext = {
+        "item": item,
+        "item_index": item_index,
+        "image_id": image_id,
+        "positive_fixations": positive_fixations,
+    }
+    if shuffled_pool is not None:
+        context["negative_fixations"] = _negative_fixations_for_item(shuffled_pool, image_id)
+    return context
+
+
+def _build_metric_context_settings(config: dict[str, Any]) -> dict[str, Any]:
+    controls = config.get("metric_controls", {})
+    return {
+        "seed": int(controls.get("seed", config.get("seed", 0))),
+        "max_positive_fixations_per_image": int(
+            controls.get("max_positive_fixations_per_image", 256)
+        ),
+    }
+
+
+def _build_shuffled_fixation_pool(config: dict[str, Any]) -> dict[str, Any]:
+    controls = config.get("metric_controls", {})
+    seed = int(controls.get("seed", config.get("seed", 0)))
+    max_points_per_image = int(controls.get("shuffled_auc_pool_points_per_image", 256))
+    rng = np.random.default_rng(seed)
+    coords_by_image: list[np.ndarray] = []
+    image_ids: list[str] = []
+
+    for item_index, item in enumerate(build_dataset(config)):
+        target = _as_2d_array(item.get("fixation_map"))
+        coords = _fixation_coords_for_item(item, target.shape)
+        if coords.size == 0:
+            continue
+        if max_points_per_image > 0:
+            coords = _sample_coords(coords, max_points=max_points_per_image, rng=rng)
+        coords_by_image.append(coords.astype(np.int64, copy=False))
+        image_ids.extend([str(item.get("image_id", f"item_{item_index:04d}"))] * coords.shape[0])
+
+    if not coords_by_image:
+        return {
+            "coords": np.zeros((0, 2), dtype=np.int64),
+            "image_ids": np.asarray([], dtype=object),
+        }
+    return {
+        "coords": np.concatenate(coords_by_image, axis=0),
+        "image_ids": np.asarray(image_ids, dtype=object),
+    }
+
+
+def _negative_fixations_for_item(pool: dict[str, Any], image_id: str) -> np.ndarray:
+    coords = pool.get("coords")
+    image_ids = pool.get("image_ids")
+    if coords is None or image_ids is None or len(coords) == 0:
+        return np.zeros((0, 2), dtype=np.int64)
+    return np.asarray(coords)[np.asarray(image_ids, dtype=object) != image_id]
+
+
+def _fixation_coords_for_item(item: dict[str, Any], target_shape: tuple[int, int]) -> np.ndarray:
+    points = item.get("fixation_points")
+    if points is not None:
+        point_array = np.asarray(_to_numpy(points), dtype=np.float32)
+        if point_array.size:
+            return _xy_points_to_yx_coords(point_array, target_shape)
+    fixation_map = _as_2d_array(item.get("fixation_map"))
+    return np.argwhere(fixation_map > 0).astype(np.int64)
+
+
+def _sample_coords(
+    coords: np.ndarray,
+    *,
+    max_points: int,
+    seed: int | None = None,
+    rng: np.random.Generator | None = None,
+) -> np.ndarray:
+    if max_points <= 0 or coords.shape[0] <= max_points:
+        return coords
+    generator = rng if rng is not None else np.random.default_rng(seed)
+    selected = generator.choice(coords.shape[0], size=max_points, replace=False)
+    return coords[selected]
+
+
+def _xy_points_to_yx_coords(points: np.ndarray, target_shape: tuple[int, int]) -> np.ndarray:
+    point_array = np.asarray(points, dtype=np.float32).reshape(-1, 2)
+    if point_array.size == 0:
+        return np.zeros((0, 2), dtype=np.int64)
+    coords = np.rint(point_array[:, [1, 0]]).astype(np.int64)
+    height, width = target_shape
+    valid = (
+        (coords[:, 0] >= 0)
+        & (coords[:, 1] >= 0)
+        & (coords[:, 0] < height)
+        & (coords[:, 1] < width)
+    )
+    if not np.any(valid):
+        return np.zeros((0, 2), dtype=np.int64)
+    return np.unique(coords[valid], axis=0)
 
 
 def _prepare_saliency_input(

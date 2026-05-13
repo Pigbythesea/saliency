@@ -237,3 +237,48 @@ def test_model_independent_baseline_uses_configured_model_label(tmp_path):
     assert aggregate["model"] == "center_bias_baseline"
     assert aggregate["saliency_method"] == "center_bias"
     assert aggregate["saliency_family"] == "baseline"
+
+
+def test_saliency_benchmark_supports_context_aware_metrics(tmp_path, monkeypatch):
+    def target_saliency(_model, _image, target_map=None, **_kwargs):
+        return np.asarray(target_map, dtype=np.float32)
+
+    monkeypatch.setattr(
+        benchmark_module,
+        "build_saliency_method",
+        lambda _config: target_saliency,
+    )
+    config_path = tmp_path / "context_metrics.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "seed": 123,
+            "device": "cpu",
+            "dataset": {
+                "name": "dummy_static_saliency",
+                "max_items": 3,
+                "image_shape": [3, 8, 8],
+                "map_shape": [8, 8],
+                "seed": 5,
+            },
+            "model": {"name": "center_bias_baseline"},
+            "saliency": {"method": "center_bias"},
+            "metric_controls": {
+                "seed": 123,
+                "auc_borji_splits": 5,
+                "shuffled_auc_splits": 5,
+                "shuffled_auc_pool_points_per_image": 8,
+            },
+            "metrics": ["auc_borji", "shuffled_auc", "emd"],
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+
+    aggregate = run_saliency_benchmark(config_path)
+
+    assert set(aggregate["metrics"]) == {"auc_borji", "shuffled_auc", "emd"}
+    with (output_dir / "per_image_metrics.csv").open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 3
+    assert set(rows[0]) == {"image_id", "image_path", "auc_borji", "shuffled_auc", "emd"}

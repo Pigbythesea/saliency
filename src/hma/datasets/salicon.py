@@ -30,6 +30,7 @@ class _SALICONRow:
     image_id: str
     image_path: Path
     fixation_map_path: Path
+    fixation_points_path: Path | None
     split: str
     width: int | None
     height: int | None
@@ -107,6 +108,7 @@ class SALICONDataset(BaseVisionDataset):
                 "width": row.width,
                 "height": row.height,
                 "fixation_map_path": str(row.fixation_map_path),
+                "fixation_points_path": str(row.fixation_points_path or ""),
             },
         }
 
@@ -134,6 +136,9 @@ class SALICONDataset(BaseVisionDataset):
                         fixation_map_path=self._resolve_path(
                             record["fixation_map_path"], self.root
                         ),
+                        fixation_points_path=self._optional_resolve_path(
+                            record.get("fixation_points_path"), self.root
+                        ),
                         split=record["split"],
                         width=_optional_int(record.get("width")),
                         height=_optional_int(record.get("height")),
@@ -152,6 +157,10 @@ class SALICONDataset(BaseVisionDataset):
                 raise FileNotFoundError(
                     f"SALICON fixation map not found: {row.fixation_map_path}"
                 )
+            if row.fixation_points_path is not None and not row.fixation_points_path.is_file():
+                raise FileNotFoundError(
+                    f"SALICON fixation points not found: {row.fixation_points_path}"
+                )
 
     @staticmethod
     def _resolve_path(path: str | Path, base_dir: str | Path) -> Path:
@@ -159,6 +168,12 @@ class SALICONDataset(BaseVisionDataset):
         if candidate.is_absolute():
             return candidate.resolve()
         return (Path(base_dir).expanduser().resolve() / candidate).resolve()
+
+    @staticmethod
+    def _optional_resolve_path(path: str | Path | None, base_dir: str | Path) -> Path | None:
+        if path is None or str(path) == "":
+            return None
+        return SALICONDataset._resolve_path(path, base_dir)
 
 
 def _load_fixation_map(

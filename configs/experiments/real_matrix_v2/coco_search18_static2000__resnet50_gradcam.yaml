@@ -1,0 +1,54 @@
+seed: 123
+device: auto
+experiment:
+  name: coco_search18_static2000_resnet50_gradcam
+dataset:
+  name: coco_search18
+  label: coco_search18_static2000
+  root: data/raw/COCO-Search18
+  manifest_path: data/manifests/v2/coco_search18_static2000_manifest.csv
+  split: val
+  image_size:
+  - 224
+  - 224
+  max_items: null
+  validate_files: true
+  generate_fixation_map: true
+  fixation_sigma: 10.0
+model:
+  name: resnet50
+  backend: timm
+  pretrained: true
+  eval_mode: true
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  mean: imagenet
+  std: imagenet
+saliency:
+  method: gradcam
+  target_layer: layer4
+metric_controls:
+  seed: 123
+  auc_borji_splits: 100
+  shuffled_auc_splits: 100
+  max_positive_fixations_per_image: 256
+  shuffled_auc_pool_points_per_image: 256
+  emd_downsample: 32
+cache:
+  enabled: true
+  dir: saliency_maps
+  reuse: true
+metrics:
+- nss
+- shuffled_auc
+- auc_borji
+- auc_judd
+- cc
+- similarity
+- kl
+output:
+  dir: outputs/real_matrix_v2/coco_search18_static2000/resnet50_gradcam
+  save_visualizations: false
+  num_visualizations: 0

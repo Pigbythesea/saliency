@@ -2,11 +2,14 @@ import numpy as np
 import pytest
 
 from hma.metrics.saliency_metrics import (
+    auc_borji,
     auc_judd,
     cc,
+    emd_2d,
     kl_divergence,
     normalize_map,
     nss,
+    shuffled_auc,
     similarity,
     simple_center_bias_map,
 )
@@ -42,9 +45,50 @@ def test_auc_judd_returns_finite_unit_interval_score():
     assert 0.0 <= score <= 1.0
 
 
+def test_auc_borji_rewards_correct_fixation_ranking():
+    good = np.array([[0.1, 0.2], [0.3, 1.0]], dtype=np.float32)
+    bad = np.array([[1.0, 0.3], [0.2, 0.1]], dtype=np.float32)
+    fixation = np.array([[0.0, 0.0], [0.0, 1.0]], dtype=np.float32)
+
+    good_score = auc_borji(good, fixation, splits=20, seed=123)
+    bad_score = auc_borji(bad, fixation, splits=20, seed=123)
+
+    assert 0.0 <= good_score <= 1.0
+    assert 0.0 <= bad_score <= 1.0
+    assert good_score > bad_score
+
+
+def test_shuffled_auc_uses_other_image_fixations_as_negatives():
+    saliency = np.array([[0.0, 0.1], [0.2, 1.0]], dtype=np.float32)
+    fixation = np.array([[0.0, 0.0], [0.0, 1.0]], dtype=np.float32)
+    negative_fixations = np.array([[0, 0], [0, 1]], dtype=np.int64)
+
+    score = shuffled_auc(
+        saliency,
+        fixation,
+        negative_fixations,
+        splits=20,
+        seed=123,
+    )
+
+    assert np.isfinite(score)
+    assert 0.0 <= score <= 1.0
+    assert score > 0.5
+
+
+def test_emd_2d_is_zero_for_identical_maps_and_positive_for_shifted_maps():
+    first = np.zeros((8, 8), dtype=np.float32)
+    second = np.zeros((8, 8), dtype=np.float32)
+    first[1, 1] = 1.0
+    second[6, 6] = 1.0
+
+    assert emd_2d(first, first) == 0.0
+    assert emd_2d(first, second) > 0.0
+
+
 @pytest.mark.parametrize(
     "metric",
-    [auc_judd, nss, cc, similarity, kl_divergence],
+    [auc_judd, auc_borji, nss, cc, similarity, kl_divergence, emd_2d],
 )
 def test_pairwise_metrics_raise_on_shape_mismatch(metric):
     first = np.zeros((2, 2), dtype=np.float32)
@@ -56,7 +100,7 @@ def test_pairwise_metrics_raise_on_shape_mismatch(metric):
 
 @pytest.mark.parametrize(
     "metric",
-    [auc_judd, nss, cc, similarity, kl_divergence],
+    [auc_judd, auc_borji, nss, cc, similarity, kl_divergence, emd_2d],
 )
 def test_metrics_do_not_emit_nan_for_zero_or_constant_maps(metric):
     zero = np.zeros((4, 4), dtype=np.float32)

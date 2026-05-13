@@ -234,3 +234,71 @@ Recommended additions:
    - Report alignment per latency, per parameter, and per model size.
 
 This next milestone will move the project from a first real comparison table to a more scientifically controlled static saliency benchmark.
+
+## V2 Implementation Progress
+
+Implemented after the V1 pilot milestone:
+
+- Added controlled static saliency metrics:
+  - `auc_borji`
+  - `shuffled_auc`
+  - `emd` / `emd_2d`
+- Added benchmark metric context so metrics can use per-image fixation points and other-image shuffled negatives.
+- Added deterministic caps for fixation samples used by context-aware AUC metrics so dense fixation maps do not make pilot and scaled runs impractically slow.
+- Extended SALICON and CAT2000 manifest preparation/loaders to preserve raw fixation-location paths when available.
+- Added V2 scaled manifests:
+  - `data/manifests/v2/salicon_static2000_manifest.csv`
+  - `data/manifests/v2/cat2000_static2000_manifest.csv`
+  - `data/manifests/v2/coco_search18_static2000_manifest.csv`
+- Added V2 matrix config generation under:
+  - `configs/experiments/real_matrix_v2/`
+- Added reporting summaries:
+  - top rows by dataset / metric / saliency family
+  - best non-baseline rows
+  - center-bias deltas
+  - saliency-family rankings
+  - alignment-per-efficiency summaries when an efficiency CSV is provided
+- Added a best-effort observer-control script for manifest rows with parseable fixation points:
+  - `scripts/summarize_observer_controls.py`
+- Updated plots to facet by dataset and saliency family and to treat `kl`, `emd`, and related loss metrics as lower-is-better.
+- Re-ran stable model efficiency profiling to:
+  - `outputs/real_matrix_v2/efficiency/model_efficiency.csv`
+
+Verification:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result after implementation: `103 passed, 4 warnings`.
+
+Real V2 smoke run completed:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/run_saliency_benchmark.py --config configs/experiments/real_matrix_v2/salicon_pilot500__center_bias_baseline_center_bias.yaml
+```
+
+Smoke aggregate:
+
+- `nss`: 0.4967273755755741
+- `shuffled_auc`: 0.6066769326782226
+- `auc_borji`: 0.6687713580322265
+- `auc_judd`: 0.8554065807640752
+- `cc`: 0.503242761939764
+- `similarity`: 0.5339597517997027
+- `kl`: 0.8564417150020599
+- `emd`: 0.07618908158377294
+
+V2 smoke outputs:
+
+- `outputs/real_matrix_v2/salicon_pilot500/center_bias_baseline_center_bias/`
+- `outputs/real_matrix_v2/aggregated/smoke_results.csv`
+- `outputs/real_matrix_v2/aggregated/smoke_summary/`
+- `outputs/real_matrix_v2/aggregated/smoke_plots/`
+
+Remaining V2 work:
+
+- Run the full pilot V2 matrix before the scaled 2,000-row matrix.
+- Inspect attention-rollout and ConvNeXt Grad-CAM configs on real pretrained models; these are generated, but should be treated as reliability checks until each run succeeds.
+- Add a stronger observer-ceiling implementation after confirming the exact SALICON/CAT2000 `.mat` fixation schemas.
+- Add DeepGaze-style upper/reference baselines after choosing package, prediction-import, or precomputed-map integration.

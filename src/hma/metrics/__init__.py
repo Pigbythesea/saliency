@@ -8,19 +8,24 @@ from hma.metrics.efficiency_metrics import (
 )
 from hma.metrics.saliency import mean_absolute_error, pearson_correlation
 from hma.metrics.saliency_metrics import (
+    auc_borji,
     auc_judd,
     cc,
+    emd_2d,
     kl_divergence,
     normalize_map,
     nss,
+    shuffled_auc,
     similarity,
     simple_center_bias_map,
 )
 
 __all__ = [
+    "auc_borji",
     "auc_judd",
     "cc",
     "count_parameters",
+    "emd_2d",
     "estimate_flops",
     "estimate_model_size_mb",
     "kl_divergence",
@@ -29,6 +34,7 @@ __all__ = [
     "normalize_map",
     "nss",
     "pearson_correlation",
+    "shuffled_auc",
     "similarity",
     "simple_center_bias_map",
 ]

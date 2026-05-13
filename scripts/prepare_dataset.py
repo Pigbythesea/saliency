@@ -16,6 +16,7 @@ MANIFEST_COLUMNS = [
     "image_id",
     "image_path",
     "fixation_map_path",
+    "fixation_points_path",
     "split",
     "width",
     "height",
@@ -24,6 +25,7 @@ CAT2000_MANIFEST_COLUMNS = [
     "image_id",
     "image_path",
     "fixation_map_path",
+    "fixation_points_path",
     "category",
     "split",
     "width",
@@ -42,6 +44,7 @@ COCO_SEARCH18_MANIFEST_COLUMNS = [
     "trial_id",
 ]
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+FIXATION_LOCATION_EXTENSIONS = {".mat", ".json"}
 MAP_PATH_TERMS = {"fixation", "fixations", "saliency", "maps", "map", "density"}
 MAP_PATH_PARTS = {
     "fixation",
@@ -89,6 +92,7 @@ def build_salicon_manifest(
     output = output.resolve()
 
     image_paths, map_paths = _collect_salicon_files(root_path)
+    fixation_location_lookup = _build_map_lookup(_collect_fixation_location_files(root_path))
     map_lookup = _build_map_lookup(map_paths)
     rows = []
 
@@ -105,6 +109,10 @@ def build_salicon_manifest(
                 "image_id": image_path.stem,
                 "image_path": _portable_relative_path(image_path, root_path),
                 "fixation_map_path": _portable_relative_path(map_path, root_path),
+                "fixation_points_path": _optional_portable_relative_path(
+                    fixation_location_lookup.get(_normalized_stem(image_path)),
+                    root_path,
+                ),
                 "split": _infer_split(image_path),
                 "width": width,
                 "height": height,
@@ -138,6 +146,10 @@ def build_cat2000_manifest(
     output = output.resolve()
 
     image_paths, map_paths = _collect_salicon_files(root_path)
+    fixation_location_lookup = _build_categorized_map_lookup(
+        _collect_fixation_location_files(root_path),
+        root_path,
+    )
     map_lookup = _build_categorized_map_lookup(map_paths, root_path)
     rows = []
 
@@ -155,6 +167,10 @@ def build_cat2000_manifest(
                 "image_id": image_path.stem,
                 "image_path": _portable_relative_path(image_path, root_path),
                 "fixation_map_path": _portable_relative_path(map_path, root_path),
+                "fixation_points_path": _optional_portable_relative_path(
+                    fixation_location_lookup.get((category, _normalized_stem(image_path))),
+                    root_path,
+                ),
                 "category": category,
                 "split": _infer_split(image_path),
                 "width": width,
@@ -257,6 +273,20 @@ def _collect_salicon_files(root: Path) -> tuple[list[Path], list[Path]]:
     return image_paths, map_paths
 
 
+def _collect_fixation_location_files(root: Path) -> list[Path]:
+    if not root.is_dir():
+        raise FileNotFoundError(f"Dataset root not found: {root}")
+
+    paths = []
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in FIXATION_LOCATION_EXTENSIONS:
+            continue
+        lowered_parts = {part.lower() for part in path.parts}
+        if lowered_parts & {"fixationlocs", "fixations"}:
+            paths.append(path)
+    return paths
+
+
 def _build_map_lookup(map_paths: list[Path]) -> dict[str, Path]:
     lookup: dict[str, Path] = {}
     for path in sorted(map_paths, key=_map_priority):
@@ -328,6 +358,12 @@ def _infer_category(path: Path) -> str:
 
 def _portable_relative_path(path: Path, root: Path) -> str:
     return path.resolve().relative_to(root).as_posix()
+
+
+def _optional_portable_relative_path(path: Path | None, root: Path) -> str:
+    if path is None:
+        return ""
+    return _portable_relative_path(path, root)
 
 
 def _load_annotation_records(annotations_path: str | Path | Iterable[str | Path]) -> list[dict]:

@@ -1,0 +1,51 @@
+seed: 123
+device: auto
+experiment:
+  name: salicon_static2000_convnext_tiny_vanilla_gradient
+dataset:
+  name: salicon
+  label: salicon_static2000
+  root: data/raw/SALICON
+  manifest_path: data/manifests/v2/salicon_static2000_manifest.csv
+  split: val
+  image_size:
+  - 224
+  - 224
+  max_items: null
+  validate_files: true
+model:
+  name: convnext_tiny
+  backend: timm
+  pretrained: true
+  eval_mode: true
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  mean: imagenet
+  std: imagenet
+saliency:
+  method: vanilla_gradient
+metric_controls:
+  seed: 123
+  auc_borji_splits: 100
+  shuffled_auc_splits: 100
+  max_positive_fixations_per_image: 256
+  shuffled_auc_pool_points_per_image: 256
+  emd_downsample: 32
+cache:
+  enabled: true
+  dir: saliency_maps
+  reuse: true
+metrics:
+- nss
+- shuffled_auc
+- auc_borji
+- auc_judd
+- cc
+- similarity
+- kl
+output:
+  dir: outputs/real_matrix_v2/salicon_static2000/convnext_tiny_vanilla_gradient
+  save_visualizations: false
+  num_visualizations: 0

@@ -65,6 +65,109 @@ def auc_judd(saliency_map: np.ndarray, fixation_map: np.ndarray) -> float:
     return float(np.trapezoid(true_positive, false_positive))
 
 
+def auc_borji(
+    saliency_map: np.ndarray,
+    fixation_map: np.ndarray,
+    *,
+    positive_fixations: np.ndarray | None = None,
+    splits: int = 100,
+    seed: int = 0,
+) -> float:
+    """Compute Borji AUC with random non-fixation negatives."""
+    saliency, fixations = _check_same_shape(saliency_map, fixation_map)
+    if splits <= 0:
+        raise ValueError("splits must be positive")
+
+    saliency = normalize_map(saliency)
+    positive_scores = _positive_scores(saliency, fixations, positive_fixations)
+    if positive_scores.size == 0:
+        return 0.0
+
+    positive_mask = _coords_to_mask(
+        _positive_coords(fixations, positive_fixations),
+        saliency.shape,
+    )
+    negative_scores = saliency[~positive_mask].ravel()
+    if negative_scores.size == 0:
+        return 0.0
+
+    rng = np.random.default_rng(seed)
+    scores = []
+    for _ in range(int(splits)):
+        sampled = rng.choice(
+            negative_scores,
+            size=positive_scores.size,
+            replace=negative_scores.size < positive_scores.size,
+        )
+        scores.append(_auc_from_scores(positive_scores, sampled))
+    return float(np.mean(scores)) if scores else 0.0
+
+
+def shuffled_auc(
+    saliency_map: np.ndarray,
+    fixation_map: np.ndarray,
+    negative_fixations: np.ndarray,
+    *,
+    positive_fixations: np.ndarray | None = None,
+    splits: int = 100,
+    seed: int = 0,
+) -> float:
+    """Compute shuffled AUC using fixations from other images as negatives."""
+    saliency, fixations = _check_same_shape(saliency_map, fixation_map)
+    if splits <= 0:
+        raise ValueError("splits must be positive")
+
+    saliency = normalize_map(saliency)
+    positive_scores = _positive_scores(saliency, fixations, positive_fixations)
+    negative_coords = _as_yx_coords(negative_fixations, saliency.shape)
+    negative_scores = _scores_at_coords(saliency, negative_coords)
+    if positive_scores.size == 0 or negative_scores.size == 0:
+        return 0.0
+
+    rng = np.random.default_rng(seed)
+    scores = []
+    for _ in range(int(splits)):
+        sampled = rng.choice(
+            negative_scores,
+            size=positive_scores.size,
+            replace=negative_scores.size < positive_scores.size,
+        )
+        scores.append(_auc_from_scores(positive_scores, sampled))
+    return float(np.mean(scores)) if scores else 0.0
+
+
+def emd_2d(
+    target_map: np.ndarray,
+    predicted_map: np.ndarray,
+    *,
+    downsample: int | None = 32,
+) -> float:
+    """Compute a lightweight 2D EMD approximation from x/y map marginals."""
+    target, predicted = _check_same_shape(target_map, predicted_map)
+    if downsample is not None:
+        size = int(downsample)
+        if size <= 0:
+            raise ValueError("downsample must be positive")
+        target = _downsample_sum(target, size)
+        predicted = _downsample_sum(predicted, size)
+
+    target_prob = _sum_normalize(target)
+    predicted_prob = _sum_normalize(predicted)
+    if float(np.sum(target_prob)) == 0.0 and float(np.sum(predicted_prob)) == 0.0:
+        return 0.0
+
+    y_distance = _wasserstein_1d_from_marginals(
+        target_prob.sum(axis=1),
+        predicted_prob.sum(axis=1),
+    )
+    x_distance = _wasserstein_1d_from_marginals(
+        target_prob.sum(axis=0),
+        predicted_prob.sum(axis=0),
+    )
+    normalizer = max(target_prob.shape[0] + target_prob.shape[1] - 2, 1)
+    return float((y_distance + x_distance) / normalizer)
+
+
 def nss(saliency_map: np.ndarray, fixation_map: np.ndarray) -> float:
     """Compute normalized scanpath saliency."""
     saliency, fixations = _check_same_shape(saliency_map, fixation_map)
@@ -142,3 +245,96 @@ def simple_center_bias_map(
     squared_distance = (yy - center_y) ** 2 + (xx - center_x) ** 2
     center_map = np.exp(-squared_distance / (2.0 * sigma**2))
     return normalize_map(center_map)
+
+
+def _positive_scores(
+    saliency: np.ndarray,
+    fixation_map: np.ndarray,
+    positive_fixations: np.ndarray | None,
+) -> np.ndarray:
+    return _scores_at_coords(saliency, _positive_coords(fixation_map, positive_fixations))
+
+
+def _positive_coords(
+    fixation_map: np.ndarray,
+    positive_fixations: np.ndarray | None,
+) -> np.ndarray:
+    if positive_fixations is not None:
+        return _as_yx_coords(positive_fixations, fixation_map.shape)
+    return np.argwhere(_fixation_mask(fixation_map)).astype(np.int64)
+
+
+def _as_yx_coords(values: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
+    array = np.asarray(values)
+    if array.size == 0:
+        return np.zeros((0, 2), dtype=np.int64)
+    if array.ndim == 2 and array.shape == shape:
+        return np.argwhere(_fixation_mask(array)).astype(np.int64)
+    coords = np.asarray(array, dtype=np.float32).reshape(-1, 2)
+    rounded = np.rint(coords).astype(np.int64)
+    height, width = shape
+    valid = (
+        (rounded[:, 0] >= 0)
+        & (rounded[:, 1] >= 0)
+        & (rounded[:, 0] < height)
+        & (rounded[:, 1] < width)
+    )
+    if not np.any(valid):
+        return np.zeros((0, 2), dtype=np.int64)
+    return np.unique(rounded[valid], axis=0)
+
+
+def _scores_at_coords(saliency: np.ndarray, coords: np.ndarray) -> np.ndarray:
+    if coords.size == 0:
+        return np.zeros((0,), dtype=np.float32)
+    return saliency[coords[:, 0], coords[:, 1]].astype(np.float32)
+
+
+def _coords_to_mask(coords: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
+    mask = np.zeros(shape, dtype=bool)
+    if coords.size:
+        mask[coords[:, 0], coords[:, 1]] = True
+    return mask
+
+
+def _auc_from_scores(positive_scores: np.ndarray, negative_scores: np.ndarray) -> float:
+    if positive_scores.size == 0 or negative_scores.size == 0:
+        return 0.0
+    scores = np.concatenate([positive_scores, negative_scores]).astype(np.float32)
+    labels = np.concatenate(
+        [
+            np.ones(positive_scores.size, dtype=np.float32),
+            np.zeros(negative_scores.size, dtype=np.float32),
+        ]
+    )
+    order = np.argsort(-scores, kind="mergesort")
+    sorted_labels = labels[order]
+    true_positive = np.cumsum(sorted_labels) / float(positive_scores.size)
+    false_positive = np.cumsum(1.0 - sorted_labels) / float(negative_scores.size)
+    true_positive = np.concatenate([[0.0], true_positive, [1.0]])
+    false_positive = np.concatenate([[0.0], false_positive, [1.0]])
+    return float(np.trapezoid(true_positive, false_positive))
+
+
+def _downsample_sum(values: np.ndarray, target_size: int) -> np.ndarray:
+    array = _as_float_array(values)
+    height, width = array.shape
+    if height <= target_size and width <= target_size:
+        return array
+    y_edges = np.linspace(0, height, min(target_size, height) + 1, dtype=np.int64)
+    x_edges = np.linspace(0, width, min(target_size, width) + 1, dtype=np.int64)
+    output = np.zeros((len(y_edges) - 1, len(x_edges) - 1), dtype=np.float32)
+    for y_index in range(output.shape[0]):
+        for x_index in range(output.shape[1]):
+            patch = array[
+                y_edges[y_index] : y_edges[y_index + 1],
+                x_edges[x_index] : x_edges[x_index + 1],
+            ]
+            output[y_index, x_index] = float(np.sum(patch))
+    return output
+
+
+def _wasserstein_1d_from_marginals(first: np.ndarray, second: np.ndarray) -> float:
+    first_prob = _sum_normalize(first)
+    second_prob = _sum_normalize(second)
+    return float(np.sum(np.abs(np.cumsum(first_prob - second_prob))))

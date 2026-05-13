@@ -12,6 +12,7 @@ from hma.experiments.aggregate_results import (
 from hma.utils.paths import ensure_dir
 from hma.viz.plot_metrics import (
     load_csv_rows,
+    metric_higher_is_better,
     plot_alignment_vs_efficiency,
     plot_model_ranking,
 )
@@ -73,7 +74,7 @@ def main() -> None:
         rows,
         metric,
         plots_dir / f"ranking_{metric}.png",
-        higher_is_better=not args.lower_is_better,
+        higher_is_better=metric_higher_is_better(metric) and not args.lower_is_better,
     )
     print(f"Ranking plot: {ranking_paths[0]} and {ranking_paths[1]}")
 
