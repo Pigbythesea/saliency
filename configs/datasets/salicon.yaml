@@ -1,0 +1,7 @@
+name: salicon
+root: data/salicon
+manifest_path: data/manifests/salicon_manifest.csv
+split: val
+image_size: [224, 224]
+max_items: null
+validate_files: true
