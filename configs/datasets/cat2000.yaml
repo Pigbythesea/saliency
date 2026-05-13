@@ -1,7 +1,7 @@
 name: cat2000
-root: data/cat2000
+root: data/raw/CAT2000
 manifest_path: data/manifests/cat2000_manifest.csv
-split: val
+split: train
 categories: null
 image_size: [224, 224]
 max_items: null

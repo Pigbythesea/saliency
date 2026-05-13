@@ -1,5 +1,5 @@
 name: coco_search18
-root: data/coco_search18
+root: data/raw/COCO-Search18
 manifest_path: data/manifests/coco_search18_manifest.csv
 split: train
 image_size: [224, 224]

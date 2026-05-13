@@ -6,7 +6,7 @@ experiment:
 
 dataset:
   name: salicon
-  root: data/salicon
+  root: data/raw/SALICON
   manifest_path: data/manifests/salicon_manifest.csv
   split: val
   image_size: [224, 224]

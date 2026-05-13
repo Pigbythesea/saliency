@@ -7,6 +7,7 @@ import csv
 import json
 import re
 from pathlib import Path
+from typing import Iterable
 
 from PIL import Image
 
@@ -42,6 +43,16 @@ COCO_SEARCH18_MANIFEST_COLUMNS = [
 ]
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 MAP_PATH_TERMS = {"fixation", "fixations", "saliency", "maps", "map", "density"}
+MAP_PATH_PARTS = {
+    "fixation",
+    "fixations",
+    "fixationmap",
+    "fixationmaps",
+    "saliency",
+    "maps",
+    "map",
+    "density",
+}
 GENERIC_CATEGORY_PARTS = {
     "image",
     "images",
@@ -58,6 +69,7 @@ GENERIC_CATEGORY_PARTS = {
 }
 SPLIT_ALIASES = {
     "train": "train",
+    "trainset": "train",
     "val": "val",
     "valid": "val",
     "validation": "val",
@@ -167,7 +179,7 @@ def build_cat2000_manifest(
 
 def build_coco_search18_manifest(
     root: str | Path,
-    annotations_path: str | Path,
+    annotations_path: str | Path | Iterable[str | Path],
     output_path: str | Path = "data/manifests/coco_search18_manifest.csv",
 ) -> dict[str, int | Path]:
     """Convert COCO-Search18-style JSON annotations into a portable manifest."""
@@ -190,18 +202,23 @@ def build_coco_search18_manifest(
             _first_present(annotation, ["image_id", "image", "file_name"])
             or image_path.stem
         )
+        explicit_target_category = _first_present(
+            annotation,
+            ["target_category", "target", "category"],
+        )
+        target_category = explicit_target_category or annotation.get("task") or ""
+        task = _first_present(annotation, ["task_type", "condition"])
+        if task is None:
+            task = annotation.get("task") if explicit_target_category is not None else "search"
         rows.append(
             {
                 "image_id": image_id,
                 "image_path": _portable_relative_path(image_path, root_path),
-                "split": str(annotation.get("split", "train")),
+                "split": _normalize_split(str(annotation.get("split", "train"))),
                 "width": width,
                 "height": height,
-                "target_category": str(
-                    _first_present(annotation, ["target_category", "target", "category"])
-                    or ""
-                ),
-                "task": str(annotation.get("task", "search")),
+                "target_category": str(target_category),
+                "task": str(task),
                 "fixation_points": json.dumps(_extract_fixation_points(annotation)),
                 "subject_id": _first_present(annotation, ["subject_id", "subject"]),
                 "trial_id": _first_present(annotation, ["trial_id", "trial"]),
@@ -216,7 +233,7 @@ def build_coco_search18_manifest(
 
     return {
         "root": root_path,
-        "annotations_path": Path(annotations_path).expanduser().resolve(),
+        "annotations_path": ", ".join(str(path) for path in _as_path_list(annotations_path)),
         "output_path": output,
         "annotations_found": len(annotations),
         "rows_written": len(rows),
@@ -260,13 +277,20 @@ def _build_categorized_map_lookup(
 
 def _is_map_path(path: Path) -> bool:
     parts = {part.lower() for part in path.parts}
-    stem_tokens = set(re.split(r"[_\-\s]+", path.stem.lower()))
-    return bool((parts | stem_tokens) & MAP_PATH_TERMS)
+    stem = path.stem.lower()
+    stem_tokens = set(re.split(r"[_\-\s]+", stem))
+    return bool(
+        parts & MAP_PATH_PARTS
+        or stem_tokens & MAP_PATH_TERMS
+        or "saliency" in stem
+        or "fixation" in stem
+        or "density" in stem
+    )
 
 
 def _map_priority(path: Path) -> tuple[int, str]:
     lowered_parts = [part.lower() for part in path.parts]
-    if any(part in {"fixation", "fixations"} for part in lowered_parts):
+    if any(part in {"fixation", "fixations", "fixationmap", "fixationmaps"} for part in lowered_parts):
         return (0, str(path))
     if any(part in {"saliency", "density"} for part in lowered_parts):
         return (1, str(path))
@@ -289,6 +313,10 @@ def _infer_split(path: Path) -> str:
     return "unknown"
 
 
+def _normalize_split(split: str) -> str:
+    return SPLIT_ALIASES.get(split.lower(), split)
+
+
 def _infer_category(path: Path) -> str:
     for part in reversed(path.parts[:-1]):
         lowered = part.lower()
@@ -302,36 +330,58 @@ def _portable_relative_path(path: Path, root: Path) -> str:
     return path.resolve().relative_to(root).as_posix()
 
 
-def _load_annotation_records(annotations_path: str | Path) -> list[dict]:
-    path = Path(annotations_path).expanduser().resolve()
-    with path.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
+def _load_annotation_records(annotations_path: str | Path | Iterable[str | Path]) -> list[dict]:
+    all_records: list[dict] = []
+    for path in _as_path_list(annotations_path):
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
 
-    if isinstance(data, list):
-        records = data
-    elif isinstance(data, dict):
-        records = None
-        for key in ("annotations", "trials", "data"):
-            if isinstance(data.get(key), list):
-                records = data[key]
-                break
-        if records is None:
-            raise ValueError("Annotation JSON must contain annotations, trials, or data")
+        if isinstance(data, list):
+            records = data
+        elif isinstance(data, dict):
+            records = None
+            for key in ("annotations", "trials", "data"):
+                if isinstance(data.get(key), list):
+                    records = data[key]
+                    break
+            if records is None:
+                raise ValueError("Annotation JSON must contain annotations, trials, or data")
+        else:
+            raise TypeError("Annotation JSON must be a list or dictionary")
+
+        all_records.extend(record for record in records if isinstance(record, dict))
+
+    return all_records
+
+
+def _as_path_list(paths: str | Path | Iterable[str | Path]) -> list[Path]:
+    if isinstance(paths, (str, Path)):
+        raw_paths = [paths]
     else:
-        raise TypeError("Annotation JSON must be a list or dictionary")
-
-    return [record for record in records if isinstance(record, dict)]
+        raw_paths = list(paths)
+    return [Path(path).expanduser().resolve() for path in raw_paths]
 
 
 def _resolve_annotation_image_path(root: Path, annotation: dict) -> Path:
-    raw_path = _first_present(annotation, ["image_path", "file_name", "image"])
+    raw_path = _first_present(annotation, ["image_path", "file_name", "image", "name"])
     if raw_path is None:
         image_id = _first_present(annotation, ["image_id"])
         raw_path = image_id if image_id is not None else ""
     candidate = Path(str(raw_path)).expanduser()
     if candidate.is_absolute():
         return candidate.resolve()
-    return (root / candidate).resolve()
+
+    direct = (root / candidate).resolve()
+    if direct.is_file():
+        return direct
+
+    target_category = _first_present(annotation, ["target_category", "target", "category", "task"])
+    if target_category is not None:
+        categorized = (root / "images" / str(target_category) / candidate).resolve()
+        if categorized.is_file():
+            return categorized
+
+    return direct
 
 
 def _extract_fixation_points(annotation: dict) -> list[list[float]]:
@@ -390,6 +440,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", required=True, help="Path to the dataset root.")
     parser.add_argument(
         "--annotations",
+        nargs="+",
         default=None,
         help="Path to COCO-Search18 annotation JSON.",
     )
