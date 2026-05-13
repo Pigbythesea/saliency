@@ -45,11 +45,15 @@ def test_load_experiment_config_fills_defaults():
     assert config["device"] == "cpu"
     assert config["dataset"]["name"] == "dummy_static_saliency"
     assert config["dataset"]["root"] == "data/saliency_static"
-    assert config["dataset"]["max_items"] == 8
+    assert config["dataset"]["max_items"] == 3
+    assert config["dataset"]["image_shape"] == [3, 16, 16]
+    assert config["dataset"]["map_shape"] == [16, 16]
     assert config["model"]["name"] == "dummy_vision_encoder"
     assert config["saliency"]["method"] == "dummy_gradient_free"
-    assert config["metrics"] == ["mae", "pearson"]
+    assert config["metrics"] == ["nss", "cc", "similarity", "kl"]
     assert config["output"]["dir"] == "outputs/saliency_static_debug"
+    assert config["output"]["save_visualizations"] is True
+    assert config["output"]["num_visualizations"] == 2
 
 
 def test_output_dir_creation_and_relative_path_resolution(tmp_path):

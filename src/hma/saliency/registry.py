@@ -19,6 +19,8 @@ def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
 
     if method == "vanilla_gradient":
         return vanilla_gradient_saliency
+    if method == "dummy_gradient_free":
+        return _dummy_gradient_free_saliency
     if method == "integrated_gradients":
         return partial(
             integrated_gradients_saliency,
@@ -37,3 +39,15 @@ def _extract_saliency_config(config: dict[str, Any]) -> dict[str, Any]:
     if "saliency" in config and isinstance(config["saliency"], dict):
         return config["saliency"]
     return config
+
+
+def _dummy_gradient_free_saliency(
+    model_wrapper: Any,
+    images: Any,
+    item_index: int = 0,
+    **_kwargs: Any,
+) -> Any:
+    predict = getattr(model_wrapper, "predict", None)
+    if not callable(predict):
+        raise TypeError("dummy_gradient_free requires a model with predict(image)")
+    return predict(images, item_index=item_index)

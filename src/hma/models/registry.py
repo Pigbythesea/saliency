@@ -15,7 +15,7 @@ def build_model(config: dict[str, Any]) -> Any:
     if not model_name:
         raise KeyError("Model config must contain a non-empty 'name'")
 
-    if model_name == "dummy_saliency":
+    if model_name in {"dummy_saliency", "dummy_vision_encoder"}:
         return DummySaliencyModel.from_config(model_config)
 
     backend = model_config.get("backend", "timm")
