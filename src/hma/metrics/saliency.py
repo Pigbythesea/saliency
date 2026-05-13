@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from hma.metrics.saliency_metrics import cc
+
 
 def _as_flat_arrays(prediction: np.ndarray, target: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     pred = np.asarray(prediction, dtype=np.float32)
@@ -21,12 +23,4 @@ def mean_absolute_error(prediction: np.ndarray, target: np.ndarray) -> float:
 
 def pearson_correlation(prediction: np.ndarray, target: np.ndarray) -> float:
     """Return Pearson correlation, using 0.0 when either map is constant."""
-    pred, true = _as_flat_arrays(prediction, target)
-    pred_centered = pred - float(np.mean(pred))
-    true_centered = true - float(np.mean(true))
-
-    denominator = float(np.linalg.norm(pred_centered) * np.linalg.norm(true_centered))
-    if np.isclose(denominator, 0.0):
-        return 0.0
-
-    return float(np.dot(pred_centered, true_centered) / denominator)
+    return cc(prediction, target)
