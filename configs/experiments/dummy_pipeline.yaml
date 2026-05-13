@@ -1,0 +1,22 @@
+experiment:
+  name: dummy_pipeline
+  seed: 123
+  output_dir: outputs/dummy_pipeline
+
+dataset:
+  name: dummy_saliency
+  split: val
+  num_items: 4
+  max_items: 3
+  image_shape: [3, 16, 16]
+  map_shape: [16, 16]
+  seed: 7
+
+model:
+  name: dummy_saliency
+  noise_scale: 0.05
+  seed: 11
+
+metrics:
+  - mae
+  - pearson

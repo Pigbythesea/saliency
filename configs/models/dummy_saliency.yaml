@@ -1,0 +1,4 @@
+model:
+  name: dummy_saliency
+  noise_scale: 0.05
+  seed: 11

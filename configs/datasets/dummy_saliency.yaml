@@ -1,0 +1,8 @@
+dataset:
+  name: dummy_saliency
+  split: val
+  num_items: 4
+  max_items: 3
+  image_shape: [3, 16, 16]
+  map_shape: [16, 16]
+  seed: 7
