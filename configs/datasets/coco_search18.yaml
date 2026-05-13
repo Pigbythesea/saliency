@@ -1,0 +1,9 @@
+name: coco_search18
+root: data/coco_search18
+manifest_path: data/manifests/coco_search18_manifest.csv
+split: train
+image_size: [224, 224]
+max_items: null
+generate_fixation_map: true
+fixation_sigma: 10.0
+validate_files: true

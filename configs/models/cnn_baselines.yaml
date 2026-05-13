@@ -1,0 +1,10 @@
+models:
+  - name: resnet50
+    backend: timm
+    pretrained: false
+  - name: convnext_tiny
+    backend: timm
+    pretrained: false
+  - name: efficientnet_b0
+    backend: timm
+    pretrained: false

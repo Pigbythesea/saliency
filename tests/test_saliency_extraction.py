@@ -1,0 +1,91 @@
+import pytest
+
+torch = pytest.importorskip("torch")
+
+from hma.saliency import (  # noqa: E402
+    build_saliency_method,
+    gradcam_saliency,
+    integrated_gradients_saliency,
+    vanilla_gradient_saliency,
+)
+
+
+class TinyCNN(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.features = torch.nn.Sequential(
+            torch.nn.Conv2d(3, 4, kernel_size=3, padding=1),
+            torch.nn.ReLU(),
+        )
+        self.pool = torch.nn.AdaptiveAvgPool2d((1, 1))
+        self.classifier = torch.nn.Linear(4, 3)
+
+    def forward(self, images):
+        features = self.features(images)
+        pooled = self.pool(features).flatten(1)
+        return self.classifier(pooled)
+
+
+class TinyWrapper:
+    def __init__(self):
+        self.model = TinyCNN()
+        self.model.eval()
+
+    def get_last_logits(self, images):
+        return self.model(images)
+
+
+@pytest.fixture
+def tiny_wrapper():
+    torch.manual_seed(0)
+    return TinyWrapper()
+
+
+@pytest.fixture
+def images():
+    torch.manual_seed(1)
+    return torch.rand(2, 3, 8, 8)
+
+
+def _assert_valid_saliency_map(maps):
+    assert maps.shape == (2, 1, 8, 8)
+    assert torch.isfinite(maps).all()
+    assert maps.min() >= 0.0
+    assert maps.max() <= 1.0
+
+
+def test_vanilla_gradient_saliency_shape_and_range(tiny_wrapper, images):
+    maps = vanilla_gradient_saliency(tiny_wrapper, images)
+
+    _assert_valid_saliency_map(maps)
+
+
+def test_integrated_gradients_saliency_shape_and_range(tiny_wrapper, images):
+    maps = integrated_gradients_saliency(tiny_wrapper, images, steps=4)
+
+    _assert_valid_saliency_map(maps)
+
+
+def test_gradcam_saliency_shape_and_range(tiny_wrapper, images):
+    maps = gradcam_saliency(tiny_wrapper, images, target_layer="features.0")
+
+    _assert_valid_saliency_map(maps)
+
+
+def test_gradcam_missing_layer_raises_informative_error(tiny_wrapper, images):
+    with pytest.raises(ValueError, match="Target layer 'missing' not found"):
+        gradcam_saliency(tiny_wrapper, images, target_layer="missing")
+
+
+def test_build_saliency_method_returns_configured_callables(tiny_wrapper, images):
+    vanilla = build_saliency_method({"saliency": {"method": "vanilla_gradient"}})
+    integrated = build_saliency_method(
+        {"saliency": {"method": "integrated_gradients", "steps": 4}}
+    )
+    gradcam = build_saliency_method(
+        {"saliency": {"method": "gradcam", "target_layer": "features.0"}}
+    )
+
+    _assert_valid_saliency_map(vanilla(tiny_wrapper, images))
+    _assert_valid_saliency_map(integrated(tiny_wrapper, images))
+    _assert_valid_saliency_map(gradcam(tiny_wrapper, images))

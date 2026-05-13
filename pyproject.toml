@@ -18,6 +18,12 @@ dependencies = [
 dev = [
     "pytest>=7.0",
 ]
+models = [
+    "timm>=1.0",
+]
+saliency = [
+    "torch>=2.0",
+]
 
 [project.scripts]
 hma-dummy-pipeline = "hma.pipelines.dummy:main"
