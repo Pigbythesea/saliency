@@ -10,6 +10,7 @@ from hma.saliency.baselines import center_bias_saliency, random_saliency
 from hma.saliency.gradcam import gradcam_saliency
 from hma.saliency.gradients import vanilla_gradient_saliency
 from hma.saliency.integrated_gradients import integrated_gradients_saliency
+from hma.saliency.precomputed import precomputed_map_saliency
 
 
 def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
@@ -51,6 +52,15 @@ def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
             "grid_size": saliency_config.get("grid_size"),
         }
         return partial(attention_rollout_saliency, **kwargs)
+    if method in {"precomputed_map", "deepgaze_precomputed"}:
+        return partial(
+            precomputed_map_saliency,
+            root=saliency_config.get("root"),
+            path_key=saliency_config.get("path_key", "precomputed_map_path"),
+            metadata_key=saliency_config.get("metadata_key"),
+            path_template=saliency_config.get("path_template"),
+            npz_key=saliency_config.get("npz_key"),
+        )
 
     raise KeyError(f"Unknown saliency method: {method}")
 

@@ -239,6 +239,55 @@ def test_model_independent_baseline_uses_configured_model_label(tmp_path):
     assert aggregate["saliency_family"] == "baseline"
 
 
+def test_precomputed_map_saliency_runs_without_model(tmp_path, monkeypatch):
+    map_dir = tmp_path / "maps"
+    map_dir.mkdir()
+    np.save(map_dir / "tiny_0.npy", np.eye(8, dtype=np.float32))
+
+    class TinyDataset:
+        def __iter__(self):
+            yield {
+                "image": Image.fromarray(np.zeros((8, 8, 3), dtype=np.uint8), mode="RGB"),
+                "image_id": "tiny_0",
+                "image_path": "tiny_0.jpg",
+                "fixation_map": np.eye(8, dtype=np.float32),
+                "fixation_points": np.asarray([[0, 0], [7, 7]], dtype=np.float32),
+                "metadata": {"dataset": "tiny"},
+            }
+
+    def fail_build_model(_config):
+        raise AssertionError("precomputed saliency should not build a model")
+
+    monkeypatch.setattr(benchmark_module, "build_dataset", lambda _config: TinyDataset())
+    monkeypatch.setattr(benchmark_module, "build_model", fail_build_model)
+
+    config_path = tmp_path / "precomputed.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {"name": "tiny_static"},
+            "model": {"name": "deepgaze_reference"},
+            "saliency": {
+                "method": "deepgaze_precomputed",
+                "root": str(map_dir),
+                "path_template": "{image_id}.npy",
+            },
+            "metrics": ["cc", "auc_borji", "shuffled_auc"],
+            "metric_controls": {"auc_borji_splits": 2, "shuffled_auc_splits": 2},
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+
+    aggregate = run_saliency_benchmark(config_path)
+
+    assert aggregate["model"] == "deepgaze_reference"
+    assert aggregate["saliency_method"] == "deepgaze_precomputed"
+    assert aggregate["saliency_family"] == "reference"
+    assert aggregate["metrics"]["cc"] > 0.99
+
+
 def test_saliency_benchmark_supports_context_aware_metrics(tmp_path, monkeypatch):
     def target_saliency(_model, _image, target_map=None, **_kwargs):
         return np.asarray(target_map, dtype=np.float32)

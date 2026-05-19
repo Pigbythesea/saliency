@@ -98,6 +98,63 @@ def test_cat2000_dataset_loads_expected_fields(tmp_path):
     assert item["metadata"]["height"] == 8
 
 
+def test_cat2000_dataset_loads_legacy_manifest_without_fixation_points_path(tmp_path):
+    root = _make_fake_cat2000_root(tmp_path)
+    manifest = tmp_path / "legacy_cat2000_manifest.csv"
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "image_id",
+                "image_path",
+                "fixation_map_path",
+                "category",
+                "split",
+                "width",
+                "height",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "image_id": "action_001",
+                "image_path": "images/val/Action/action_001.jpg",
+                "fixation_map_path": "fixations/val/Action/action_001.png",
+                "category": "Action",
+                "split": "val",
+                "width": "12",
+                "height": "8",
+            }
+        )
+
+    dataset = CAT2000Dataset(root=root, manifest_path=manifest, split="val")
+
+    assert len(dataset) == 1
+    assert dataset[0]["fixation_points"] is None
+
+
+def test_cat2000_dataset_loads_and_scales_fixation_points_path(tmp_path):
+    scipy_io = pytest.importorskip("scipy.io")
+    root = _make_fake_cat2000_root(tmp_path)
+    mat_path = root / "fixationlocs" / "val" / "Action" / "action_001.mat"
+    mat_path.parent.mkdir(parents=True, exist_ok=True)
+    fix_locs = np.zeros((8, 12), dtype=np.uint8)
+    fix_locs[4, 6] = 1
+    scipy_io.savemat(mat_path, {"fixLocs": fix_locs})
+    manifest = tmp_path / "cat2000_manifest.csv"
+    build_cat2000_manifest(root, manifest)
+
+    dataset = CAT2000Dataset(
+        root=root,
+        manifest_path=manifest,
+        split="val",
+        image_size=(4, 6),
+        validate_files=True,
+    )
+
+    assert np.allclose(dataset[0]["fixation_points"], [[3, 2]])
+
+
 def test_cat2000_dataset_filters_by_category(tmp_path):
     root = _make_fake_cat2000_root(tmp_path)
     manifest = tmp_path / "cat2000_manifest.csv"

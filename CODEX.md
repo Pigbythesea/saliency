@@ -32,6 +32,7 @@ Secondary datasets:
 ## Coding rules
 
 Use Python 3.10+.
+when providing commands for user to run in terminal, use cmd always.
 
 Prefer:
 - PyTorch
@@ -84,4 +85,5 @@ When implementing a feature:
 2. make the smallest coherent change,
 3. add or update tests,
 4. run the relevant tests,
-5. summarize files changed and commands run.
+5. summarize files changed and commands run,
+6. update project status and next step documentation.

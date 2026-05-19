@@ -101,6 +101,61 @@ def test_salicon_dataset_loads_expected_fields(tmp_path):
     ) or item["metadata"]["fixation_map_path"].endswith("maps/val/image_001.png")
 
 
+def test_salicon_dataset_loads_legacy_manifest_without_fixation_points_path(tmp_path):
+    root = _make_fake_salicon_root(tmp_path)
+    manifest = tmp_path / "legacy_salicon_manifest.csv"
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "image_id",
+                "image_path",
+                "fixation_map_path",
+                "split",
+                "width",
+                "height",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "image_id": "image_001",
+                "image_path": "images/val/image_001.jpg",
+                "fixation_map_path": "maps/val/image_001.png",
+                "split": "val",
+                "width": "12",
+                "height": "8",
+            }
+        )
+
+    dataset = SALICONDataset(root=root, manifest_path=manifest, split="val")
+
+    assert len(dataset) == 1
+    assert dataset[0]["fixation_points"] is None
+
+
+def test_salicon_dataset_loads_and_scales_fixation_points_path(tmp_path):
+    scipy_io = pytest.importorskip("scipy.io")
+    root = _make_fake_salicon_root(tmp_path)
+    mat_path = root / "fixations" / "val" / "image_001.mat"
+    mat_path.parent.mkdir(parents=True, exist_ok=True)
+    gaze = np.empty((1,), dtype=object)
+    gaze[0] = {"fixations": np.asarray([[6, 4]], dtype=np.uint16)}
+    scipy_io.savemat(mat_path, {"gaze": gaze})
+    manifest = tmp_path / "salicon_manifest.csv"
+    build_salicon_manifest(root, manifest)
+
+    dataset = SALICONDataset(
+        root=root,
+        manifest_path=manifest,
+        split="val",
+        image_size=(4, 6),
+        validate_files=True,
+    )
+
+    assert np.allclose(dataset[0]["fixation_points"], [[3, 2]])
+
+
 def test_salicon_dataset_respects_max_items(tmp_path):
     root = _make_fake_salicon_root(tmp_path)
     manifest = tmp_path / "salicon_manifest.csv"

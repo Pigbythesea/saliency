@@ -14,12 +14,27 @@ def build_parser() -> argparse.ArgumentParser:
         default="configs/experiments/saliency_static_debug.yaml",
         help="Path to an experiment YAML config.",
     )
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="Disable per-image progress output.",
+    )
+    parser.add_argument(
+        "--progress-interval",
+        type=int,
+        default=None,
+        help="Print progress every N images. Defaults to about 20 updates per run.",
+    )
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
-    aggregate = run_saliency_benchmark(args.config)
+    aggregate = run_saliency_benchmark(
+        args.config,
+        progress=not args.no_progress,
+        progress_interval=args.progress_interval,
+    )
     print(f"Per-image CSV: {aggregate['per_image_csv']}")
     print(f"Aggregate JSON: {aggregate['aggregate_json']}")
     for metric, value in aggregate["metrics"].items():

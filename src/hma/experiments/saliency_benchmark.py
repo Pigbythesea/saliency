@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 import re
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -36,7 +37,12 @@ MetricContext = dict[str, Any]
 MetricFn = Callable[[np.ndarray, np.ndarray, MetricContext], float]
 
 
-def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
+def run_saliency_benchmark(
+    config_path: str | Path,
+    *,
+    progress: bool = False,
+    progress_interval: int | None = None,
+) -> dict[str, Any]:
     """Run a static saliency benchmark and save CSV/JSON outputs."""
     config = load_experiment_config(config_path)
     output_dir = ensure_dir(resolve_path(config["output"]["dir"]))
@@ -45,9 +51,18 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
     saliency_config = config.get("saliency", {})
     saliency_method_name = str(saliency_config.get("method") or saliency_config.get("name"))
     metric_names = list(config.get("metrics", []))
-    shuffled_pool = _build_shuffled_fixation_pool(config) if "shuffled_auc" in metric_names else None
+    shuffled_pool = (
+        _build_shuffled_fixation_pool(
+            config,
+            progress=progress,
+            progress_interval=progress_interval,
+        )
+        if "shuffled_auc" in metric_names
+        else None
+    )
     metric_context_settings = _build_metric_context_settings(config)
     dataset = build_dataset(config)
+    total_items = _safe_len(dataset)
     model = None if _saliency_is_model_independent(saliency_method_name) else build_model(config)
     saliency_method = build_saliency_method(config)
     target_class = saliency_config.get("target_class")
@@ -66,6 +81,12 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
     if save_visualizations and num_visualizations > 0:
         ensure_dir(visualization_dir)
 
+    progress_state = _start_progress(
+        enabled=progress,
+        label=_progress_label(config, config_path),
+        total=total_items,
+        interval=progress_interval,
+    )
     for item_index, item in enumerate(dataset):
         image = item["image"]
         target = _as_2d_array(item.get("fixation_map"))
@@ -114,6 +135,11 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
                 target_map=target,
                 prediction_map=prediction_map,
             )
+        _maybe_print_progress(
+            progress_state,
+            completed=item_index + 1,
+            extra=f"cache hits={cache_hits}, writes={cache_writes}",
+        )
 
     per_image_csv = output_dir / "per_image_metrics.csv"
     aggregate_json = output_dir / "aggregate_metrics.json"
@@ -129,6 +155,7 @@ def run_saliency_benchmark(config_path: str | Path) -> dict[str, Any]:
         cache_writes=cache_writes,
     )
     aggregate_json.write_text(json.dumps(aggregate, indent=2), encoding="utf-8")
+    _finish_progress(progress_state, completed=len(rows))
     return aggregate
 
 
@@ -213,23 +240,38 @@ def _build_metric_context_settings(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _build_shuffled_fixation_pool(config: dict[str, Any]) -> dict[str, Any]:
+def _build_shuffled_fixation_pool(
+    config: dict[str, Any],
+    *,
+    progress: bool = False,
+    progress_interval: int | None = None,
+) -> dict[str, Any]:
     controls = config.get("metric_controls", {})
     seed = int(controls.get("seed", config.get("seed", 0)))
     max_points_per_image = int(controls.get("shuffled_auc_pool_points_per_image", 256))
     rng = np.random.default_rng(seed)
     coords_by_image: list[np.ndarray] = []
     image_ids: list[str] = []
+    dataset = build_dataset(config)
+    progress_state = _start_progress(
+        enabled=progress,
+        label=f"{_progress_label(config, '')} shuffled-fixation pool",
+        total=_safe_len(dataset),
+        interval=progress_interval,
+    )
 
-    for item_index, item in enumerate(build_dataset(config)):
+    for item_index, item in enumerate(dataset):
         target = _as_2d_array(item.get("fixation_map"))
         coords = _fixation_coords_for_item(item, target.shape)
         if coords.size == 0:
+            _maybe_print_progress(progress_state, completed=item_index + 1)
             continue
         if max_points_per_image > 0:
             coords = _sample_coords(coords, max_points=max_points_per_image, rng=rng)
         coords_by_image.append(coords.astype(np.int64, copy=False))
         image_ids.extend([str(item.get("image_id", f"item_{item_index:04d}"))] * coords.shape[0])
+        _maybe_print_progress(progress_state, completed=item_index + 1)
+    _finish_progress(progress_state, completed=item_index + 1 if "item_index" in locals() else 0)
 
     if not coords_by_image:
         return {
@@ -313,7 +355,12 @@ def _saliency_requires_torch(method_name: str | None) -> bool:
 
 
 def _saliency_is_model_independent(method_name: str | None) -> bool:
-    return str(method_name) in {"center_bias", "random_saliency"}
+    return str(method_name) in {
+        "center_bias",
+        "random_saliency",
+        "precomputed_map",
+        "deepgaze_precomputed",
+    }
 
 
 def _move_model_to_device(model: Any, device: str) -> None:
@@ -418,6 +465,8 @@ def _saliency_family(method_name: Any) -> str:
         return "internal_routing"
     if method_name in {"center_bias", "random_saliency"}:
         return "baseline"
+    if method_name in {"precomputed_map", "deepgaze_precomputed"}:
+        return "reference"
     return "unknown"
 
 
@@ -528,3 +577,84 @@ def _map_to_pil(values: np.ndarray) -> Image.Image:
     array = postprocess_saliency_map(values)
     uint8 = np.clip(array * 255.0, 0, 255).astype(np.uint8)
     return ImageOps.autocontrast(Image.fromarray(uint8, mode="L"))
+
+
+def _progress_label(config: dict[str, Any], config_path: str | Path) -> str:
+    experiment = config.get("experiment", {}).get("name")
+    if experiment:
+        return str(experiment)
+    return Path(config_path).stem if str(config_path) else "benchmark"
+
+
+def _safe_len(values: Any) -> int | None:
+    try:
+        return len(values)
+    except TypeError:
+        return None
+
+
+def _start_progress(
+    *,
+    enabled: bool,
+    label: str,
+    total: int | None,
+    interval: int | None,
+) -> dict[str, Any]:
+    if not enabled:
+        return {"enabled": False}
+    resolved_interval = _progress_interval(total, interval)
+    total_label = str(total) if total is not None else "unknown"
+    print(f"[progress] {label}: starting ({total_label} items)", flush=True)
+    return {
+        "enabled": True,
+        "label": label,
+        "total": total,
+        "interval": resolved_interval,
+        "last_completed": 0,
+        "start": time.perf_counter(),
+    }
+
+
+def _maybe_print_progress(
+    state: dict[str, Any],
+    *,
+    completed: int,
+    extra: str = "",
+) -> None:
+    if not state.get("enabled"):
+        return
+    total = state.get("total")
+    interval = int(state.get("interval") or 1)
+    should_print = completed == total or completed - int(state["last_completed"]) >= interval
+    if not should_print:
+        return
+    state["last_completed"] = completed
+    elapsed = time.perf_counter() - float(state["start"])
+    if total:
+        percent = 100.0 * completed / total
+        message = f"[progress] {state['label']}: {completed}/{total} ({percent:.1f}%)"
+    else:
+        message = f"[progress] {state['label']}: {completed} items"
+    if elapsed > 0 and completed > 0:
+        message += f", {completed / elapsed:.2f} item/s"
+    if extra:
+        message += f", {extra}"
+    print(message, flush=True)
+
+
+def _finish_progress(state: dict[str, Any], *, completed: int) -> None:
+    if not state.get("enabled"):
+        return
+    elapsed = time.perf_counter() - float(state["start"])
+    print(
+        f"[progress] {state['label']}: finished {completed} items in {elapsed:.1f}s",
+        flush=True,
+    )
+
+
+def _progress_interval(total: int | None, configured: int | None) -> int:
+    if configured is not None:
+        return max(1, int(configured))
+    if total is None or total <= 0:
+        return 25
+    return max(1, min(100, total // 20 or 1))

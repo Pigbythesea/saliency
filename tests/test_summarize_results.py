@@ -62,6 +62,7 @@ def test_summarize_results_writes_expected_tables(tmp_path):
     assert outputs["best_non_baseline"].is_file()
     assert outputs["center_bias_deltas"].is_file()
     assert outputs["family_rankings"].is_file()
+    assert outputs["interpretation_note"].is_file()
     assert outputs["alignment_per_efficiency"].is_file()
 
 

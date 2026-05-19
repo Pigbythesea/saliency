@@ -1,10 +1,10 @@
 # HMA Project Status And Next Steps
 
-Date: 2026-05-13
+Date: 2026-05-18
 
 ## Current Status
 
-The repository now has a first real behavioral-saliency comparison result set for Phase 1 of the Human-Machine Visual Alignment project. It can load real SALICON, CAT2000, and COCO-Search18 manifests, run baseline and pretrained `timm` model saliency methods, cache saliency maps, aggregate metrics, plot rankings, and profile model efficiency.
+The repository now has a first real behavioral-saliency comparison result set for Phase 1 of the Human-Machine Visual Alignment project and a stronger V2 benchmark scaffold. It can load real SALICON, CAT2000, and COCO-Search18 manifests, run baseline and pretrained `timm` model saliency methods, cache saliency maps, aggregate metrics, plot rankings, profile model efficiency, parse observer-level fixation files for SALICON/CAT2000, and produce controlled V2 summaries.
 
 Latest verification:
 
@@ -12,7 +12,7 @@ Latest verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result: `91 passed, 4 warnings`.
+Result: `111 passed, 4 warnings`.
 
 The remaining warnings are not blocking:
 
@@ -26,6 +26,11 @@ Full manifests:
 - SALICON: `data/manifests/salicon_manifest.csv`, 15,000 rows.
 - CAT2000: `data/manifests/cat2000_manifest.csv`, 2,000 rows.
 - COCO-Search18: `data/manifests/coco_search18_manifest.csv`, 49,760 rows.
+
+SALICON and CAT2000 manifests have been regenerated with `fixation_points_path` when raw fixation-location files are available:
+
+- SALICON `.mat` files under `data/raw/SALICON/fixations/`.
+- CAT2000 `.mat` files under `data/raw/CAT2000/trainSet/FIXATIONLOCS/`.
 
 Pilot manifests for the first meaningful output:
 
@@ -146,20 +151,24 @@ Core infrastructure:
 
 Datasets and manifests:
 
-- Manifest-based SALICON loader.
-- Manifest-based CAT2000 loader with category filtering.
+- Manifest-based SALICON loader with optional `.mat` fixation-point loading.
+- Manifest-based CAT2000 loader with category filtering and optional `.mat` fixation-point loading.
 - COCO-Search18 loader with task-driven fixation points and generated fixation maps.
 - NSD / Algonauts-style manifest loader for image, subject, and ROI-response data.
 - Dataset preparation for the local raw layouts under `data/raw/`.
 - Deterministic pilot manifest generation with optional stratification.
+- Dataset-specific fixation parsers for SALICON `gaze[*].fixations` and CAT2000 `fixLocs`.
 
 Metrics and analysis:
 
 - Static saliency metrics: `NSS`, `AUC-Judd`, `CC`, `SIM`, `KL`, `MAE`, and Pearson.
+- Controlled V2 metrics: `AUC-Borji`, `shuffled AUC`, and lightweight `EMD`.
 - Center-bias map utility.
+- Dataset-aware observer-control summaries for SALICON, CAT2000, and COCO-style inline fixation manifests.
 - Efficiency metrics: parameter count, model size, latency, and optional FLOPs.
 - Aggregate result tables with `saliency_family` preserved.
 - Ranking plots and alignment-vs-efficiency plots.
+- Generated interpretation notes for V2 aggregate summaries.
 
 Models and saliency:
 
@@ -170,6 +179,7 @@ Models and saliency:
 - Minimal Grad-CAM.
 - Attention rollout for ViT-like attention tensors.
 - First-class `center_bias` and `random_saliency` baselines.
+- Precomputed-map / DeepGaze-style reference saliency method for imported prediction maps.
 - Model-independent baselines no longer require dummy model wrappers.
 
 ## Alignment With Proposal
@@ -185,22 +195,22 @@ This milestone directly supports the proposal's Phase 1 direction:
 - The first comparison shows why center-bias and random controls are essential.
 - Efficiency profiling is available for alignment-per-computation analysis.
 
-Still missing:
+Still missing or incomplete:
 
-- Shuffled AUC, AUC-Borji, EMD, and inter-observer ceiling.
-- DeepGaze-style upper/reference baseline.
-- Larger and more stable sample sizes beyond pilot 500.
-- More saliency families across model architectures, especially attention rollout and perturbation methods.
+- Full V2 pilot matrix completion across all three datasets.
+- Larger and more stable V2 `static2000` result set after pilot validation.
+- Actual DeepGaze prediction maps or another external saliency-reference export.
+- Perturbation methods such as occlusion or RISE.
 - Real fMRI activation extraction over torch dataloaders.
 - Brain-Score integration.
 - Selective-computation models, token pruning, and foveation.
 - Video extension.
 
-## Recommended Next Steps
+## Previously Recommended V2 Additions
 
-The next milestone should be **Metric Controls And Scaled Static Benchmark V2**.
+The previously recommended milestone was **Metric Controls And Scaled Static Benchmark V2**. Most of the infrastructure below has now been implemented; the remaining work is mainly full matrix execution, external reference maps, and paper-ready analysis.
 
-Recommended additions:
+Original recommended additions:
 
 1. Add center-bias-aware metrics
    - Implement shuffled AUC using other-image fixation locations as negatives.
@@ -263,6 +273,23 @@ Implemented after the V1 pilot milestone:
 - Updated plots to facet by dataset and saliency family and to treat `kl`, `emd`, and related loss metrics as lower-is-better.
 - Re-ran stable model efficiency profiling to:
   - `outputs/real_matrix_v2/efficiency/model_efficiency.csv`
+- Added dataset-specific `.mat` fixation parsing:
+  - SALICON: `gaze[*].fixations`.
+  - CAT2000: `fixLocs`.
+- Updated SALICON and CAT2000 loaders so context-aware metrics can use real fixation points when manifests expose `fixation_points_path`.
+- Added a faster fixation-map path using `scipy.ndimage.gaussian_filter` when available, with the existing pointwise renderer retained as fallback.
+- Upgraded observer-control reporting:
+  - SALICON leave-one-observer-out controls, capped deterministically by `--max-observers-per-image` for practical runtime.
+  - CAT2000 fixation-location reference controls against fixation-density maps.
+- Added precomputed-map saliency support for DeepGaze-style imported references:
+  - `precomputed_map`
+  - `deepgaze_precomputed`
+- Added V2 matrix orchestration:
+  - `scripts/run_v2_matrix.py`
+  - reliability checks
+  - run ledger CSVs
+  - resume behavior
+  - aggregation, summaries, plots, and generated interpretation notes
 
 Verification:
 
@@ -270,7 +297,7 @@ Verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result after implementation: `103 passed, 4 warnings`.
+Result after implementation: `111 passed, 4 warnings`.
 
 Real V2 smoke run completed:
 
@@ -296,9 +323,115 @@ V2 smoke outputs:
 - `outputs/real_matrix_v2/aggregated/smoke_summary/`
 - `outputs/real_matrix_v2/aggregated/smoke_plots/`
 
+Additional V2 reliability checks completed:
+
+- `convnext_tiny + gradcam` on SALICON pilot succeeded.
+- `deit_small_patch16_224 + attention_rollout` on SALICON pilot succeeded.
+- `vit_base_patch16_224 + attention_rollout` on SALICON pilot succeeded.
+- Current pilot aggregate/report artifacts are under:
+  - `outputs/real_matrix_v2/aggregated/pilot_results.csv`
+  - `outputs/real_matrix_v2/aggregated/pilot_results_summary/`
+  - `outputs/real_matrix_v2/aggregated/pilot_results_plots/`
+- Observer-control artifacts are under:
+  - `outputs/real_matrix_v2/observer_controls/salicon_pilot500_observer_controls.csv`
+  - `outputs/real_matrix_v2/observer_controls/cat2000_pilot500_observer_controls.csv`
+
 Remaining V2 work:
 
 - Run the full pilot V2 matrix before the scaled 2,000-row matrix.
-- Inspect attention-rollout and ConvNeXt Grad-CAM configs on real pretrained models; these are generated, but should be treated as reliability checks until each run succeeds.
-- Add a stronger observer-ceiling implementation after confirming the exact SALICON/CAT2000 `.mat` fixation schemas.
-- Add DeepGaze-style upper/reference baselines after choosing package, prediction-import, or precomputed-map integration.
+- Run the scaled `static2000` matrix only after reviewing pilot failures and excluding unsupported methods.
+- Add actual DeepGaze/reference prediction maps and corresponding configs using the precomputed-map path.
+- Add a compact paper-ready V2 results note after the full pilot and scaled matrices are complete.
+
+## Proposal-Aligned Next Steps From Current Progress
+
+The proposal's global goal is a multi-level human-machine visual alignment benchmark: behavioral saliency, neural prediction, representational geometry, Brain-Score-style comparison, and computational efficiency. The current codebase is strongest on behavioral saliency and efficiency, so the next work should finish that layer before expanding.
+
+### Step 1: Finish Controlled Static Benchmark V2
+
+Run the full pilot matrix with resume enabled:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/run_v2_matrix.py --phase pilot --resume
+```
+
+After reviewing the run ledger and excluding any failed methods, run the scaled matrix:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/run_v2_matrix.py --phase static2000 --resume
+```
+
+Acceptance criteria:
+
+- Full pilot aggregate table exists at `outputs/real_matrix_v2/aggregated/pilot_results.csv`.
+- Full scaled aggregate table exists at `outputs/real_matrix_v2/aggregated/results.csv`.
+- Run ledgers identify successful, failed, skipped, and unsupported configs.
+- Summary tables and plots exist for pilot and scaled outputs.
+- The interpretation note clearly reports center-bias comparison, saliency-family differences, and alignment-per-efficiency.
+
+### Step 2: Add External Reference Baselines
+
+Use the new precomputed-map method to import DeepGaze-style predictions rather than adding package inference first.
+
+Recommended path:
+
+- Store prediction maps in a stable folder such as `data/precomputed/deepgaze/<dataset_label>/`.
+- Add reference configs that use `saliency.method: deepgaze_precomputed`.
+- Aggregate DeepGaze/reference rows as `saliency_family: reference`.
+- Compare reference rows against center bias, model saliency methods, and observer controls.
+
+Acceptance criteria:
+
+- DeepGaze/reference rows appear in aggregate tables.
+- Reference maps are reproducible from documented local files.
+- The report separates `reference` rows from model-generated saliency families.
+
+### Step 3: Add Perturbation-Based Saliency
+
+The proposal emphasizes that saliency methods can disagree. V2 currently covers gradients, Integrated Gradients, Grad-CAM, and attention rollout; the next method family should be perturbation-based evidence sensitivity.
+
+Recommended implementation:
+
+- Start with occlusion sensitivity before RISE because it is easier to validate.
+- Add config controls for patch size, stride, target class, and maximum images.
+- Run perturbation methods on pilot subsets first because runtime will be high.
+
+Acceptance criteria:
+
+- Perturbation saliency produces valid maps and cache entries.
+- Pilot results can be compared against gradient and Grad-CAM rows.
+- Runtime is documented before any scaled run.
+
+### Step 4: Begin Neural Alignment Bootstrap
+
+Once V2 static results are stable, start the proposal's neural-alignment layer with the already present NSD / Algonauts-style loader and neural utilities.
+
+Recommended implementation:
+
+- Add a neural experiment config format for dataset, model, layers, train/test split, ROI, and ridge alpha.
+- Implement a script that extracts activations, fits ridge encoding models, and writes ROI-level prediction scores.
+- Use a small fixture or local manifest first; do not require overlap with SALICON/CAT2000.
+- Add RSA over the same image set using `hma.neural.rsa`.
+
+Acceptance criteria:
+
+- One end-to-end neural smoke run writes activation files and encoding scores.
+- Tests cover activation extraction shape, score aggregation, and failure handling for missing ROI responses.
+- Neural results can later be joined with behavioral saliency rows by model/family, not necessarily by identical images.
+
+### Step 5: Architecture Expansion Toward The Proposal's Core Hypothesis
+
+After the static and neural layers are stable, expand beyond standard CNN/ViT families toward the proposal's central hypothesis about efficient and adaptive vision.
+
+Priority order:
+
+1. Self-supervised ViT or CLIP/DINO-style encoders, because they are likely to change saliency and neural alignment without requiring custom routing logic.
+2. State-space or hybrid vision backbones, if available through `timm` or a stable wrapper.
+3. Selective-computation models such as token pruning, foveation, or glimpse models.
+4. Video models only after static image results are publishable.
+
+Acceptance criteria:
+
+- Each new architecture family has model metadata, saliency compatibility notes, and efficiency rows.
+- Results remain grouped by architecture family and saliency family.
+- The analysis can test whether alignment improves with efficiency or selective computation rather than only with model scale.

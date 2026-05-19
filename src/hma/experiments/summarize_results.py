@@ -40,21 +40,35 @@ def summarize_aggregate_results(
         "best_non_baseline": output / "best_non_baseline_by_dataset_metric.csv",
         "center_bias_deltas": output / "center_bias_deltas.csv",
         "family_rankings": output / "family_rankings.csv",
+        "interpretation_note": output / "v2_interpretation_note.md",
     }
-    _write_rows(outputs["top_rows"], _top_rows(rows, ["dataset", "metric", "saliency_family"]))
+    top_rows = _top_rows(rows, ["dataset", "metric", "saliency_family"])
+    best_non_baseline = _top_rows(
+        [
+            row
+            for row in rows
+            if str(row.get("saliency_family", "")) != "baseline"
+        ],
+        ["dataset", "metric"],
+    )
+    center_bias_deltas = _center_bias_deltas(rows)
+    family_rankings = _family_rankings(rows)
+
+    _write_rows(outputs["top_rows"], top_rows)
     _write_rows(
         outputs["best_non_baseline"],
-        _top_rows(
-            [
-                row
-                for row in rows
-                if str(row.get("saliency_family", "")) != "baseline"
-            ],
-            ["dataset", "metric"],
-        ),
+        best_non_baseline,
     )
-    _write_rows(outputs["center_bias_deltas"], _center_bias_deltas(rows))
-    _write_rows(outputs["family_rankings"], _family_rankings(rows))
+    _write_rows(outputs["center_bias_deltas"], center_bias_deltas)
+    _write_rows(outputs["family_rankings"], family_rankings)
+    _write_interpretation_note(
+        outputs["interpretation_note"],
+        rows=rows,
+        best_non_baseline=best_non_baseline,
+        center_bias_deltas=center_bias_deltas,
+        family_rankings=family_rankings,
+        has_efficiency=bool(efficiency_rows),
+    )
 
     if efficiency_rows:
         outputs["alignment_per_efficiency"] = output / "alignment_per_efficiency.csv"
@@ -187,6 +201,95 @@ def _write_rows(path: Path, rows: Iterable[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(row_list)
+
+
+def _write_interpretation_note(
+    path: Path,
+    *,
+    rows: list[dict[str, Any]],
+    best_non_baseline: list[dict[str, Any]],
+    center_bias_deltas: list[dict[str, Any]],
+    family_rankings: list[dict[str, Any]],
+    has_efficiency: bool,
+) -> None:
+    datasets = sorted({str(row.get("dataset", "unknown")) for row in rows})
+    nss_winners = [
+        row for row in best_non_baseline if str(row.get("metric")) == "nss"
+    ]
+    positive_center_deltas = [
+        row
+        for row in center_bias_deltas
+        if str(row.get("metric")) == "nss" and _float(row.get("delta_vs_center_bias")) > 0
+    ]
+    family_nss = [
+        row for row in family_rankings if str(row.get("metric")) == "nss"
+    ]
+
+    lines = [
+        "# V2 Static Benchmark Interpretation Note",
+        "",
+        "This note is generated from the aggregate V2 saliency benchmark tables.",
+        "Treat pilot-scale rows as reliability checks, not final scientific claims.",
+        "",
+        "## Scope",
+        "",
+        f"- Datasets summarized: {', '.join(datasets) if datasets else 'none'}.",
+        "- Metrics use controlled directions: KL, EMD, and MAE are lower-is-better.",
+        "- Saliency families remain separated to avoid mixing explanation methods.",
+        "",
+        "## Center Bias",
+        "",
+    ]
+    if positive_center_deltas:
+        lines.append(
+            "- At least one non-baseline NSS row exceeds its center-bias baseline; inspect "
+            "`center_bias_deltas.csv` before making architecture-level claims."
+        )
+    else:
+        lines.append(
+            "- No non-baseline NSS row exceeds the center-bias baseline in the summarized "
+            "rows, or no center-bias comparison is available."
+        )
+
+    lines.extend(["", "## Saliency Families", ""])
+    if family_nss:
+        preview = sorted(
+            family_nss,
+            key=lambda row: (
+                str(row.get("dataset", "")),
+                -_float(row.get("family_mean")),
+            ),
+        )[:6]
+        for row in preview:
+            lines.append(
+                "- "
+                f"{row.get('dataset')}: {row.get('saliency_family')} "
+                f"NSS family mean={_float(row.get('family_mean')):.4g}."
+            )
+    else:
+        lines.append("- No NSS family-ranking rows are available.")
+
+    lines.extend(["", "## Best Non-Baseline NSS Rows", ""])
+    if nss_winners:
+        for row in sorted(nss_winners, key=lambda item: str(item.get("dataset", ""))):
+            lines.append(
+                "- "
+                f"{row.get('dataset')}: {row.get('model')} + "
+                f"{row.get('saliency_method')} mean={_float(row.get('mean')):.4g}."
+            )
+    else:
+        lines.append("- No non-baseline NSS rows are available.")
+
+    lines.extend(["", "## Efficiency", ""])
+    if has_efficiency:
+        lines.append(
+            "- Alignment-per-efficiency rows were generated; use them to compare alignment "
+            "per latency, parameter count, and model size."
+        )
+    else:
+        lines.append("- No efficiency CSV was provided for this summary run.")
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _float(value: Any) -> float:

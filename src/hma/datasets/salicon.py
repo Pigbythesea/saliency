@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image
 
 from hma.datasets.base import BaseVisionDataset, VisionDatasetItem
+from hma.datasets.fixation_parsers import load_salicon_observer_fixations
 from hma.datasets.registry import register_dataset
 from hma.saliency.postprocess import postprocess_saliency_map
 
@@ -95,13 +96,18 @@ class SALICONDataset(BaseVisionDataset):
 
         output_image = self.transform(image) if self.transform is not None else image
         fixation_map = _load_fixation_map(row.fixation_map_path, target_shape)
+        fixation_points = _load_fixation_points(
+            row.fixation_points_path,
+            target_shape=target_shape,
+            original_size=(row.height, row.width),
+        )
 
         return {
             "image": output_image,
             "image_id": row.image_id,
             "image_path": str(row.image_path),
             "fixation_map": fixation_map,
-            "fixation_points": None,
+            "fixation_points": fixation_points,
             "metadata": {
                 "dataset": "salicon",
                 "split": row.split,
@@ -183,6 +189,39 @@ def _load_fixation_map(
     with Image.open(path) as image:
         map_array = np.asarray(image.convert("L"), dtype=np.float32)
     return postprocess_saliency_map(map_array, target_shape=target_shape)
+
+
+def _load_fixation_points(
+    path: Path | None,
+    *,
+    target_shape: tuple[int, int] | None,
+    original_size: tuple[int | None, int | None],
+) -> np.ndarray | None:
+    if path is None:
+        return None
+    observers = load_salicon_observer_fixations(path)
+    if not observers:
+        return None
+    points = np.concatenate(observers, axis=0).astype(np.float32, copy=False)
+    return _scale_points(points, target_shape=target_shape, original_size=original_size)
+
+
+def _scale_points(
+    points: np.ndarray,
+    *,
+    target_shape: tuple[int, int] | None,
+    original_size: tuple[int | None, int | None],
+) -> np.ndarray:
+    if target_shape is None:
+        return points
+    original_height, original_width = original_size
+    if not original_height or not original_width:
+        return points
+    scaled = points.copy()
+    target_height, target_width = target_shape
+    scaled[:, 0] *= target_width / float(original_width)
+    scaled[:, 1] *= target_height / float(original_height)
+    return scaled.astype(np.float32, copy=False)
 
 
 def _optional_int(value: str | None) -> int | None:
