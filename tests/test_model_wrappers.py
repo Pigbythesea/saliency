@@ -14,15 +14,44 @@ class FakeParameter:
         return self.size
 
 
+class FakeHookHandle:
+    def __init__(self, layer, hook):
+        self.layer = layer
+        self.hook = hook
+
+    def remove(self):
+        self.layer.hooks.remove(self.hook)
+
+
+class FakeHookLayer:
+    def __init__(self, name):
+        self.name = name
+        self.hooks = []
+
+    def register_forward_hook(self, hook):
+        self.hooks.append(hook)
+        return FakeHookHandle(self, hook)
+
+    def __call__(self, value):
+        output = f"{self.name}:{value}"
+        for hook in list(self.hooks):
+            hook(self, (value,), output)
+        return output
+
+
 class FakeTimmModel:
     def __init__(self):
         self.eval_called = False
+        self.layer1 = FakeHookLayer("layer1")
+        self.block = types.SimpleNamespace(conv=FakeHookLayer("block.conv"))
 
     def eval(self):
         self.eval_called = True
         return self
 
     def __call__(self, images):
+        hidden = self.layer1(images)
+        self.block.conv(hidden)
         return {"logits": images}
 
     def forward_features(self, images):
@@ -30,6 +59,13 @@ class FakeTimmModel:
 
     def parameters(self):
         return [FakeParameter(2), FakeParameter(3)]
+
+    def named_modules(self):
+        return [
+            ("", self),
+            ("layer1", self.layer1),
+            ("block.conv", self.block.conv),
+        ]
 
 
 def test_build_model_preserves_dummy_saliency_model():
@@ -75,7 +111,7 @@ def test_timm_wrapper_uses_create_model_and_eval(monkeypatch):
     assert wrapper.metadata == {"model_name": "resnet50", "parameter_count": 5}
 
 
-def test_timm_wrapper_named_layers_raise_until_hooks_exist(monkeypatch):
+def test_timm_wrapper_named_layers_use_forward_hooks(monkeypatch):
     monkeypatch.setitem(
         sys.modules,
         "timm",
@@ -83,7 +119,23 @@ def test_timm_wrapper_named_layers_raise_until_hooks_exist(monkeypatch):
     )
     wrapper = TimmModelWrapper("resnet50", pretrained=False)
 
-    with pytest.raises(NotImplementedError):
+    features = wrapper.get_features("images", layers=["layer1", "block.conv"])
+
+    assert features == {
+        "layer1": "layer1:images",
+        "block.conv": "block.conv:layer1:images",
+    }
+
+
+def test_timm_wrapper_unknown_named_layer_has_clear_error(monkeypatch):
+    monkeypatch.setitem(
+        sys.modules,
+        "timm",
+        types.SimpleNamespace(create_model=lambda *args, **kwargs: FakeTimmModel()),
+    )
+    wrapper = TimmModelWrapper("resnet50", pretrained=False)
+
+    with pytest.raises(ValueError, match="Unknown timm layer"):
         wrapper.get_features("images", layers=["layer4"])
 
 

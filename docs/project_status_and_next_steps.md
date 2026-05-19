@@ -529,7 +529,7 @@ Current decision:
 
 ### Step 4: Move Neural Alignment From Smoke Test To Real Manifest
 
-Status: dummy neural smoke runner works; real NSD / Algonauts manifest wiring is next.
+Status: real-data-ready neural runner infrastructure is now implemented; local real NSD / Algonauts data is still needed for the first scientific run.
 
 The proposal's second layer asks whether models that match fixations also predict visual-cortex responses. This should be implemented as a parallel neural benchmark, not forced onto SALICON/CAT2000 image IDs.
 
@@ -551,28 +551,78 @@ Next implementation target:
 
 Acceptance criteria:
 
-- Real neural run writes `activations.npz`, `encoding_scores.csv`, and `metadata.json`.
+- Real neural run writes `activations.npz`, `encoding_scores.csv`, optional `rsa_scores.csv`, and `metadata.json`.
 - Scores are reported by model, layer, ROI, subject, and metric.
 - The output can later be joined to saliency summaries by model family, training objective, and architecture class.
 
 ### Step 5: Add RSA / Representational Geometry
 
-Status: RSA utilities exist; experiment-level reporting is not yet connected.
+Status: RSA utilities are now connected to the neural runner behind `neural.rsa.enabled`.
 
 The proposal explicitly asks whether fixation-map similarity and feature-space similarity agree. The next neural-layer extension should compute model RDMs and compare them with brain or ROI-response RDMs.
 
 Implementation target:
 
-- Extend the neural runner or add a companion script that loads `activations.npz`.
-- Compute layer-wise model RDMs.
-- Compute ROI-response RDMs.
-- Save `rsa_scores.csv` with layer, ROI, metric, and score.
+- Run the neural runner with `neural.rsa.enabled: true`.
+- Compute layer-wise model RDMs from reduced activations.
+- Compute ROI-response RDMs from the selected response matrix.
+- Save `rsa_scores.csv` with dataset, model, subject, ROI, layer, RDM metrics, comparison method, and score.
 
 Acceptance criteria:
 
 - RSA runs on the same real neural manifest as the encoding smoke.
 - RSA scores can be compared against encoding scores and saliency results.
 - The report can identify behaviorally aligned but neurally weak models, or the reverse.
+
+## Latest Neural Bootstrap Update
+
+Implemented after the V2 behavioral freeze:
+
+- Extended `NSDAlgonautsDataset` with config-level `subject_id` and `roi` filters while preserving `split`, `max_items`, and `validate_files`.
+- Added `scripts/validate_neural_manifest.py` to validate NSD / Algonauts-style manifests, image and response paths, split / subject / ROI coverage, and response-vector shape consistency.
+- Upgraded `TimmModelWrapper.get_features()` so `neural.layers` can name dotted `timm` modules captured with forward hooks; `embedding` and omitted layers still use the existing `forward_features` path.
+- Added neural feature reduction with `feature_reduction: flatten | spatial_mean`; `flatten` remains the backward-compatible default.
+- Extended `scripts/run_neural_alignment.py` / `src/hma/experiments/neural_alignment.py` to write subject/ROI-aware encoding rows and optional `rsa_scores.csv`.
+- Added example real-data config:
+  - `configs/experiments/neural_nsd_algonauts_smoke.yaml`
+- Added tests for dataset filtering, manifest validation, neural RSA output, and timm hook extraction.
+
+Verification:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `124 passed, 4 warnings`.
+
+Local real neural-data check:
+
+- `data/raw/nsd_algonauts/subj01`: present with 9,841 training images, LH fMRI shape `(9841, 19004)`, RH fMRI shape `(9841, 20544)`, test images, and ROI masks.
+- Added `scripts/create_algonauts_manifest.py` to convert one Algonauts subject into this repo's neural manifest format.
+- Generated `data/manifests/nsd_algonauts_manifest.csv` with 9,841 `subj01` training rows for `roi: all_lh_512`.
+- Generated per-image response vectors under `data/raw/nsd_algonauts/subj01/responses/all_lh_512/`.
+- Validated a 64-row subset:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\validate_neural_manifest.py --manifest data\manifests\nsd_algonauts_manifest.csv --root data\raw\nsd_algonauts --split train --subject-id subj01 --roi all_lh_512 --max-items 64
+```
+
+Validation result: 64 selected rows, response shape `[512]`.
+
+- Completed the first real neural smoke run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config configs\experiments\neural_nsd_algonauts_smoke.yaml
+```
+
+Outputs:
+
+- `outputs/neural_nsd_algonauts_smoke/activations.npz`
+- `outputs/neural_nsd_algonauts_smoke/encoding_scores.csv`
+- `outputs/neural_nsd_algonauts_smoke/rsa_scores.csv`
+- `outputs/neural_nsd_algonauts_smoke/metadata.json`
+
+Smoke interpretation caveat: this is a pipeline validation run over `max_items: 64` and `all_lh_512`, not a scientific neural-alignment claim.
 
 ### Step 6: Architecture Expansion
 
@@ -595,10 +645,10 @@ Acceptance criteria:
 
 Recommended next action:
 
-1. Build the first real NSD / Algonauts manifest for `scripts/run_neural_alignment.py`.
-2. Run one real neural encoding experiment and verify `activations.npz`, `encoding_scores.csv`, and `metadata.json`.
-3. Add RSA / representational-geometry reporting over the same real neural manifest.
+1. Add true ROI-specific manifest generation from `roi_masks/*_challenge_space.npy`, starting with PRF visual ROIs such as V1/V2/V3/hV4.
+2. Re-run neural encoding + RSA on a small true ROI subset and compare against the `all_lh_512` smoke output.
+3. Scale the neural run from 64 images to a larger stable subset once runtime and memory are acceptable.
 4. Write a compact behavioral benchmark result table from the current `results.csv`.
-5. Only after neural smoke + RSA are stable, add the next architecture family, starting with self-supervised or multimodal encoders.
+5. Only after neural ROI runs are stable, add the next architecture family, starting with self-supervised or multimodal encoders.
 
-Do not start selective-computation models, video models, or saliency-guided training yet. The current project now has its reference saliency baseline; it needs one real neural-alignment run before those larger proposal branches will be scientifically interpretable.
+Do not start selective-computation models, video models, or saliency-guided training yet. The current project now has its reference saliency baseline and real-data-ready neural runner; it still needs one real neural-alignment run before those larger proposal branches will be scientifically interpretable.

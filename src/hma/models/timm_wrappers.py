@@ -50,10 +50,8 @@ class TimmModelWrapper(BaseModelWrapper):
 
     def get_features(self, images: Any, layers: list[str] | None = None) -> Any:
         """Return model features when the wrapped model exposes them."""
-        if layers is not None:
-            raise NotImplementedError(
-                "Named layer feature extraction is not implemented for timm models yet."
-            )
+        if layers and layers != ["embedding"]:
+            return self._get_named_layer_features(images, layers)
         if hasattr(self.model, "forward_features"):
             return self.model.forward_features(images)
         return self.forward(images)
@@ -70,6 +68,45 @@ class TimmModelWrapper(BaseModelWrapper):
             "parameter_count": _count_parameters(self.model),
         }
 
+    def _get_named_layer_features(self, images: Any, layers: list[str]) -> dict[str, Any]:
+        modules = dict(_named_modules(self.model))
+        missing = [layer for layer in layers if layer not in modules]
+        if missing:
+            available = ", ".join(sorted(modules)[:20])
+            raise ValueError(
+                f"Unknown timm layer(s): {missing}. Available module names include: {available}"
+            )
+
+        features: dict[str, Any] = {}
+        handles = []
+
+        def capture(layer_name: str):
+            def hook(_module: Any, _inputs: Any, output: Any) -> None:
+                features[layer_name] = output
+
+            return hook
+
+        for layer in layers:
+            register = getattr(modules[layer], "register_forward_hook", None)
+            if not callable(register):
+                raise TypeError(f"Layer '{layer}' does not support forward hooks")
+            handles.append(register(capture(layer)))
+
+        try:
+            self.forward(images)
+        finally:
+            for handle in handles:
+                remove = getattr(handle, "remove", None)
+                if callable(remove):
+                    remove()
+
+        missing_outputs = [layer for layer in layers if layer not in features]
+        if missing_outputs:
+            raise RuntimeError(
+                f"Forward hooks did not capture outputs for layer(s): {missing_outputs}"
+            )
+        return features
+
 
 def _count_parameters(model: Any) -> int:
     parameters = getattr(model, "parameters", None)
@@ -82,3 +119,10 @@ def _count_parameters(model: Any) -> int:
         if callable(numel):
             total += int(numel())
     return total
+
+
+def _named_modules(model: Any) -> list[tuple[str, Any]]:
+    named_modules = getattr(model, "named_modules", None)
+    if callable(named_modules):
+        return [(name, module) for name, module in named_modules() if name]
+    return []

@@ -22,6 +22,8 @@ def main() -> None:
     result = run_neural_alignment(args.config)
     print(f"Activations: {result['activations']}")
     print(f"Encoding scores: {result['encoding_scores']}")
+    if result.get("rsa_scores"):
+        print(f"RSA scores: {result['rsa_scores']}")
     print(f"Metadata: {result['metadata']}")
 
 

@@ -42,6 +42,8 @@ class NSDAlgonautsDataset(BaseVisionDataset):
         root: str | Path,
         manifest_path: str | Path,
         split: str = "train",
+        subject_id: str | None = None,
+        roi: str | None = None,
         transform: Callable[[Image.Image], Any] | None = None,
         max_items: int | None = None,
         validate_files: bool = False,
@@ -49,6 +51,8 @@ class NSDAlgonautsDataset(BaseVisionDataset):
         self.root = Path(root).expanduser().resolve()
         self.manifest_path = self._resolve_path(manifest_path, Path.cwd())
         self.split = split
+        self.subject_id = subject_id
+        self.roi = roi
         self.transform = transform
         self.max_items = max_items
         self.validate_files = validate_files
@@ -65,6 +69,8 @@ class NSDAlgonautsDataset(BaseVisionDataset):
                 "manifest_path", "data/manifests/nsd_algonauts_manifest.csv"
             ),
             split=config.get("split", "train"),
+            subject_id=config.get("subject_id"),
+            roi=config.get("roi"),
             max_items=config.get("max_items"),
             validate_files=bool(config.get("validate_files", False)),
         )
@@ -123,6 +129,11 @@ class NSDAlgonautsDataset(BaseVisionDataset):
             for record in reader:
                 if record["split"] != self.split:
                     continue
+                if self.subject_id is not None and record["subject_id"] != self.subject_id:
+                    continue
+                record_roi = _optional_str(record.get("roi"))
+                if self.roi is not None and record_roi != self.roi:
+                    continue
                 response_path = _optional_str(record.get("roi_response_path"))
                 rows.append(
                     _NSDAlgonautsRow(
@@ -130,7 +141,7 @@ class NSDAlgonautsDataset(BaseVisionDataset):
                         image_path=self._resolve_path(record["image_path"], self.root),
                         split=record["split"],
                         subject_id=record["subject_id"],
-                        roi=_optional_str(record.get("roi")),
+                        roi=record_roi,
                         roi_response_path=(
                             self._resolve_path(response_path, self.root)
                             if response_path

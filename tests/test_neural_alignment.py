@@ -70,6 +70,46 @@ def test_save_activations_writes_npz(tmp_path):
     assert set(loaded.files) == {"image_ids", "layer1"}
 
 
+def test_neural_runner_moves_model_to_resolved_device(monkeypatch, tmp_path):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    moved = {}
+
+    class DeviceAwareDummy:
+        def to(self, device):
+            moved["device"] = device
+
+        def get_features(self, images, layers=None):
+            return {"embedding": np.ones((1, 3), dtype=np.float32)}
+
+    config_path = tmp_path / "neural.yaml"
+    save_yaml(
+        {
+            "seed": 123,
+            "device": "cpu",
+            "dataset": {
+                "name": "dummy_static_saliency",
+                "label": "dummy_neural",
+                "num_items": 3,
+                "image_shape": [3, 8, 8],
+                "map_shape": [8, 8],
+                "roi_response_dim": 2,
+            },
+            "model": {"name": "dummy_vision_encoder"},
+            "preprocessing": {"input_size": [8, 8], "mean": "none", "std": "none"},
+            "neural": {"layers": ["embedding"], "response_key": "roi_responses"},
+            "output": {"dir": str(tmp_path / "outputs")},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: DeviceAwareDummy())
+
+    neural_alignment.run_neural_alignment(config_path)
+
+    assert moved["device"] == "cpu"
+
+
 def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
     from hma.utils.config import save_yaml
 
@@ -93,9 +133,16 @@ def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
             "neural": {
                 "layers": ["embedding"],
                 "response_key": "roi_responses",
+                "feature_reduction": "spatial_mean",
                 "train_fraction": 0.75,
                 "ridge_alpha": 1.0,
                 "metric": "correlation",
+                "rsa": {
+                    "enabled": True,
+                    "rdm_metric": "correlation",
+                    "response_rdm_metric": "correlation",
+                    "compare_method": "spearman",
+                },
             },
             "output": {"dir": str(output_dir)},
         },
@@ -106,9 +153,14 @@ def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
 
     assert (output_dir / "activations.npz").is_file()
     assert (output_dir / "encoding_scores.csv").is_file()
+    assert (output_dir / "rsa_scores.csv").is_file()
     assert (output_dir / "metadata.json").is_file()
     assert result["num_items"] == 8
     assert result["score_rows"][0]["layer"] == "embedding"
+    assert result["score_rows"][0]["dataset"] == "dummy_neural"
+    assert result["score_rows"][0]["roi"] == "dummy_roi"
+    assert result["rsa_rows"][0]["layer"] == "embedding"
+    assert result["rsa_scores"].endswith("rsa_scores.csv")
 
 
 def test_run_neural_alignment_missing_roi_response_fails(tmp_path):

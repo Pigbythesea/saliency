@@ -12,6 +12,8 @@ import numpy as np
 from hma.datasets import build_dataset
 from hma.models import build_model
 from hma.neural import (
+    compare_rdms,
+    compute_rdm,
     evaluate_encoding,
     fit_ridge_encoding,
     predict_ridge_encoding,
@@ -34,19 +36,24 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     train_fraction = float(neural_config.get("train_fraction", 0.8))
     metric = str(neural_config.get("metric", "correlation"))
     seed = int(neural_config.get("seed", config.get("seed", 0)))
+    feature_reduction = str(neural_config.get("feature_reduction", "flatten"))
+    rsa_config = dict(neural_config.get("rsa", {}))
 
     dataset = build_dataset(config)
     model = build_model(config)
     device = resolve_device(config.get("device", "auto"))
+    _move_model_to_device(model, device)
 
-    image_ids, responses, features_by_layer = _collect_features_and_responses(
+    collection = _collect_features_and_responses(
         dataset=dataset,
         model=model,
         config=config,
         layers=layers,
         response_key=response_key,
         device=device,
+        feature_reduction=feature_reduction,
     )
+    image_ids, responses, features_by_layer, item_metadata = collection
     if len(image_ids) < 2:
         raise ValueError("Neural alignment requires at least two response-bearing items")
 
@@ -62,9 +69,24 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         alpha=alpha,
         metric=metric,
         seed=seed,
+        row_context=_score_row_context(config, item_metadata),
     )
     scores_path = output_dir / "encoding_scores.csv"
     _write_score_rows(scores_path, score_rows)
+    rsa_rows: list[dict[str, Any]] = []
+    rsa_path: Path | None = None
+    if bool(rsa_config.get("enabled", False)):
+        rsa_rows = _compute_rsa_rows(
+            features_by_layer,
+            responses,
+            layers=layers,
+            feature_rdm_metric=str(rsa_config.get("rdm_metric", "correlation")),
+            response_rdm_metric=str(rsa_config.get("response_rdm_metric", "correlation")),
+            compare_method=str(rsa_config.get("compare_method", "spearman")),
+            row_context=_score_row_context(config, item_metadata),
+        )
+        rsa_path = output_dir / "rsa_scores.csv"
+        _write_rsa_rows(rsa_path, rsa_rows)
 
     metadata = {
         "config_path": str(config_path),
@@ -73,15 +95,31 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "num_items": len(image_ids),
         "layers": layers,
         "response_key": response_key,
+        "feature_reduction": feature_reduction,
         "ridge_alpha": alpha,
         "train_fraction": train_fraction,
         "metric": metric,
+        "subjects": sorted(_unique_metadata_values(item_metadata, "subject_id")),
+        "rois": sorted(_unique_metadata_values(item_metadata, "roi")),
         "activations": str(activation_path),
         "encoding_scores": str(scores_path),
+        "rsa_scores": str(rsa_path) if rsa_path is not None else None,
     }
     metadata_path = output_dir / "metadata.json"
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    return {**metadata, "metadata": str(metadata_path), "score_rows": score_rows}
+    return {
+        **metadata,
+        "metadata": str(metadata_path),
+        "score_rows": score_rows,
+        "rsa_rows": rsa_rows,
+    }
+
+
+def _move_model_to_device(model: Any, device: str) -> None:
+    torch_model = getattr(model, "model", model)
+    to = getattr(torch_model, "to", None)
+    if callable(to):
+        to(device)
 
 
 def _collect_features_and_responses(
@@ -92,9 +130,11 @@ def _collect_features_and_responses(
     layers: list[str],
     response_key: str,
     device: str,
-) -> tuple[list[str], np.ndarray, dict[str, np.ndarray]]:
+    feature_reduction: str,
+) -> tuple[list[str], np.ndarray, dict[str, np.ndarray], list[dict[str, Any]]]:
     image_ids: list[str] = []
     responses: list[np.ndarray] = []
+    item_metadata: list[dict[str, Any]] = []
     collected: dict[str, list[np.ndarray]] = {layer: [] for layer in layers}
 
     for index, item in enumerate(dataset):
@@ -108,15 +148,19 @@ def _collect_features_and_responses(
         feature_dict = _normalize_feature_output(features, layers)
         image_ids.append(str(item.get("image_id", f"item_{index:04d}")))
         responses.append(np.asarray(response, dtype=np.float32).ravel())
+        metadata = item.get("metadata", {})
+        item_metadata.append(metadata if isinstance(metadata, dict) else {})
         for layer in layers:
-            collected[layer].append(_flatten_feature(feature_dict[layer]))
+            collected[layer].append(
+                _reduce_feature(feature_dict[layer], method=feature_reduction)
+            )
 
     response_matrix = _stack_consistent(responses, "ROI responses")
     feature_matrix = {
         layer: _stack_consistent(values, f"features for layer {layer}")
         for layer, values in collected.items()
     }
-    return image_ids, response_matrix, feature_matrix
+    return image_ids, response_matrix, feature_matrix, item_metadata
 
 
 def _fit_and_score_layers(
@@ -128,6 +172,7 @@ def _fit_and_score_layers(
     alpha: float,
     metric: str,
     seed: int,
+    row_context: dict[str, Any],
 ) -> list[dict[str, Any]]:
     n_items = responses.shape[0]
     n_train = min(max(1, int(round(n_items * train_fraction))), n_items - 1)
@@ -144,6 +189,7 @@ def _fit_and_score_layers(
         scores = evaluate_encoding(predictions, responses[test_idx], metric=metric)
         rows.append(
             {
+                **row_context,
                 "layer": layer,
                 "metric": metric,
                 "n_train": int(train_idx.size),
@@ -152,6 +198,35 @@ def _fit_and_score_layers(
                 "mean_score": float(np.mean(scores)),
                 "median_score": float(np.median(scores)),
                 "std_score": float(np.std(scores, ddof=1)) if scores.size > 1 else 0.0,
+            }
+        )
+    return rows
+
+
+def _compute_rsa_rows(
+    features_by_layer: dict[str, np.ndarray],
+    responses: np.ndarray,
+    *,
+    layers: list[str],
+    feature_rdm_metric: str,
+    response_rdm_metric: str,
+    compare_method: str,
+    row_context: dict[str, Any],
+) -> list[dict[str, Any]]:
+    response_rdm = compute_rdm(responses, metric=response_rdm_metric)
+    rows: list[dict[str, Any]] = []
+    for layer in layers:
+        model_rdm = compute_rdm(features_by_layer[layer], metric=feature_rdm_metric)
+        score = compare_rdms(model_rdm, response_rdm, method=compare_method)
+        rows.append(
+            {
+                **row_context,
+                "layer": layer,
+                "model_rdm_metric": feature_rdm_metric,
+                "response_rdm_metric": response_rdm_metric,
+                "compare_method": compare_method,
+                "n_items": int(responses.shape[0]),
+                "score": float(score),
             }
         )
     return rows
@@ -176,7 +251,7 @@ def _normalize_feature_output(features: Any, layers: list[str]) -> dict[str, Any
     raise ValueError("Model features must be a dict or match requested layers")
 
 
-def _flatten_feature(values: Any) -> np.ndarray:
+def _reduce_feature(values: Any, method: str = "flatten") -> np.ndarray:
     detach = getattr(values, "detach", None)
     if callable(detach):
         values = values.detach().cpu().numpy()
@@ -185,7 +260,48 @@ def _flatten_feature(values: Any) -> np.ndarray:
         return array.reshape(1)
     if array.shape[0] == 1 and array.ndim > 1:
         array = array[0]
-    return array.reshape(-1)
+    if method == "flatten":
+        return array.reshape(-1)
+    if method == "spatial_mean":
+        if array.ndim == 1:
+            return array
+        if array.ndim == 2:
+            return array.mean(axis=0)
+        return array.mean(axis=tuple(range(1, array.ndim)))
+    raise ValueError("feature_reduction must be 'flatten' or 'spatial_mean'")
+
+
+def _score_row_context(
+    config: dict[str, Any],
+    item_metadata: list[dict[str, Any]],
+) -> dict[str, Any]:
+    dataset_config = config.get("dataset", {})
+    return {
+        "dataset": dataset_config.get("label") or dataset_config.get("name"),
+        "model": config.get("model", {}).get("name"),
+        "subject_id": _single_or_mixed(_unique_metadata_values(item_metadata, "subject_id")),
+        "roi": _single_or_mixed(_unique_metadata_values(item_metadata, "roi")),
+    }
+
+
+def _unique_metadata_values(
+    item_metadata: list[dict[str, Any]],
+    key: str,
+) -> set[str]:
+    values = set()
+    for metadata in item_metadata:
+        value = metadata.get(key)
+        if value is not None:
+            values.add(str(value))
+    return values
+
+
+def _single_or_mixed(values: set[str]) -> str:
+    if not values:
+        return ""
+    if len(values) == 1:
+        return next(iter(values))
+    return "mixed"
 
 
 def _stack_consistent(values: list[np.ndarray], label: str) -> np.ndarray:
@@ -199,6 +315,10 @@ def _stack_consistent(values: list[np.ndarray], label: str) -> np.ndarray:
 
 def _write_score_rows(path: Path, rows: list[dict[str, Any]]) -> None:
     fieldnames = [
+        "dataset",
+        "model",
+        "subject_id",
+        "roi",
         "layer",
         "metric",
         "n_train",
@@ -207,6 +327,25 @@ def _write_score_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "mean_score",
         "median_score",
         "std_score",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_rsa_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    fieldnames = [
+        "dataset",
+        "model",
+        "subject_id",
+        "roi",
+        "layer",
+        "model_rdm_metric",
+        "response_rdm_metric",
+        "compare_method",
+        "n_items",
+        "score",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
