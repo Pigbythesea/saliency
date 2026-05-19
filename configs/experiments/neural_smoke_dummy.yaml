@@ -1,0 +1,29 @@
+seed: 123
+device: cpu
+experiment:
+  name: neural_smoke_dummy
+dataset:
+  name: dummy_static_saliency
+  label: dummy_neural_smoke
+  split: train
+  num_items: 12
+  image_shape: [3, 16, 16]
+  map_shape: [16, 16]
+  roi_response_dim: 4
+  seed: 5
+model:
+  name: dummy_vision_encoder
+  noise_scale: 0.0
+  seed: 7
+preprocessing:
+  input_size: [16, 16]
+  mean: none
+  std: none
+neural:
+  layers: [embedding]
+  response_key: roi_responses
+  train_fraction: 0.75
+  ridge_alpha: 1.0
+  metric: correlation
+output:
+  dir: outputs/neural_smoke_dummy

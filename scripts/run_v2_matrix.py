@@ -336,6 +336,8 @@ def _reliability_key(info: dict[str, Any]) -> tuple[str, str, str]:
 def _saliency_family(method_name: str) -> str:
     if method_name in {"vanilla_gradient", "integrated_gradients"}:
         return "evidence_sensitivity"
+    if method_name == "occlusion":
+        return "perturbation"
     if method_name == "gradcam":
         return "class_localization"
     if method_name in {"attention_rollout", "rollout"}:

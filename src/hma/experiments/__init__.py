@@ -9,6 +9,7 @@ from hma.experiments.aggregate_results import (
 )
 from hma.experiments.pilot_manifests import create_pilot_manifest
 from hma.experiments.saliency_benchmark import run_saliency_benchmark
+from hma.experiments.neural_alignment import run_neural_alignment
 from hma.experiments.summarize_results import (
     metric_higher_is_better,
     summarize_aggregate_results,
@@ -22,6 +23,7 @@ __all__ = [
     "load_per_image_records",
     "metric_higher_is_better",
     "run_saliency_benchmark",
+    "run_neural_alignment",
     "save_aggregate_table",
     "summarize_aggregate_results",
 ]

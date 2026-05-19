@@ -12,6 +12,7 @@ from hma.saliency.baselines import center_bias_saliency, random_saliency
 from hma.saliency.gradcam import gradcam_saliency
 from hma.saliency.gradients import vanilla_gradient_saliency
 from hma.saliency.integrated_gradients import integrated_gradients_saliency
+from hma.saliency.occlusion import occlusion_saliency
 from hma.saliency.postprocess import (
     normalize_saliency_map,
     postprocess_saliency_map,
@@ -30,6 +31,7 @@ __all__ = [
     "gradcam_saliency",
     "integrated_gradients_saliency",
     "normalize_saliency_map",
+    "occlusion_saliency",
     "patch_relevance_to_grid",
     "postprocess_saliency_map",
     "random_saliency",

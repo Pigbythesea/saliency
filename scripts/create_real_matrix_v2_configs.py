@@ -103,6 +103,7 @@ GRADCAM_CONFIGS = {
     "convnext_tiny": {"target_layer": "stages.3"},
 }
 PILOT_INTEGRATED_GRADIENT_MODELS = ["resnet50", "vit_base_patch16_224"]
+PILOT_OCCLUSION_MODELS = ["resnet50"]
 
 
 def main() -> None:
@@ -123,6 +124,17 @@ def main() -> None:
                     model,
                     "integrated_gradients",
                     saliency_extra={"steps": 16},
+                )
+            for model in PILOT_OCCLUSION_MODELS:
+                _write_config(
+                    dataset,
+                    model,
+                    "occlusion",
+                    saliency_extra={
+                        "patch_size": 32,
+                        "stride": 32,
+                        "baseline_value": 0.0,
+                    },
                 )
 
     save_yaml(

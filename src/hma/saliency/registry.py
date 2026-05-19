@@ -10,6 +10,7 @@ from hma.saliency.baselines import center_bias_saliency, random_saliency
 from hma.saliency.gradcam import gradcam_saliency
 from hma.saliency.gradients import vanilla_gradient_saliency
 from hma.saliency.integrated_gradients import integrated_gradients_saliency
+from hma.saliency.occlusion import occlusion_saliency
 from hma.saliency.precomputed import precomputed_map_saliency
 
 
@@ -38,6 +39,13 @@ def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
         return partial(
             integrated_gradients_saliency,
             steps=int(saliency_config.get("steps", 16)),
+        )
+    if method == "occlusion":
+        return partial(
+            occlusion_saliency,
+            patch_size=saliency_config.get("patch_size", 32),
+            stride=saliency_config.get("stride"),
+            baseline_value=float(saliency_config.get("baseline_value", 0.0)),
         )
     if method == "gradcam":
         target_layer = saliency_config.get("target_layer")

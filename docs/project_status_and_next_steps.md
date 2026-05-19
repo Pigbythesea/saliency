@@ -2,6 +2,8 @@
 
 Date: 2026-05-18
 
+Latest implementation update: 2026-05-19
+
 ## Current Status
 
 The repository now has a first real behavioral-saliency comparison result set for Phase 1 of the Human-Machine Visual Alignment project and a stronger V2 benchmark scaffold. It can load real SALICON, CAT2000, and COCO-Search18 manifests, run baseline and pretrained `timm` model saliency methods, cache saliency maps, aggregate metrics, plot rankings, profile model efficiency, parse observer-level fixation files for SALICON/CAT2000, and produce controlled V2 summaries.
@@ -12,7 +14,7 @@ Latest verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result: `111 passed, 4 warnings`.
+Result: `121 passed, 4 warnings`.
 
 The remaining warnings are not blocking:
 
@@ -197,11 +199,8 @@ This milestone directly supports the proposal's Phase 1 direction:
 
 Still missing or incomplete:
 
-- Full V2 pilot matrix completion across all three datasets.
-- Larger and more stable V2 `static2000` result set after pilot validation.
-- Actual DeepGaze prediction maps or another external saliency-reference export.
-- Perturbation methods such as occlusion or RISE.
-- Real fMRI activation extraction over torch dataloaders.
+- Real fMRI activation extraction over local NSD / Algonauts manifests.
+- RSA / representational-geometry experiment reporting over real neural data.
 - Brain-Score integration.
 - Selective-computation models, token pruning, and foveation.
 - Video extension.
@@ -267,6 +266,8 @@ Implemented after the V1 pilot milestone:
   - best non-baseline rows
   - center-bias deltas
   - saliency-family rankings
+  - key center-bias / Grad-CAM / gradient / attention comparison rows
+  - pilot-to-static ranking stability rows
   - alignment-per-efficiency summaries when an efficiency CSV is provided
 - Added a best-effort observer-control script for manifest rows with parseable fixation points:
   - `scripts/summarize_observer_controls.py`
@@ -284,6 +285,17 @@ Implemented after the V1 pilot milestone:
 - Added precomputed-map saliency support for DeepGaze-style imported references:
   - `precomputed_map`
   - `deepgaze_precomputed`
+- Added DeepGaze-style reference config generation:
+  - `scripts/create_deepgaze_reference_configs.py`
+  - output defaults to `configs/experiments/real_matrix_v2_references/`
+- Added pilot-only perturbation saliency support:
+  - `saliency.method: occlusion`
+  - config controls for `patch_size`, `stride`, `baseline_value`, and normal `target_class`
+  - V2 config generation adds `resnet50 + occlusion` only for pilot datasets
+- Added a neural-alignment smoke runner:
+  - `src/hma/experiments/neural_alignment.py`
+  - `scripts/run_neural_alignment.py`
+  - `configs/experiments/neural_smoke_dummy.yaml`
 - Added V2 matrix orchestration:
   - `scripts/run_v2_matrix.py`
   - reliability checks
@@ -297,7 +309,7 @@ Verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result after implementation: `111 passed, 4 warnings`.
+Result after implementation: `121 passed, 4 warnings`.
 
 Real V2 smoke run completed:
 
@@ -336,102 +348,257 @@ Additional V2 reliability checks completed:
   - `outputs/real_matrix_v2/observer_controls/salicon_pilot500_observer_controls.csv`
   - `outputs/real_matrix_v2/observer_controls/cat2000_pilot500_observer_controls.csv`
 
+V2 static2000 completion:
+
+- Full aggregate table: `outputs/real_matrix_v2/aggregated/results.csv`.
+- Static ledger: `outputs/real_matrix_v2/run_ledgers/static2000_run_ledger.csv`.
+- Static ledger status: 33 `static2000` configs succeeded; 3 skipped rows were already-completed pilot reliability checks.
+- Summary directory: `outputs/real_matrix_v2/aggregated/results_summary/`.
+- Plot directory: `outputs/real_matrix_v2/aggregated/results_plots/`.
+- EMD remains pilot-only by config because static EMD is slower; static interpretation should use NSS, shuffled AUC, AUC-Borji, AUC-Judd, CC, SIM, and KL.
+
+Static2000 headline result:
+
+- No non-baseline row beats center bias on NSS for SALICON, CAT2000, or COCO-Search18.
+- Best non-baseline NSS rows:
+  - SALICON: `resnet50 + gradcam`, mean 0.3421211974733906.
+  - CAT2000: `resnet50 + gradcam`, mean 0.39305544706738876.
+  - COCO-Search18: `resnet50 + gradcam`, mean 0.6341453774338297.
+- Shuffled AUC shows a more nuanced pattern: COCO-Search18 static2000 is led by `deit_small_patch16_224 + attention_rollout`, while SALICON and CAT2000 still favor center bias.
+- KL also favors center bias across the three static2000 datasets.
+
 Remaining V2 work:
 
-- Run the full pilot V2 matrix before the scaled 2,000-row matrix.
-- Run the scaled `static2000` matrix only after reviewing pilot failures and excluding unsupported methods.
-- Add actual DeepGaze/reference prediction maps and corresponding configs using the precomputed-map path.
-- Add a compact paper-ready V2 results note after the full pilot and scaled matrices are complete.
+- Use DeepGaze/reference and pilot occlusion rows in paper-ready behavioral analysis.
+- Keep occlusion pilot-only unless a targeted perturbation ablation is needed later.
+- Use the new key-comparison and pilot/static-stability summaries in the paper-ready analysis.
 
-## Proposal-Aligned Next Steps From Current Progress
+## Current Session Additions
 
-The proposal's global goal is a multi-level human-machine visual alignment benchmark: behavioral saliency, neural prediction, representational geometry, Brain-Score-style comparison, and computational efficiency. The current codebase is strongest on behavioral saliency and efficiency, so the next work should finish that layer before expanding.
+This session turned the post-static2000 plan into concrete infrastructure:
 
-### Step 1: Finish Controlled Static Benchmark V2
+- Added `docs/v2_static2000_results_note.md` as the compact behavioral-baseline interpretation note.
+- Added `occlusion` saliency under `src/hma/saliency/occlusion.py`.
+- Registered `occlusion` as `saliency_family: perturbation`.
+- Added pilot-only V2 occlusion configs:
+  - `configs/experiments/real_matrix_v2/salicon_pilot500__resnet50_occlusion.yaml`
+  - `configs/experiments/real_matrix_v2/cat2000_pilot500__resnet50_occlusion.yaml`
+  - `configs/experiments/real_matrix_v2/coco_search18_pilot500__resnet50_occlusion.yaml`
+- Added DeepGaze/reference config generation:
+  - `scripts/create_deepgaze_reference_configs.py`
+  - generated configs under `configs/experiments/real_matrix_v2_references/`
+- Added DeepGaze map export:
+  - `scripts/export_deepgaze_maps.py`
+  - supports `--manifest`, `--image-root`, `--output-dir`, `--centerbias`, `--device`, `--max-items`, `--dry-run`, `--overwrite`, and `--save-log-density`
+  - exported all V2 static DeepGaze maps under `data/precomputed/deepgaze/`
+- Completed DeepGaze/reference static2000 benchmark runs:
+  - `outputs/real_matrix_v2/salicon_static2000/deepgaze_reference_deepgaze_precomputed/`
+  - `outputs/real_matrix_v2/cat2000_static2000/deepgaze_reference_deepgaze_precomputed/`
+  - `outputs/real_matrix_v2/coco_search18_static2000/deepgaze_reference_deepgaze_precomputed/`
+- Completed pilot occlusion benchmark runs:
+  - `outputs/real_matrix_v2/salicon_pilot500/resnet50_occlusion/`
+  - `outputs/real_matrix_v2/cat2000_pilot500/resnet50_occlusion/`
+  - `outputs/real_matrix_v2/coco_search18_pilot500/resnet50_occlusion/`
+- Added improved summary outputs:
+  - `outputs/real_matrix_v2/aggregated/results_summary/key_comparisons.csv`
+  - `outputs/real_matrix_v2/aggregated/results_summary/pilot_static_stability.csv`
+- Added neural-alignment bootstrap:
+  - `src/hma/experiments/neural_alignment.py`
+  - `scripts/run_neural_alignment.py`
+  - `configs/experiments/neural_smoke_dummy.yaml`
+  - smoke outputs under `outputs/neural_smoke_dummy/`
+- Expanded tests from 111 to 121 passing tests.
 
-Run the full pilot matrix with resume enabled:
+The current codebase now covers the proposal's first layer, behavioral saliency, and has a minimal bridge into the second layer, neural encoding.
 
-```powershell
-.\.venv\Scripts\python.exe scripts/run_v2_matrix.py --phase pilot --resume
+## Latest Behavioral Benchmark Status
+
+The current aggregate table is:
+
+```text
+outputs/real_matrix_v2/aggregated/results.csv
 ```
 
-After reviewing the run ledger and excluding any failed methods, run the scaled matrix:
+It now contains 588 aggregate rows:
+
+- `baseline`: 90 rows
+- `evidence_sensitivity`: 273 rows
+- `class_localization`: 90 rows
+- `internal_routing`: 90 rows
+- `reference`: 21 rows
+- `perturbation`: 24 rows
+
+DeepGaze/reference static2000 results:
+
+- SALICON: NSS 0.43481094856746494, shuffled AUC 0.8252894349874732, CC 0.8018529208600521, KL 0.3562953563779592.
+- CAT2000: NSS 0.2749275257792324, shuffled AUC 0.7380476504637372, CC 0.3711839377101278, KL 1.2703175959587096.
+- COCO-Search18: NSS 0.5179860137457727, shuffled AUC 0.7382109927269479, CC 0.2832240072847344, KL 1.9249819242060184.
+
+Interpretation:
+
+- DeepGaze is now the strongest non-baseline static row on SALICON for NSS, CC, SIM/KL-style density alignment, and shuffled AUC.
+- DeepGaze does not beat `resnet50 + gradcam` on CAT2000 or COCO-Search18 NSS.
+- Center bias still remains the main static control and should stay in every headline table.
+
+Pilot occlusion results:
+
+- SALICON: NSS 0.20956744656599768, shuffled AUC 0.6578228844311923, CC 0.19740435802773573, KL 4.163194729328156.
+- CAT2000: NSS 0.22179918536139304, shuffled AUC 0.6600552580881113, CC 0.19677008081242092, KL 4.207855820894241.
+- COCO-Search18: NSS 0.2771203769161366, shuffled AUC 0.6536168335472635, CC 0.1059631172362715, KL 5.544543475866318.
+
+Interpretation:
+
+- Occlusion is valid and scientifically useful as a perturbation family.
+- Occlusion beats ResNet gradients and Grad-CAM on shuffled AUC in all three pilot datasets.
+- Occlusion does not beat Grad-CAM on NSS or CC and has weak KL, so it should not be scaled to static2000 yet.
+
+## Proposal-Aligned Roadmap From Here
+
+The proposal's main scientific direction is not just to rank saliency maps. It asks when behavioral fixation alignment, neural predictivity, representational geometry, and computational efficiency agree or dissociate. The implementation sequence should preserve that structure: finish the behavioral layer as a publishable baseline, add a reference upper-bound, validate perturbation methods, then move into real neural data.
+
+### Step 1: Freeze And Analyze V2 Static2000
+
+Status: implemented enough for analysis.
+
+Use `outputs/real_matrix_v2/aggregated/results.csv` as the current behavioral baseline. Do not rerun the full `static2000` matrix unless a code/config bug invalidates the outputs.
+
+Immediate analysis tasks:
+
+- Read `docs/v2_static2000_results_note.md`.
+- Inspect `outputs/real_matrix_v2/aggregated/results_summary/key_comparisons.csv`.
+- Inspect `outputs/real_matrix_v2/aggregated/results_summary/pilot_static_stability.csv`.
+- Convert the main findings into a paper-style table and figure shortlist.
+
+Interpretation defaults:
+
+- Main static claims should use `static2000`, not pilot rows.
+- Pilot rows are reliability checks and development baselines.
+- EMD remains pilot-only unless a later paper table specifically needs a slow static EMD pass.
+- Center bias is not a nuisance result; it is a central control and should be reported explicitly.
+
+Acceptance criteria:
+
+- The written analysis names center bias as the strongest NSS/CC/SIM-style static baseline.
+- The best non-baseline static row is reported per dataset.
+- Shuffled-AUC and KL caveats are reported separately from NSS.
+- Pilot/static ranking stability is used before making method-family claims.
+
+### Step 2: DeepGaze Or Equivalent Reference Maps
+
+Status: complete for V2 static2000.
+
+The proposal calls for saliency-prediction upper/reference baselines. The repo should use precomputed maps first rather than adding package inference into the benchmark loop.
+
+Expected local layout:
+
+```text
+data/precomputed/deepgaze/salicon_static2000/<image_id>.npy
+data/precomputed/deepgaze/cat2000_static2000/<image_id>.npy
+data/precomputed/deepgaze/coco_search18_static2000/<image_id>.npy
+```
+
+The export and benchmark path is retained for reproducibility:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/run_v2_matrix.py --phase static2000 --resume
+.\.venv\Scripts\python.exe scripts/create_deepgaze_reference_configs.py --precomputed-root data/precomputed/deepgaze
 ```
 
 Acceptance criteria:
 
-- Full pilot aggregate table exists at `outputs/real_matrix_v2/aggregated/pilot_results.csv`.
-- Full scaled aggregate table exists at `outputs/real_matrix_v2/aggregated/results.csv`.
-- Run ledgers identify successful, failed, skipped, and unsupported configs.
-- Summary tables and plots exist for pilot and scaled outputs.
-- The interpretation note clearly reports center-bias comparison, saliency-family differences, and alignment-per-efficiency.
+- `deepgaze_reference + deepgaze_precomputed` appears as `saliency_family: reference`.
+- Reference rows are compared against center bias, Grad-CAM, attention rollout, and observer controls.
+- The report clearly separates learned saliency predictors from model-explanation methods.
 
-### Step 2: Add External Reference Baselines
+### Step 3: Pilot Occlusion / Perturbation Saliency
 
-Use the new precomputed-map method to import DeepGaze-style predictions rather than adding package inference first.
+Status: pilot complete; do not scale yet.
 
-Recommended path:
-
-- Store prediction maps in a stable folder such as `data/precomputed/deepgaze/<dataset_label>/`.
-- Add reference configs that use `saliency.method: deepgaze_precomputed`.
-- Aggregate DeepGaze/reference rows as `saliency_family: reference`.
-- Compare reference rows against center bias, model saliency methods, and observer controls.
+The proposal emphasizes that saliency methods can disagree. Occlusion is the first perturbation method because it is easier to validate than RISE and tests causal evidence sensitivity more directly than gradients.
 
 Acceptance criteria:
 
-- DeepGaze/reference rows appear in aggregate tables.
-- Reference maps are reproducible from documented local files.
-- The report separates `reference` rows from model-generated saliency families.
+- Occlusion writes valid `per_image_metrics.csv`, `aggregate_metrics.json`, saliency cache files, and pilot visualizations.
+- Runtime is recorded before any static2000 occlusion config is added.
+- Occlusion is compared against `resnet50 + vanilla_gradient` and `resnet50 + gradcam`, not mixed into a generic model ranking.
 
-### Step 3: Add Perturbation-Based Saliency
+Current decision:
 
-The proposal emphasizes that saliency methods can disagree. V2 currently covers gradients, Integrated Gradients, Grad-CAM, and attention rollout; the next method family should be perturbation-based evidence sensitivity.
+- Keep occlusion as a pilot-only perturbation family.
+- Do not add static2000 occlusion configs now.
+- Revisit static occlusion only if a later paper section needs a perturbation-specific ablation.
 
-Recommended implementation:
+### Step 4: Move Neural Alignment From Smoke Test To Real Manifest
 
-- Start with occlusion sensitivity before RISE because it is easier to validate.
-- Add config controls for patch size, stride, target class, and maximum images.
-- Run perturbation methods on pilot subsets first because runtime will be high.
+Status: dummy neural smoke runner works; real NSD / Algonauts manifest wiring is next.
 
-Acceptance criteria:
+The proposal's second layer asks whether models that match fixations also predict visual-cortex responses. This should be implemented as a parallel neural benchmark, not forced onto SALICON/CAT2000 image IDs.
 
-- Perturbation saliency produces valid maps and cache entries.
-- Pilot results can be compared against gradient and Grad-CAM rows.
-- Runtime is documented before any scaled run.
+Next implementation target:
 
-### Step 4: Begin Neural Alignment Bootstrap
+- Create or validate a local NSD / Algonauts manifest with:
+  - `image_id`
+  - `image_path`
+  - `split`
+  - `subject_id`
+  - `roi`
+  - `roi_responses` or `roi_response_path`
+- Add one real neural config under `configs/experiments/`.
+- Run:
 
-Once V2 static results are stable, start the proposal's neural-alignment layer with the already present NSD / Algonauts-style loader and neural utilities.
-
-Recommended implementation:
-
-- Add a neural experiment config format for dataset, model, layers, train/test split, ROI, and ridge alpha.
-- Implement a script that extracts activations, fits ridge encoding models, and writes ROI-level prediction scores.
-- Use a small fixture or local manifest first; do not require overlap with SALICON/CAT2000.
-- Add RSA over the same image set using `hma.neural.rsa`.
-
-Acceptance criteria:
-
-- One end-to-end neural smoke run writes activation files and encoding scores.
-- Tests cover activation extraction shape, score aggregation, and failure handling for missing ROI responses.
-- Neural results can later be joined with behavioral saliency rows by model/family, not necessarily by identical images.
-
-### Step 5: Architecture Expansion Toward The Proposal's Core Hypothesis
-
-After the static and neural layers are stable, expand beyond standard CNN/ViT families toward the proposal's central hypothesis about efficient and adaptive vision.
-
-Priority order:
-
-1. Self-supervised ViT or CLIP/DINO-style encoders, because they are likely to change saliency and neural alignment without requiring custom routing logic.
-2. State-space or hybrid vision backbones, if available through `timm` or a stable wrapper.
-3. Selective-computation models such as token pruning, foveation, or glimpse models.
-4. Video models only after static image results are publishable.
+```powershell
+.\.venv\Scripts\python.exe scripts/run_neural_alignment.py --config configs/experiments/<real_neural_config>.yaml
+```
 
 Acceptance criteria:
 
-- Each new architecture family has model metadata, saliency compatibility notes, and efficiency rows.
+- Real neural run writes `activations.npz`, `encoding_scores.csv`, and `metadata.json`.
+- Scores are reported by model, layer, ROI, subject, and metric.
+- The output can later be joined to saliency summaries by model family, training objective, and architecture class.
+
+### Step 5: Add RSA / Representational Geometry
+
+Status: RSA utilities exist; experiment-level reporting is not yet connected.
+
+The proposal explicitly asks whether fixation-map similarity and feature-space similarity agree. The next neural-layer extension should compute model RDMs and compare them with brain or ROI-response RDMs.
+
+Implementation target:
+
+- Extend the neural runner or add a companion script that loads `activations.npz`.
+- Compute layer-wise model RDMs.
+- Compute ROI-response RDMs.
+- Save `rsa_scores.csv` with layer, ROI, metric, and score.
+
+Acceptance criteria:
+
+- RSA runs on the same real neural manifest as the encoding smoke.
+- RSA scores can be compared against encoding scores and saliency results.
+- The report can identify behaviorally aligned but neurally weak models, or the reverse.
+
+### Step 6: Architecture Expansion
+
+Status: defer until the baseline, reference, perturbation, and first real neural pass are stable.
+
+Priority order from the proposal:
+
+1. Self-supervised or multimodal encoders such as DINO/DINOv2/CLIP-style vision backbones.
+2. Hierarchical or hybrid backbones available through stable wrappers.
+3. Selective-computation models: token pruning, foveation, adaptive patch selection, or glimpse-style models.
+4. Video models only after static-image claims are paper-ready.
+
+Acceptance criteria:
+
+- Each architecture family has model metadata, saliency compatibility notes, and efficiency rows.
 - Results remain grouped by architecture family and saliency family.
-- The analysis can test whether alignment improves with efficiency or selective computation rather than only with model scale.
+- Claims test alignment per computation, not only raw alignment or model size.
+
+## What To Do Next
+
+Recommended next action:
+
+1. Build the first real NSD / Algonauts manifest for `scripts/run_neural_alignment.py`.
+2. Run one real neural encoding experiment and verify `activations.npz`, `encoding_scores.csv`, and `metadata.json`.
+3. Add RSA / representational-geometry reporting over the same real neural manifest.
+4. Write a compact behavioral benchmark result table from the current `results.csv`.
+5. Only after neural smoke + RSA are stable, add the next architecture family, starting with self-supervised or multimodal encoders.
+
+Do not start selective-computation models, video models, or saliency-guided training yet. The current project now has its reference saliency baseline; it needs one real neural-alignment run before those larger proposal branches will be scientifically interpretable.

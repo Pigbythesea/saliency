@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 
+from hma.experiments.neural_alignment import run_neural_alignment
 from hma.neural import (
     compare_rdms,
     compute_rdm,
@@ -66,3 +68,69 @@ def test_save_activations_writes_npz(tmp_path):
     assert output.suffix == ".npz"
     loaded = np.load(output, allow_pickle=True)
     assert set(loaded.files) == {"image_ids", "layer1"}
+
+
+def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
+    from hma.utils.config import save_yaml
+
+    config_path = tmp_path / "neural.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "seed": 123,
+            "device": "cpu",
+            "dataset": {
+                "name": "dummy_static_saliency",
+                "label": "dummy_neural",
+                "num_items": 8,
+                "image_shape": [3, 8, 8],
+                "map_shape": [8, 8],
+                "roi_response_dim": 3,
+                "seed": 2,
+            },
+            "model": {"name": "dummy_vision_encoder", "noise_scale": 0.0},
+            "preprocessing": {"input_size": [8, 8], "mean": "none", "std": "none"},
+            "neural": {
+                "layers": ["embedding"],
+                "response_key": "roi_responses",
+                "train_fraction": 0.75,
+                "ridge_alpha": 1.0,
+                "metric": "correlation",
+            },
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+
+    result = run_neural_alignment(config_path)
+
+    assert (output_dir / "activations.npz").is_file()
+    assert (output_dir / "encoding_scores.csv").is_file()
+    assert (output_dir / "metadata.json").is_file()
+    assert result["num_items"] == 8
+    assert result["score_rows"][0]["layer"] == "embedding"
+
+
+def test_run_neural_alignment_missing_roi_response_fails(tmp_path):
+    from hma.utils.config import save_yaml
+
+    config_path = tmp_path / "missing.yaml"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {
+                "name": "dummy_static_saliency",
+                "num_items": 3,
+                "image_shape": [3, 8, 8],
+                "map_shape": [8, 8],
+            },
+            "model": {"name": "dummy_vision_encoder"},
+            "preprocessing": {"input_size": [8, 8], "mean": "none", "std": "none"},
+            "neural": {"layers": ["embedding"], "response_key": "roi_responses"},
+            "output": {"dir": str(tmp_path / "outputs")},
+        },
+        config_path,
+    )
+
+    with pytest.raises(ValueError, match="missing neural response"):
+        run_neural_alignment(config_path)

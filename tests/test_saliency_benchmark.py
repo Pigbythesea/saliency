@@ -70,6 +70,7 @@ def test_saliency_benchmark_writes_csv_json_and_visualizations(tmp_path):
     [
         ("vanilla_gradient", {}, "evidence_sensitivity"),
         ("integrated_gradients", {"steps": 2}, "evidence_sensitivity"),
+        ("occlusion", {"patch_size": 4, "stride": 4}, "perturbation"),
         ("gradcam", {"target_layer": "features.0"}, "class_localization"),
     ],
 )

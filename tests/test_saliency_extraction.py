@@ -8,6 +8,7 @@ from hma.saliency import (  # noqa: E402
     build_saliency_method,
     gradcam_saliency,
     integrated_gradients_saliency,
+    occlusion_saliency,
     random_saliency,
     vanilla_gradient_saliency,
 )
@@ -76,6 +77,26 @@ def test_gradcam_saliency_shape_and_range(tiny_wrapper, images):
     _assert_valid_saliency_map(maps)
 
 
+def test_occlusion_saliency_shape_range_and_determinism(tiny_wrapper, images):
+    first = occlusion_saliency(
+        tiny_wrapper,
+        images,
+        patch_size=4,
+        stride=4,
+        baseline_value=0.0,
+    )
+    second = occlusion_saliency(
+        tiny_wrapper,
+        images,
+        patch_size=4,
+        stride=4,
+        baseline_value=0.0,
+    )
+
+    _assert_valid_saliency_map(first)
+    assert torch.allclose(first, second)
+
+
 def test_gradcam_missing_layer_raises_informative_error(tiny_wrapper, images):
     with pytest.raises(ValueError, match="Target layer 'missing' not found"):
         gradcam_saliency(tiny_wrapper, images, target_layer="missing")
@@ -89,10 +110,14 @@ def test_build_saliency_method_returns_configured_callables(tiny_wrapper, images
     gradcam = build_saliency_method(
         {"saliency": {"method": "gradcam", "target_layer": "features.0"}}
     )
+    occlusion = build_saliency_method(
+        {"saliency": {"method": "occlusion", "patch_size": 4, "stride": 4}}
+    )
 
     _assert_valid_saliency_map(vanilla(tiny_wrapper, images))
     _assert_valid_saliency_map(integrated(tiny_wrapper, images))
     _assert_valid_saliency_map(gradcam(tiny_wrapper, images))
+    _assert_valid_saliency_map(occlusion(tiny_wrapper, images))
 
 
 def test_baseline_saliency_methods_are_valid_and_reproducible():

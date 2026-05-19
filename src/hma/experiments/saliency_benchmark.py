@@ -348,6 +348,7 @@ def _saliency_requires_torch(method_name: str | None) -> bool:
     return str(method_name) in {
         "vanilla_gradient",
         "integrated_gradients",
+        "occlusion",
         "gradcam",
         "attention_rollout",
         "rollout",
@@ -459,6 +460,8 @@ def _safe_cache_stem(value: str) -> str:
 def _saliency_family(method_name: Any) -> str:
     if method_name in {"vanilla_gradient", "integrated_gradients"}:
         return "evidence_sensitivity"
+    if method_name == "occlusion":
+        return "perturbation"
     if method_name == "gradcam":
         return "class_localization"
     if method_name in {"attention_rollout", "rollout"}:

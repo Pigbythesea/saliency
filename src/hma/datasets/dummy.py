@@ -23,6 +23,7 @@ class DummySaliencyDataset(BaseVisionDataset):
     image_shape: tuple[int, int, int] = (3, 16, 16)
     map_shape: tuple[int, int] = (16, 16)
     num_fixation_points: int = 8
+    roi_response_dim: int = 0
     root: str = "data/dummy_saliency"
     seed: int = 0
 
@@ -35,6 +36,7 @@ class DummySaliencyDataset(BaseVisionDataset):
             image_shape=tuple(config.get("image_shape", (3, 16, 16))),
             map_shape=tuple(config.get("map_shape", (16, 16))),
             num_fixation_points=int(config.get("num_fixation_points", 8)),
+            roi_response_dim=int(config.get("roi_response_dim", 0)),
             root=str(config.get("root", "data/dummy_saliency")),
             seed=int(config.get("seed", 0)),
         )
@@ -61,17 +63,26 @@ class DummySaliencyDataset(BaseVisionDataset):
         image_id = f"{self.split}_{index:04d}"
         image_path = str(PurePosixPath(self.root) / self.split / f"{image_id}.png")
 
+        metadata = {
+            "dataset": "dummy_saliency",
+            "split": self.split,
+            "index": index,
+        }
+        if self.roi_response_dim > 0:
+            metadata["roi"] = "dummy_roi"
+            metadata["roi_responses"] = rng.normal(
+                loc=float(image.mean()),
+                scale=0.05,
+                size=self.roi_response_dim,
+            ).astype(np.float32)
+
         return {
             "image": image,
             "image_id": image_id,
             "image_path": image_path,
             "fixation_map": fixation_map,
             "fixation_points": fixation_points,
-            "metadata": {
-                "dataset": "dummy_saliency",
-                "split": self.split,
-                "index": index,
-            },
+            "metadata": metadata,
         }
 
     def _make_fixation_points(self, rng: np.random.Generator) -> np.ndarray:
