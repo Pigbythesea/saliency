@@ -14,6 +14,7 @@ from hma.experiments.summarize_results import (
     metric_higher_is_better,
     summarize_aggregate_results,
 )
+from hma.experiments.summarize_neural_roi_results import summarize_neural_roi_results
 
 __all__ = [
     "aggregate_records",
@@ -26,4 +27,5 @@ __all__ = [
     "run_neural_alignment",
     "save_aggregate_table",
     "summarize_aggregate_results",
+    "summarize_neural_roi_results",
 ]

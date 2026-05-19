@@ -6,7 +6,14 @@ Latest implementation update: 2026-05-19
 
 ## Current Status
 
-The repository now has a controlled behavioral-saliency benchmark for Phase 1 of the Human-Machine Visual Alignment project and a working bridge into the proposal's neural layer. It can load real SALICON, CAT2000, COCO-Search18, and one local Algonauts 2023 subject manifest, run baseline and pretrained `timm` model saliency methods, cache saliency maps, aggregate metrics, plot rankings, profile model efficiency, parse observer-level fixation files for SALICON/CAT2000, validate neural manifests, extract named `timm` layer activations, and run neural encoding plus RSA smoke experiments.
+The repository now has a controlled behavioral-saliency benchmark for Phase 1 of the Human-Machine Visual Alignment project and a scaled first bridge into the proposal's neural layer. It can load real SALICON, CAT2000, COCO-Search18, and one local Algonauts 2023 subject manifest, run baseline and pretrained `timm` model saliency methods, cache saliency maps, aggregate metrics, plot rankings, profile model efficiency, parse observer-level fixation files for SALICON/CAT2000, validate neural manifests, extract named `timm` layer activations, and run neural encoding plus RSA over true PRF visual ROIs.
+
+Current implementation frontier:
+
+- Behavioral layer: frozen V2 static2000 benchmark with center-bias, random, model-saliency, DeepGaze/reference, and pilot occlusion rows.
+- Neural layer: ROI500 encoding + RSA completed for `resnet50`, `convnext_tiny`, `deit_small_patch16_224`, and `vit_base_patch16_224` across bilateral V1, V2, V3, and hV4 in `subj01`.
+- Bridge layer: paper-style behavior-neural analysis tables generated for matching static2000 behavioral rows and multi-model ROI500 neural summaries.
+- Next scientific blocker: pretrained self-supervised / multimodal debug runs, after confirming local weight availability or approving downloads.
 
 Latest verification:
 
@@ -15,6 +22,30 @@ Latest verification:
 ```
 
 Result: `128 passed, 4 warnings`.
+
+Latest verification after ROI500 summary implementation:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `131 passed, 4 warnings`.
+
+Latest verification after multi-model neural expansion:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `132 passed, 4 warnings`.
+
+Latest verification after behavior-neural analysis V1 and SSL candidate prep:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `134 passed, 4 warnings`.
 
 The remaining warnings are not blocking:
 
@@ -761,9 +792,272 @@ Interpretation boundary:
 - They validate mask parsing, response extraction, named-layer activations, encoding, and RSA.
 - They should not yet be used as stable claims about cortical hierarchy or model ranking.
 
+## Latest ROI500 Neural Summary Update
+
+Implemented after the true ROI smoke milestone:
+
+- Added reusable neural ROI summary tooling:
+  - `src/hma/experiments/summarize_neural_roi_results.py`
+  - `scripts/summarize_neural_roi_results.py`
+- Added ROI500 config generation:
+  - `scripts/create_neural_roi500_configs.py`
+- Added tests for:
+  - combined encoding/RSA summary outputs
+  - best-layer selection
+  - behavior-neural bridge generation
+  - missing-RSA tolerance
+  - ROI500 config defaults
+
+Verification:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_validate_neural_manifest.py tests\test_create_algonauts_manifest.py
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `131 passed, 4 warnings`.
+
+ROI500 manifest and config generation:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\create_algonauts_manifest.py --root data\raw\nsd_algonauts --subject subj01 --roi-class prf-visualrois --roi-names V1 V2 V3 hV4 --hemispheres lh rh --combine-hemispheres --output-manifest data\manifests\nsd_algonauts_prf_visualrois_500_manifest.csv --max-items 500
+.\.venv\Scripts\python.exe scripts\create_neural_roi500_configs.py
+```
+
+Generated:
+
+- `data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv`, 2,000 rows.
+- `configs/experiments/neural_nsd_algonauts_v1_500.yaml`
+- `configs/experiments/neural_nsd_algonauts_v2_500.yaml`
+- `configs/experiments/neural_nsd_algonauts_v3_500.yaml`
+- `configs/experiments/neural_nsd_algonauts_hv4_500.yaml`
+
+Validation confirmed 500 selected rows for each ROI:
+
+- V1: response dimension 2,973.
+- V2: response dimension 2,936.
+- V3: response dimension 2,453.
+- hV4: response dimension 1,296.
+
+Completed ROI500 outputs:
+
+- `outputs/neural_nsd_algonauts_v1_500/`
+- `outputs/neural_nsd_algonauts_v2_500/`
+- `outputs/neural_nsd_algonauts_v3_500/`
+- `outputs/neural_nsd_algonauts_hv4_500/`
+
+Each directory contains:
+
+- `activations.npz`
+- `encoding_scores.csv`
+- `rsa_scores.csv`
+- `metadata.json`
+
+Summary command:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\summarize_neural_roi_results.py --input-dirs outputs\neural_nsd_algonauts_v1_500 outputs\neural_nsd_algonauts_v2_500 outputs\neural_nsd_algonauts_v3_500 outputs\neural_nsd_algonauts_hv4_500 --output-dir outputs\neural_roi_summary --behavioral-csv outputs\real_matrix_v2\aggregated\results.csv
+```
+
+Summary outputs:
+
+- `outputs/neural_roi_summary/combined_encoding_scores.csv`
+- `outputs/neural_roi_summary/combined_rsa_scores.csv`
+- `outputs/neural_roi_summary/best_layers_by_roi.csv`
+- `outputs/neural_roi_summary/behavior_neural_bridge.csv`
+- `outputs/neural_roi_summary/neural_roi_summary.md`
+
+Best ROI500 encoding layer by ROI:
+
+- V1: `layer1`, mean correlation `0.20192262530326843`.
+- V2: `layer1`, mean correlation `0.16762115061283112`.
+- V3: `layer1`, mean correlation `0.13866020739078522`.
+- hV4: `layer1`, mean correlation `0.16209737956523895`.
+
+Best ROI500 RSA layer by ROI:
+
+- V1: `layer2`, Spearman RDM score `0.06975722561670442`.
+- V2: `layer2`, Spearman RDM score `0.0782044194972823`.
+- V3: `layer3`, Spearman RDM score `0.06606586984155853`.
+- hV4: `layer3`, Spearman RDM score `0.08617366357734918`.
+
+Smoke-to-ROI500 pattern:
+
+- Encoding partially changes with scale: V1 and hV4 still select `layer1`, while V2 changes from `layer3` to `layer1` and V3 changes from `layer2` to `layer1`.
+- RSA changes more clearly with scale: the 64-image smoke runs selected `layer1` for all four ROIs, while ROI500 selects `layer2` for V1/V2 and `layer3` for V3/hV4.
+- The bridge table contains 168 descriptive rows linking frozen static2000 ResNet-50 `gradcam` and `vanilla_gradient` behavioral rows to the best ROI500 neural encoding/RSA rows.
+
+Interpretation boundary:
+
+- ROI500 is a stronger integration check than the 64-image smoke runs, but it is still one subject and one architecture.
+- The behavior-neural bridge supports side-by-side reporting for ResNet-50, not cross-model correlation claims.
+- Do not add DINO/CLIP, Brain-Score, CKA, token pruning, foveation, or video until multi-model neural outputs are available.
+
+## Latest Multi-Model Neural Expansion Update
+
+Implemented after the ResNet-50 ROI500 anchor:
+
+- Generalized ROI500 neural config generation in `scripts/create_neural_roi500_configs.py`.
+- Added model-specific layer sets for:
+  - `resnet50`: `layer1`, `layer2`, `layer3`, `layer4`.
+  - `convnext_tiny`: `stages.0`, `stages.1`, `stages.2`, `stages.3`.
+  - `deit_small_patch16_224`: `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, `blocks.11`.
+  - `vit_base_patch16_224`: `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, `blocks.11`.
+- Added V1 debug config generation under `configs/experiments/neural_roi500_debug/`.
+- Extended `summarize_neural_roi_results` so behavior-neural bridge rows are no longer hardcoded to ResNet-50.
+- Added multi-model summary outputs:
+  - `outputs/neural_roi_summary/best_encoding_by_model_roi.csv`
+  - `outputs/neural_roi_summary/best_rsa_by_model_roi.csv`
+  - `outputs/neural_roi_summary/behavior_neural_model_summary.csv`
+  - `outputs/neural_roi_summary/alignment_per_efficiency.csv`
+- Extended tests for multi-model config generation, model-specific layer lists, output naming, multi-model bridge rows, `attention_rollout`, and efficiency joins.
+
+Verification:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_model_wrappers.py
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `132 passed, 4 warnings`.
+
+Generated multi-model configs:
+
+- Full ROI500 configs: `configs/experiments/neural_roi500/`, 16 configs across 4 models and 4 ROIs.
+- Debug configs: `configs/experiments/neural_roi500_debug/`, V1-only configs for `convnext_tiny`, `deit_small_patch16_224`, and `vit_base_patch16_224`.
+
+Debug validation:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config configs\experiments\neural_roi500_debug\convnext_tiny_v1_debug.yaml
+.\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config configs\experiments\neural_roi500_debug\deit_small_patch16_224_v1_debug.yaml
+.\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config configs\experiments\neural_roi500_debug\vit_base_patch16_224_v1_debug.yaml
+```
+
+All three debug runs completed with pretrained weights and valid named-layer hooks.
+
+Completed new ROI500 outputs:
+
+- `outputs/neural_roi500/convnext_tiny_v1_500/`
+- `outputs/neural_roi500/convnext_tiny_v2_500/`
+- `outputs/neural_roi500/convnext_tiny_v3_500/`
+- `outputs/neural_roi500/convnext_tiny_hv4_500/`
+- `outputs/neural_roi500/deit_small_patch16_224_v1_500/`
+- `outputs/neural_roi500/deit_small_patch16_224_v2_500/`
+- `outputs/neural_roi500/deit_small_patch16_224_v3_500/`
+- `outputs/neural_roi500/deit_small_patch16_224_hv4_500/`
+- `outputs/neural_roi500/vit_base_patch16_224_v1_500/`
+- `outputs/neural_roi500/vit_base_patch16_224_v2_500/`
+- `outputs/neural_roi500/vit_base_patch16_224_v3_500/`
+- `outputs/neural_roi500/vit_base_patch16_224_hv4_500/`
+
+Each directory contains `activations.npz`, `encoding_scores.csv`, `rsa_scores.csv`, and `metadata.json`.
+
+Summary command:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\summarize_neural_roi_results.py --input-dirs outputs\neural_nsd_algonauts_v1_500 outputs\neural_nsd_algonauts_v2_500 outputs\neural_nsd_algonauts_v3_500 outputs\neural_nsd_algonauts_hv4_500 outputs\neural_roi500\convnext_tiny_v1_500 outputs\neural_roi500\convnext_tiny_v2_500 outputs\neural_roi500\convnext_tiny_v3_500 outputs\neural_roi500\convnext_tiny_hv4_500 outputs\neural_roi500\deit_small_patch16_224_v1_500 outputs\neural_roi500\deit_small_patch16_224_v2_500 outputs\neural_roi500\deit_small_patch16_224_v3_500 outputs\neural_roi500\deit_small_patch16_224_hv4_500 outputs\neural_roi500\vit_base_patch16_224_v1_500 outputs\neural_roi500\vit_base_patch16_224_v2_500 outputs\neural_roi500\vit_base_patch16_224_v3_500 outputs\neural_roi500\vit_base_patch16_224_hv4_500 --output-dir outputs\neural_roi_summary --behavioral-csv outputs\real_matrix_v2\aggregated\results.csv --efficiency-csv outputs\real_matrix_v2\efficiency\model_efficiency.csv
+```
+
+Combined summary:
+
+- Input directories: 16.
+- Encoding rows: 72.
+- RSA rows: 72.
+- Behavior-neural bridge rows: 672.
+
+Best mean encoding score averaged across ROIs:
+
+- `deit_small_patch16_224`: `0.26100467145443`.
+- `vit_base_patch16_224`: `0.216953299939632`.
+- `convnext_tiny`: `0.186267614364624`.
+- `resnet50`: `0.167575340718031`.
+
+Best RSA score averaged across ROIs:
+
+- `vit_base_patch16_224`: `0.0875462059288639`.
+- `deit_small_patch16_224`: `0.0796801522326127`.
+- `resnet50`: `0.0750502946332236`.
+- `convnext_tiny`: `0.064057745554811`.
+
+Efficiency-normalized pattern using mean score per latency:
+
+- Encoding: `deit_small_patch16_224` leads among the current four models.
+- RSA: `deit_small_patch16_224` also leads by mean score per latency, while `vit_base_patch16_224` has the strongest raw RSA but weaker latency-normalized RSA.
+
+Initial interpretation:
+
+- The ResNet-50 pattern does not fully generalize across model families.
+- DeiT selects early transformer block `blocks.0` for best encoding across all ROIs and has the strongest mean encoding score.
+- ViT-base has the strongest mean RSA score, with best RSA consistently at `blocks.6`.
+- ConvNeXt improves over ResNet-50 on raw mean encoding but is weaker on raw mean RSA.
+- These results are now multi-model, but still one subject and one ROI500 subset, so they support descriptive convergence/dissociation analysis rather than final claims.
+
+## Latest Behavior-Neural Analysis V1 And SSL Candidate Prep
+
+Implemented after the supervised multi-model ROI500 expansion:
+
+- Extended `summarize_neural_roi_results` with paper-style derived outputs:
+  - `outputs/neural_roi_summary/paper_model_roi_winners.csv`
+  - `outputs/neural_roi_summary/neural_model_rankings.csv`
+  - `outputs/neural_roi_summary/behavior_neural_alignment_summary.csv`
+  - `outputs/neural_roi_summary/behavior_neural_leader_overlap.csv`
+  - `outputs/neural_roi_summary/multimodel_interpretation_note.md`
+- Added SSL/multimodal dry-inspection support to `scripts/create_neural_roi500_configs.py`.
+- Generated pretrained-free V1 debug configs under:
+  - `configs/experiments/neural_roi500_ssl_candidates_debug/`
+- Generated candidate inventory:
+  - `outputs/neural_roi_summary/ssl_multimodal_candidate_inventory.csv`
+- Added tests for paper winner rows, model rankings, lower-is-better bridge leadership, candidate inventory generation, and pretrained-free debug configs.
+
+Verification:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_model_wrappers.py
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `134 passed, 4 warnings`.
+
+Behavior-neural analysis command:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\summarize_neural_roi_results.py --input-dirs outputs\neural_nsd_algonauts_v1_500 outputs\neural_nsd_algonauts_v2_500 outputs\neural_nsd_algonauts_v3_500 outputs\neural_nsd_algonauts_hv4_500 outputs\neural_roi500\convnext_tiny_v1_500 outputs\neural_roi500\convnext_tiny_v2_500 outputs\neural_roi500\convnext_tiny_v3_500 outputs\neural_roi500\convnext_tiny_hv4_500 outputs\neural_roi500\deit_small_patch16_224_v1_500 outputs\neural_roi500\deit_small_patch16_224_v2_500 outputs\neural_roi500\deit_small_patch16_224_v3_500 outputs\neural_roi500\deit_small_patch16_224_hv4_500 outputs\neural_roi500\vit_base_patch16_224_v1_500 outputs\neural_roi500\vit_base_patch16_224_v2_500 outputs\neural_roi500\vit_base_patch16_224_v3_500 outputs\neural_roi500\vit_base_patch16_224_hv4_500 --output-dir outputs\neural_roi_summary --behavioral-csv outputs\real_matrix_v2\aggregated\results.csv --efficiency-csv outputs\real_matrix_v2\efficiency\model_efficiency.csv
+```
+
+SSL/multimodal candidate dry-inspection command:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\create_neural_roi500_configs.py --inspect-ssl-candidates --write-ssl-debug-configs --candidate-output outputs\neural_roi_summary\ssl_multimodal_candidate_inventory.csv
+```
+
+Headline analysis:
+
+- Raw mean ROI500 encoding leader: `deit_small_patch16_224`, mean encoding `0.2610046714544296`.
+- Raw mean ROI500 RSA leader: `vit_base_patch16_224`, mean RSA `0.0875462059288639`.
+- Latency-normalized leader for both encoding and RSA: `deit_small_patch16_224`.
+- Behavioral-neural leader overlap is partial for encoding and absent for raw RSA in the current grouped bridge: 21/63 behavioral leaders match the raw encoding leader, and 0/63 match the raw RSA leader.
+- The bridge remains descriptive: one subject, ROI500 subset, and frozen static2000 behavioral rows.
+
+Dry-inspected SSL/multimodal candidates:
+
+- DINOv2: `vit_small_patch14_dinov2`, `vit_base_patch14_dinov2`.
+- DINOv3: `vit_small_patch16_dinov3`, `vit_base_patch16_dinov3`.
+- CLIP: `vit_base_patch16_clip_224`, `resnet50_clip`.
+- SigLIP: `vit_base_patch16_siglip_224`.
+- EVA-CLIP: `eva02_base_patch16_clip_224`.
+
+Candidate feasibility:
+
+- All 8 candidate names are available in local `timm`.
+- All 8 have verified hook layers with `pretrained=False`.
+- ViT-like candidates use `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, and `blocks.11`.
+- Local `resnet50_clip` exposes `stages.0`, `stages.1`, `stages.2`, and `stages.3`, not plain `layer1` through `layer4`.
+- No pretrained SSL or multimodal weights were run in this milestone.
+
 ### Step 6: Architecture Expansion
 
-Status: defer until the behavioral baseline, reference saliency rows, perturbation pilot, and scaled ROI-level neural runs are stable.
+Status: initial supervised multi-model ROI500 expansion and paper-style behavior-neural analysis are complete. The next architecture step should prioritize pretrained self-supervised or multimodal debug runs only after confirming local weight availability or approving downloads.
 
 Priority order from the proposal:
 
@@ -780,42 +1074,41 @@ Acceptance criteria:
 
 ## What To Do Next
 
-Recommended next implementation milestone: **Neural ROI Summary And Scaled ROI500**.
+Recommended next implementation milestone: **SSL / Multimodal ROI500 Debug Runs V1**.
 
 Goal:
 
-- Turn the four ROI smoke outputs into a reusable neural summary layer, then run the same PRF visual ROIs on a larger stable subset such as 500 images.
-- Use the scaled ROI results to make the first behavior-neural comparison against the frozen V2 behavioral benchmark.
+- Move from dry-inspected candidate feasibility to a small, controlled pretrained debug pass.
+- Add one or two self-supervised / multimodal encoders to the neural ROI500 pipeline only after pretrained weights are locally available or download approval is explicit.
+- Keep claims descriptive until SSL/multimodal outputs are available across all four PRF visual ROIs.
 
-Concrete next steps:
+Recommended one-session implementation plan:
 
-1. Add `scripts/summarize_neural_roi_results.py`.
-   - Inputs: one or more neural output directories.
-   - Reads `encoding_scores.csv`, `rsa_scores.csv`, and `metadata.json`.
-   - Writes a combined CSV such as `outputs/neural_roi_summary/roi_smoke_summary.csv`.
-   - Reports best layer per ROI for encoding and RSA separately.
-2. Add ROI500 manifest/config generation.
-   - Reuse `scripts/create_algonauts_manifest.py`.
-   - Generate `data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv`.
-   - Generate or duplicate configs for V1/V2/V3/hV4 with `max_items: 500`.
-   - Output directories should be named `outputs/neural_nsd_algonauts_<roi>_500/`.
-3. Run validation before neural execution.
-   - Validate each ROI with `scripts/validate_neural_manifest.py --max-items 500`.
-   - Confirm response dimensions remain V1 2,973; V2 2,936; V3 2,453; hV4 1,296.
-4. Run scaled ResNet-50 encoding + RSA for V1/V2/V3/hV4.
-   - Keep layers `[layer1, layer2, layer3, layer4]`.
-   - Keep `feature_reduction: spatial_mean`.
-   - Keep `train_fraction: 0.8`.
-5. Add a first behavior-neural bridge table.
-   - Use frozen behavioral rows from `outputs/real_matrix_v2/aggregated/results.csv`.
-   - Start with ResNet-50 behavior rows because the current neural model is ResNet-50.
-   - Compare behavioral `gradcam`, `vanilla_gradient`, and any available ResNet rows against neural encoding/RSA summaries.
-   - Treat this as a descriptive bridge, not a correlation claim across model families yet.
-6. Update this status document with:
-   - ROI500 run commands.
-   - Output paths.
-   - Summary table paths.
-   - Best layer per ROI for encoding and RSA.
-   - Whether scaled results agree or disagree with the 64-image smoke pattern.
+1. Select the first debug candidates from `outputs/neural_roi_summary/ssl_multimodal_candidate_inventory.csv`.
+   - Recommended first pair: `vit_small_patch14_dinov2` and `vit_base_patch16_clip_224`.
+   - Use `configs/experiments/neural_roi500_ssl_candidates_debug/` as the starting point.
+   - Keep `pretrained: False` configs for structural validation and create separate pretrained debug configs only after weights are confirmed.
+2. Run V1 debug neural alignment for selected candidates.
+   - Start with V1 and `max_items: 16`.
+   - Confirm named-layer hooks, activation shapes, encoding output, and RSA output.
+   - Do not run full ROI500 until debug outputs are valid.
+3. Add efficiency profiling for selected candidate models.
+   - Reuse `scripts/profile_efficiency.py`.
+   - Add rows that can join cleanly to `neural_model_rankings.csv`.
+4. If debug runs pass, expand to four ROI500 configs for the selected candidate family.
+   - Keep one family at a time to preserve interpretation clarity.
+   - Re-run `scripts/summarize_neural_roi_results.py` after each completed model family.
+5. Update documentation with:
+   - candidate model weights status,
+   - debug run outputs,
+   - any hook-layer adjustments,
+   - whether SSL/multimodal models change raw or efficiency-normalized neural leaders.
 
-Do not start selective-computation models, video models, or saliency-guided training yet. The current project now has its reference saliency baseline and true ROI smoke runs; it still needs scaled ROI-level neural results before those larger proposal branches will be scientifically interpretable.
+Acceptance criteria for the next milestone:
+
+- At least one SSL or multimodal model completes a pretrained V1 debug run, or the documentation clearly records that pretrained weights are unavailable locally and downloads were not approved.
+- Debug outputs include `activations.npz`, `encoding_scores.csv`, `rsa_scores.csv`, and `metadata.json`.
+- Candidate efficiency rows are available or a concrete blocker is documented.
+- No full ROI500 SSL/multimodal claim is made from V1 debug output alone.
+
+Do not start selective-computation models, video models, Brain-Score, CKA, or saliency-guided training yet. The project now has frozen behavioral controls, a supervised multi-model neural benchmark, paper-style bridge analysis, and a feasible candidate list; the next step is a controlled pretrained SSL/multimodal debug pass.
