@@ -6,7 +6,7 @@ Latest implementation update: 2026-05-19
 
 ## Current Status
 
-The repository now has a first real behavioral-saliency comparison result set for Phase 1 of the Human-Machine Visual Alignment project and a stronger V2 benchmark scaffold. It can load real SALICON, CAT2000, and COCO-Search18 manifests, run baseline and pretrained `timm` model saliency methods, cache saliency maps, aggregate metrics, plot rankings, profile model efficiency, parse observer-level fixation files for SALICON/CAT2000, and produce controlled V2 summaries.
+The repository now has a controlled behavioral-saliency benchmark for Phase 1 of the Human-Machine Visual Alignment project and a working bridge into the proposal's neural layer. It can load real SALICON, CAT2000, COCO-Search18, and one local Algonauts 2023 subject manifest, run baseline and pretrained `timm` model saliency methods, cache saliency maps, aggregate metrics, plot rankings, profile model efficiency, parse observer-level fixation files for SALICON/CAT2000, validate neural manifests, extract named `timm` layer activations, and run neural encoding plus RSA smoke experiments.
 
 Latest verification:
 
@@ -14,7 +14,7 @@ Latest verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result: `121 passed, 4 warnings`.
+Result: `128 passed, 4 warnings`.
 
 The remaining warnings are not blocking:
 
@@ -28,6 +28,8 @@ Full manifests:
 - SALICON: `data/manifests/salicon_manifest.csv`, 15,000 rows.
 - CAT2000: `data/manifests/cat2000_manifest.csv`, 2,000 rows.
 - COCO-Search18: `data/manifests/coco_search18_manifest.csv`, 49,760 rows.
+- Algonauts / NSD subject 1 smoke manifest: `data/manifests/nsd_algonauts_manifest.csv`, 9,841 train rows for `subj01`, `roi: all_lh_512`.
+- Algonauts / NSD PRF visual ROI smoke manifest: `data/manifests/nsd_algonauts_prf_visualrois_manifest.csv`, 256 train rows across `V1`, `V2`, `V3`, and `hV4`.
 
 SALICON and CAT2000 manifests have been regenerated with `fixation_points_path` when raw fixation-location files are available:
 
@@ -45,6 +47,20 @@ Pilot manifests are generated deterministically with:
 ```powershell
 .\.venv\Scripts\python.exe scripts/create_pilot_manifests.py --max-rows 500 --seed 123
 ```
+
+Local neural data now present:
+
+- Algonauts 2023 subject 1 under `data/raw/nsd_algonauts/subj01/`.
+- Training images: 9,841 PNG files.
+- LH fMRI: `data/raw/nsd_algonauts/subj01/training_split/training_fmri/lh_training_fmri.npy`, shape `(9841, 19004)`.
+- RH fMRI: `data/raw/nsd_algonauts/subj01/training_split/training_fmri/rh_training_fmri.npy`, shape `(9841, 20544)`.
+- ROI masks under `data/raw/nsd_algonauts/subj01/roi_masks/`.
+- Current smoke responses: per-image first-512 LH response vectors under `data/raw/nsd_algonauts/subj01/responses/all_lh_512/`.
+- Current true ROI smoke responses:
+  - `data/raw/nsd_algonauts/subj01/responses/V1/`, 64 files, bilateral response dimension 2,973.
+  - `data/raw/nsd_algonauts/subj01/responses/V2/`, 64 files, bilateral response dimension 2,936.
+  - `data/raw/nsd_algonauts/subj01/responses/V3/`, 64 files, bilateral response dimension 2,453.
+  - `data/raw/nsd_algonauts/subj01/responses/hV4/`, 64 files, bilateral response dimension 1,296.
 
 ## Completed Model-Matrix Output
 
@@ -157,6 +173,8 @@ Datasets and manifests:
 - Manifest-based CAT2000 loader with category filtering and optional `.mat` fixation-point loading.
 - COCO-Search18 loader with task-driven fixation points and generated fixation maps.
 - NSD / Algonauts-style manifest loader for image, subject, and ROI-response data.
+- Algonauts subject converter for one-subject neural smoke manifests.
+- Neural manifest validator for file paths, split / subject / ROI coverage, and response-shape consistency.
 - Dataset preparation for the local raw layouts under `data/raw/`.
 - Deterministic pilot manifest generation with optional stratification.
 - Dataset-specific fixation parsers for SALICON `gaze[*].fixations` and CAT2000 `fixLocs`.
@@ -168,13 +186,15 @@ Metrics and analysis:
 - Center-bias map utility.
 - Dataset-aware observer-control summaries for SALICON, CAT2000, and COCO-style inline fixation manifests.
 - Efficiency metrics: parameter count, model size, latency, and optional FLOPs.
+- Ridge encoding summaries over neural response vectors.
+- RSA summaries comparing model-layer RDMs against ROI-response RDMs.
 - Aggregate result tables with `saliency_family` preserved.
 - Ranking plots and alignment-vs-efficiency plots.
 - Generated interpretation notes for V2 aggregate summaries.
 
 Models and saliency:
 
-- `timm` image model wrapper.
+- `timm` image model wrapper with named-layer forward-hook extraction for neural runs.
 - Config-driven torch preprocessing for PIL, NumPy, and tensor inputs.
 - Gradient saliency.
 - Integrated Gradients.
@@ -199,8 +219,8 @@ This milestone directly supports the proposal's Phase 1 direction:
 
 Still missing or incomplete:
 
-- Real fMRI activation extraction over local NSD / Algonauts manifests.
-- RSA / representational-geometry experiment reporting over real neural data.
+- Scaled neural encoding / RSA runs beyond the 64-image PRF visual ROI smoke subsets.
+- Multi-ROI result summarization and comparison against behavioral saliency summaries.
 - Brain-Score integration.
 - Selective-computation models, token pruning, and foveation.
 - Video extension.
@@ -373,9 +393,9 @@ Remaining V2 work:
 - Keep occlusion pilot-only unless a targeted perturbation ablation is needed later.
 - Use the new key-comparison and pilot/static-stability summaries in the paper-ready analysis.
 
-## Current Session Additions
+## Recent Behavioral Additions
 
-This session turned the post-static2000 plan into concrete infrastructure:
+The post-static2000 behavioral session turned the V2 plan into concrete infrastructure:
 
 - Added `docs/v2_static2000_results_note.md` as the compact behavioral-baseline interpretation note.
 - Added `occlusion` saliency under `src/hma/saliency/occlusion.py`.
@@ -409,7 +429,7 @@ This session turned the post-static2000 plan into concrete infrastructure:
   - smoke outputs under `outputs/neural_smoke_dummy/`
 - Expanded tests from 111 to 121 passing tests.
 
-The current codebase now covers the proposal's first layer, behavioral saliency, and has a minimal bridge into the second layer, neural encoding.
+The current codebase now covers the proposal's first layer, behavioral saliency, and has a working bridge into the second layer, neural encoding.
 
 ## Latest Behavioral Benchmark Status
 
@@ -455,6 +475,8 @@ Interpretation:
 ## Proposal-Aligned Roadmap From Here
 
 The proposal's main scientific direction is not just to rank saliency maps. It asks when behavioral fixation alignment, neural predictivity, representational geometry, and computational efficiency agree or dissociate. The implementation sequence should preserve that structure: finish the behavioral layer as a publishable baseline, add a reference upper-bound, validate perturbation methods, then move into real neural data.
+
+The latest research review documents sharpen this into a concrete engineering rule: behavioral saliency should now be treated as one axis in a multi-level alignment matrix, not as the main endpoint. The near-term implementation should therefore prioritize comparable neural ROI summaries, scaled encoding/RSA runs, and a first behavior-neural join before adding more model families.
 
 ### Step 1: Freeze And Analyze V2 Static2000
 
@@ -529,24 +551,23 @@ Current decision:
 
 ### Step 4: Move Neural Alignment From Smoke Test To Real Manifest
 
-Status: real-data-ready neural runner infrastructure is now implemented; local real NSD / Algonauts data is still needed for the first scientific run.
+Status: real-data-ready neural runner infrastructure is implemented, the first `all_lh_512` smoke run has completed, and true PRF visual ROI smoke runs now complete for V1, V2, V3, and hV4. These are still 64-image validation runs, not final neural-alignment claims.
 
 The proposal's second layer asks whether models that match fixations also predict visual-cortex responses. This should be implemented as a parallel neural benchmark, not forced onto SALICON/CAT2000 image IDs.
 
-Next implementation target:
+Completed neural smoke path:
 
-- Create or validate a local NSD / Algonauts manifest with:
-  - `image_id`
-  - `image_path`
-  - `split`
-  - `subject_id`
-  - `roi`
-  - `roi_responses` or `roi_response_path`
-- Add one real neural config under `configs/experiments/`.
-- Run:
+- Local Algonauts data is available under `data/raw/nsd_algonauts/subj01/`.
+- `scripts/create_algonauts_manifest.py` generated `data/manifests/nsd_algonauts_manifest.csv`.
+- `scripts/validate_neural_manifest.py` validated the 64-item `subj01/all_lh_512` subset.
+- `configs/experiments/neural_nsd_algonauts_smoke.yaml` runs ResNet-50 layers `layer1` through `layer4`.
+- ROI-mask mode in `scripts/create_algonauts_manifest.py` generated `data/manifests/nsd_algonauts_prf_visualrois_manifest.csv`.
+- ROI smoke configs now run bilateral V1, V2, V3, and hV4 subsets.
+
+Run command:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/run_neural_alignment.py --config configs/experiments/<real_neural_config>.yaml
+.\.venv\Scripts\python.exe scripts/run_neural_alignment.py --config configs/experiments/neural_nsd_algonauts_smoke.yaml
 ```
 
 Acceptance criteria:
@@ -554,6 +575,13 @@ Acceptance criteria:
 - Real neural run writes `activations.npz`, `encoding_scores.csv`, optional `rsa_scores.csv`, and `metadata.json`.
 - Scores are reported by model, layer, ROI, subject, and metric.
 - The output can later be joined to saliency summaries by model family, training objective, and architecture class.
+
+Next implementation target:
+
+- Add a compact neural ROI summary table that combines the four `encoding_scores.csv` and `rsa_scores.csv` outputs.
+- Scale the true ROI runs beyond 64 images once runtime and disk use are acceptable.
+- Join neural ROI summaries to the frozen behavioral benchmark at the model / layer / method-family level where possible.
+- Keep one subject until ROI handling and reporting are stable.
 
 ### Step 5: Add RSA / Representational Geometry
 
@@ -593,7 +621,7 @@ Verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result: `124 passed, 4 warnings`.
+Result: `128 passed, 4 warnings`.
 
 Local real neural-data check:
 
@@ -622,11 +650,120 @@ Outputs:
 - `outputs/neural_nsd_algonauts_smoke/rsa_scores.csv`
 - `outputs/neural_nsd_algonauts_smoke/metadata.json`
 
+Encoding smoke scores:
+
+- `layer1`: mean correlation `0.08640751242637634`
+- `layer2`: mean correlation `0.07636762410402298`
+- `layer3`: mean correlation `0.06536547839641571`
+- `layer4`: mean correlation `0.06306871771812439`
+
+RSA smoke scores:
+
+- `layer1`: Spearman RDM score `0.11148366323330737`
+- `layer2`: Spearman RDM score `0.10216027262303269`
+- `layer3`: Spearman RDM score `0.10045888454575899`
+- `layer4`: Spearman RDM score `0.11689677462885366`
+
 Smoke interpretation caveat: this is a pipeline validation run over `max_items: 64` and `all_lh_512`, not a scientific neural-alignment claim.
+
+True PRF visual ROI smoke update:
+
+- Extended `scripts/create_algonauts_manifest.py` with ROI-mask mode:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\create_algonauts_manifest.py --root data\raw\nsd_algonauts --subject subj01 --roi-class prf-visualrois --roi-names V1 V2 V3 hV4 --hemispheres lh rh --combine-hemispheres --output-manifest data\manifests\nsd_algonauts_prf_visualrois_manifest.csv --max-items 64
+```
+
+- Generated `data/manifests/nsd_algonauts_prf_visualrois_manifest.csv` with 256 rows.
+- Bilateral response dimensions:
+  - V1: 2,973 targets.
+  - V2: 2,936 targets.
+  - V3: 2,453 targets.
+  - hV4: 1,296 targets.
+- Validated 64 rows for each ROI with `scripts/validate_neural_manifest.py`.
+- Completed neural encoding + RSA smoke runs for:
+  - `outputs/neural_nsd_algonauts_v1_smoke/`
+  - `outputs/neural_nsd_algonauts_v2_smoke/`
+  - `outputs/neural_nsd_algonauts_v3_smoke/`
+  - `outputs/neural_nsd_algonauts_hv4_smoke/`
+
+Best mean encoding correlation by ROI in the 64-image smoke runs:
+
+- V1: `layer1`, `0.008290339261293411`.
+- V2: `layer3`, `0.10318402945995331`.
+- V3: `layer2`, `0.0902683362364769`.
+- hV4: `layer1`, `0.1293710321187973`.
+
+Best RSA score by ROI in the 64-image smoke runs:
+
+- V1: `layer1`, `0.05994080593813508`.
+- V2: `layer1`, `0.04640057766107312`.
+- V3: `layer1`, `0.06178576422750938`.
+- hV4: `layer1`, `0.05507270970848019`.
+
+ROI interpretation caveat: these results use only 64 images and should be treated as an integration check plus early direction, not as a stable hierarchy claim.
+
+## Current Session ROI Progress
+
+This session completed the transition from arbitrary neural smoke responses to true PRF visual ROI smoke runs:
+
+- Extended `scripts/create_algonauts_manifest.py` with ROI-mask export mode while preserving the earlier `all_lh_512` mode.
+- Added CLI support for:
+  - `--roi-class prf-visualrois`
+  - `--roi-names V1 V2 V3 hV4`
+  - `--hemispheres lh rh`
+  - `--combine-hemispheres`
+- Added bilateral ROI response generation:
+  - V1 combines LH/RH `V1v` and `V1d`.
+  - V2 combines LH/RH `V2v` and `V2d`.
+  - V3 combines LH/RH `V3v` and `V3d`.
+  - hV4 combines LH/RH `hV4`.
+- Added ROI smoke configs:
+  - `configs/experiments/neural_nsd_algonauts_v1_smoke.yaml`
+  - `configs/experiments/neural_nsd_algonauts_v2_smoke.yaml`
+  - `configs/experiments/neural_nsd_algonauts_v3_smoke.yaml`
+  - `configs/experiments/neural_nsd_algonauts_hv4_smoke.yaml`
+- Added tests for ROI-label resolution and bilateral response-vector concatenation.
+
+Generated manifest and response files:
+
+- `data/manifests/nsd_algonauts_prf_visualrois_manifest.csv`, 256 rows.
+- `data/raw/nsd_algonauts/subj01/responses/V1/`, 64 files, response dimension 2,973.
+- `data/raw/nsd_algonauts/subj01/responses/V2/`, 64 files, response dimension 2,936.
+- `data/raw/nsd_algonauts/subj01/responses/V3/`, 64 files, response dimension 2,453.
+- `data/raw/nsd_algonauts/subj01/responses/hV4/`, 64 files, response dimension 1,296.
+
+Completed ROI smoke outputs:
+
+- `outputs/neural_nsd_algonauts_v1_smoke/`
+- `outputs/neural_nsd_algonauts_v2_smoke/`
+- `outputs/neural_nsd_algonauts_v3_smoke/`
+- `outputs/neural_nsd_algonauts_hv4_smoke/`
+
+Each directory contains:
+
+- `activations.npz`
+- `encoding_scores.csv`
+- `rsa_scores.csv`
+- `metadata.json`
+
+Verification:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `128 passed, 4 warnings`.
+
+Interpretation boundary:
+
+- These are real ROI-based runs, but still only 64-image smoke runs.
+- They validate mask parsing, response extraction, named-layer activations, encoding, and RSA.
+- They should not yet be used as stable claims about cortical hierarchy or model ranking.
 
 ### Step 6: Architecture Expansion
 
-Status: defer until the baseline, reference, perturbation, and first real neural pass are stable.
+Status: defer until the behavioral baseline, reference saliency rows, perturbation pilot, and scaled ROI-level neural runs are stable.
 
 Priority order from the proposal:
 
@@ -643,12 +780,42 @@ Acceptance criteria:
 
 ## What To Do Next
 
-Recommended next action:
+Recommended next implementation milestone: **Neural ROI Summary And Scaled ROI500**.
 
-1. Add true ROI-specific manifest generation from `roi_masks/*_challenge_space.npy`, starting with PRF visual ROIs such as V1/V2/V3/hV4.
-2. Re-run neural encoding + RSA on a small true ROI subset and compare against the `all_lh_512` smoke output.
-3. Scale the neural run from 64 images to a larger stable subset once runtime and memory are acceptable.
-4. Write a compact behavioral benchmark result table from the current `results.csv`.
-5. Only after neural ROI runs are stable, add the next architecture family, starting with self-supervised or multimodal encoders.
+Goal:
 
-Do not start selective-computation models, video models, or saliency-guided training yet. The current project now has its reference saliency baseline and real-data-ready neural runner; it still needs one real neural-alignment run before those larger proposal branches will be scientifically interpretable.
+- Turn the four ROI smoke outputs into a reusable neural summary layer, then run the same PRF visual ROIs on a larger stable subset such as 500 images.
+- Use the scaled ROI results to make the first behavior-neural comparison against the frozen V2 behavioral benchmark.
+
+Concrete next steps:
+
+1. Add `scripts/summarize_neural_roi_results.py`.
+   - Inputs: one or more neural output directories.
+   - Reads `encoding_scores.csv`, `rsa_scores.csv`, and `metadata.json`.
+   - Writes a combined CSV such as `outputs/neural_roi_summary/roi_smoke_summary.csv`.
+   - Reports best layer per ROI for encoding and RSA separately.
+2. Add ROI500 manifest/config generation.
+   - Reuse `scripts/create_algonauts_manifest.py`.
+   - Generate `data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv`.
+   - Generate or duplicate configs for V1/V2/V3/hV4 with `max_items: 500`.
+   - Output directories should be named `outputs/neural_nsd_algonauts_<roi>_500/`.
+3. Run validation before neural execution.
+   - Validate each ROI with `scripts/validate_neural_manifest.py --max-items 500`.
+   - Confirm response dimensions remain V1 2,973; V2 2,936; V3 2,453; hV4 1,296.
+4. Run scaled ResNet-50 encoding + RSA for V1/V2/V3/hV4.
+   - Keep layers `[layer1, layer2, layer3, layer4]`.
+   - Keep `feature_reduction: spatial_mean`.
+   - Keep `train_fraction: 0.8`.
+5. Add a first behavior-neural bridge table.
+   - Use frozen behavioral rows from `outputs/real_matrix_v2/aggregated/results.csv`.
+   - Start with ResNet-50 behavior rows because the current neural model is ResNet-50.
+   - Compare behavioral `gradcam`, `vanilla_gradient`, and any available ResNet rows against neural encoding/RSA summaries.
+   - Treat this as a descriptive bridge, not a correlation claim across model families yet.
+6. Update this status document with:
+   - ROI500 run commands.
+   - Output paths.
+   - Summary table paths.
+   - Best layer per ROI for encoding and RSA.
+   - Whether scaled results agree or disagree with the 64-image smoke pattern.
+
+Do not start selective-computation models, video models, or saliency-guided training yet. The current project now has its reference saliency baseline and true ROI smoke runs; it still needs scaled ROI-level neural results before those larger proposal branches will be scientifically interpretable.
