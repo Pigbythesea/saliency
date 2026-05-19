@@ -29,6 +29,14 @@ Secondary datasets:
 - Hollywood-2 / UCF Sports gaze
 - Ego4D gaze subset
 
+## Core References
+the current project engineering level implementation progress as well as global level direction and goal is under docs folder; refer to these documents when planning and evaluating the project's status and next steps.
+- project status md contains documentation for the engineering level progress.
+- the two deep research pdf files contain evaluation of the project ideation, as well as literature review background for what has been done in the past, providing information for steering the direction of the project.
+- the proposal is the raw project conception and research questions. 
+
+
+
 ## Coding rules
 
 Use Python 3.10+.
