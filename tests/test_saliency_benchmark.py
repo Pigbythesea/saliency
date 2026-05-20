@@ -56,13 +56,22 @@ def test_saliency_benchmark_writes_csv_json_and_visualizations(tmp_path):
         rows = list(csv.DictReader(handle))
     assert len(rows) == 2
     assert rows[0]["image_id"] == "val_0000"
-    assert set(rows[0]) == {"image_id", "image_path", "nss", "cc", "similarity", "kl"}
+    assert set(rows[0]) == {
+        "image_id",
+        "image_path",
+        "fixation_protocol",
+        "nss",
+        "cc",
+        "similarity",
+        "kl",
+    }
 
     saved = json.loads(aggregate_json.read_text(encoding="utf-8"))
     assert saved["num_items"] == 2
     assert saved["dataset"] == "dummy_static_saliency"
     assert saved["model"] == "dummy_vision_encoder"
     assert saved["saliency_method"] == "dummy_gradient_free"
+    assert saved["fixation_protocol"] == "points"
 
 
 @pytest.mark.parametrize(
@@ -97,6 +106,7 @@ def test_saliency_benchmark_runs_real_torch_path(
                     "image_id": f"tiny_{index}",
                     "image_path": f"tiny_{index}.png",
                     "fixation_map": fixation_map,
+                    "fixation_points": np.asarray([[3, 3], [4, 4]], dtype=np.float32),
                     "metadata": {"dataset": "tiny"},
                 }
 
@@ -331,4 +341,11 @@ def test_saliency_benchmark_supports_context_aware_metrics(tmp_path, monkeypatch
     with (output_dir / "per_image_metrics.csv").open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 3
-    assert set(rows[0]) == {"image_id", "image_path", "auc_borji", "shuffled_auc", "emd"}
+    assert set(rows[0]) == {
+        "image_id",
+        "image_path",
+        "fixation_protocol",
+        "auc_borji",
+        "shuffled_auc",
+        "emd",
+    }

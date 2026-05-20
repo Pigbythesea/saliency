@@ -30,11 +30,18 @@ Secondary datasets:
 - Ego4D gaze subset
 
 ## Core References
+
 the current project engineering level implementation progress as well as global level direction and goal is under docs folder; refer to these documents when planning and evaluating the project's status and next steps.
+
 - project status md contains documentation for the engineering level progress.
 - the two deep research md files contain evaluation of the project ideation, as well as literature review background for what has been done in the past, providing information for steering the direction of the project.
 - the proposal is the raw project conception and research questions. 
+- the two pdfs are foundational methodology review and evaluation of the project ideas and directions on existing literature, how this field has progressed and its current status. 
 
+## User Interaction rules
+
+- for each implementation, clarify what coding tasks can be run by agent and what tasks are needed for the user to complete, like terminal commands, external search, dataset/model download, etc.
+- for each implementation, when a session is finished, update the project status documentation on what is the current status and progress, as well as the plan for the next concrete implementation step. refer to the core references doc folder and relevant code parts if needed.
 
 
 ## Coding rules

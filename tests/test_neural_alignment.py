@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 
@@ -156,11 +158,18 @@ def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
     assert (output_dir / "rsa_scores.csv").is_file()
     assert (output_dir / "metadata.json").is_file()
     assert result["num_items"] == 8
+    assert result["model_name"] == "dummy_vision_encoder"
+    assert result["model_backend"] == "timm"
+    assert result["model_pretrained"] is False
     assert result["score_rows"][0]["layer"] == "embedding"
     assert result["score_rows"][0]["dataset"] == "dummy_neural"
     assert result["score_rows"][0]["roi"] == "dummy_roi"
     assert result["rsa_rows"][0]["layer"] == "embedding"
     assert result["rsa_scores"].endswith("rsa_scores.csv")
+    metadata = json.loads((output_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["model_name"] == "dummy_vision_encoder"
+    assert metadata["model_backend"] == "timm"
+    assert metadata["model_pretrained"] is False
 
 
 def test_run_neural_alignment_missing_roi_response_fails(tmp_path):

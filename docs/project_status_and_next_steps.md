@@ -2,7 +2,61 @@
 
 Date: 2026-05-18
 
-Latest implementation update: 2026-05-19
+Latest implementation update: 2026-05-20
+
+## Latest Saliency Evaluation Protocol Fix
+
+Status: **implemented; full corrected static2000 matrix still needs re-execution.**
+
+The behavioral saliency pipeline has been revised to align with academic fixation-benchmark semantics:
+
+- `nss` and `auc_judd` now use discrete fixation coordinates when available, instead of thresholding blurred fixation-density maps.
+- The benchmark runner now stores `fixation_protocol` in per-image and aggregate outputs:
+  - `points` for free-viewing datasets with observer fixation locations.
+  - `task_points` for COCO-Search18 task/scanpath fixation points.
+  - `density_fallback` only when raw fixation points are unavailable.
+- `auc_borji` and `shuffled_auc` still use coordinate-based positives, with capped sampled positives for runtime.
+- CC, SIM, KL, and EMD remain density-map metrics.
+- Saliency-map resizing now uses bilinear interpolation instead of nearest-neighbor sampling.
+- Prediction maps are resized without forced min-max normalization before all metrics; metric-specific normalization is handled by each metric.
+- DeepGaze/precomputed map loading now supports collision-safe `{map_key}` templates.
+- DeepGaze reference configs now keep SALICON on `{image_id}.npy` and switch CAT2000 / COCO-Search18 to `{map_key}.npy`, because CAT2000 has 2,000 static rows but only 100 unique `image_id` values.
+- The paper inspection pack now includes `fixation_protocol` in the behavioral NSS table and a new benchmark sanity table:
+  - `outputs/paper_inspection_v1/tables/table6_benchmark_sanity_ranges.md`
+
+Important interpretation boundary:
+
+- Existing `outputs/real_matrix_v2/aggregated/results.csv` values were produced before this protocol fix and are superseded for NSS/AUC scientific claims.
+- The regenerated inspection pack currently exposes the old aggregate with protocol marked `unknown`; this is a warning state, not corrected evidence.
+- Corrected claims require rerunning the affected behavioral configs and re-aggregating.
+
+Verification completed for the protocol implementation:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_metrics.py tests\test_saliency_benchmark.py tests\test_aggregate_results.py tests\test_export_deepgaze_maps.py tests\test_paper_inspection_pack.py
+```
+
+Result: `46 passed, 2 warnings`.
+
+Required next re-run sequence for corrected behavioral numbers:
+
+1. Re-export collision-safe DeepGaze maps for CAT2000 and COCO-Search18:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\export_deepgaze_maps.py --manifest data\manifests\v2\cat2000_static2000_manifest.csv --image-root data\raw\CAT2000 --output-dir data\precomputed\deepgaze\cat2000_static2000 --filename-template "{map_key}.npy"
+.\.venv\Scripts\python.exe scripts\export_deepgaze_maps.py --manifest data\manifests\v2\coco_search18_static2000_manifest.csv --image-root data\raw\COCO-Search18 --output-dir data\precomputed\deepgaze\coco_search18_static2000 --filename-template "{map_key}.npy"
+```
+
+2. Rerun baselines and DeepGaze references first, then aggregate and inspect whether DeepGaze has the expected point-NSS relationship to center bias:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\run_saliency_benchmark.py --config configs\experiments\real_matrix_v2\salicon_static2000__center_bias_baseline_center_bias.yaml
+.\.venv\Scripts\python.exe scripts\run_saliency_benchmark.py --config configs\experiments\real_matrix_v2_references\salicon_static2000__deepgaze_reference_deepgaze_precomputed.yaml
+.\.venv\Scripts\python.exe scripts\run_saliency_benchmark.py --config configs\experiments\real_matrix_v2_references\cat2000_static2000__deepgaze_reference_deepgaze_precomputed.yaml
+.\.venv\Scripts\python.exe scripts\run_saliency_benchmark.py --config configs\experiments\real_matrix_v2_references\coco_search18_static2000__deepgaze_reference_deepgaze_precomputed.yaml
+```
+
+3. Only after the reference sanity check passes, rerun the model saliency rows and regenerate aggregate summaries / inspection packs.
 
 ## Current Status
 
@@ -11,9 +65,9 @@ The repository now has a controlled behavioral-saliency benchmark for Phase 1 of
 Current implementation frontier:
 
 - Behavioral layer: frozen V2 static2000 benchmark with center-bias, random, model-saliency, DeepGaze/reference, and pilot occlusion rows.
-- Neural layer: ROI500 encoding + RSA completed for `resnet50`, `convnext_tiny`, `deit_small_patch16_224`, and `vit_base_patch16_224` across bilateral V1, V2, V3, and hV4 in `subj01`.
-- Bridge layer: paper-style behavior-neural analysis tables generated for matching static2000 behavioral rows and multi-model ROI500 neural summaries.
-- Next scientific blocker: pretrained self-supervised / multimodal debug runs, after confirming local weight availability or approving downloads.
+- Neural layer: ROI500 encoding + RSA completed for `resnet50`, `convnext_tiny`, `deit_small_patch16_224`, `vit_base_patch16_224`, and pretrained `vit_small_patch14_dinov2` across bilateral V1, V2, V3, and hV4 in `subj01`; pretrained V1 debug runs also completed for `vit_base_patch16_clip_224` and `resnet50_clip`.
+- Bridge/reporting layer: paper-style behavior-neural analysis tables and an inspection pack generated for frozen static2000 behavioral rows and multi-model ROI500 neural summaries, now including DINOv2 ROI500 neural rows and pretrained SSL/multimodal candidate status.
+- Next scientific blocker: add behavioral saliency rows for SSL/multimodal models or expand full ROI500 to CLIP/SigLIP only after deciding which comparison is needed for the next paper claim.
 
 Latest verification:
 
@@ -40,6 +94,14 @@ Latest verification after multi-model neural expansion:
 Result: `132 passed, 4 warnings`.
 
 Latest verification after behavior-neural analysis V1 and SSL candidate prep:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `134 passed, 4 warnings`.
+
+Latest verification after paper inspection pack generation:
 
 ```cmd
 .\.venv\Scripts\python.exe -m pytest
@@ -1009,6 +1071,12 @@ Implemented after the supervised multi-model ROI500 expansion:
 - Generated candidate inventory:
   - `outputs/neural_roi_summary/ssl_multimodal_candidate_inventory.csv`
 - Added tests for paper winner rows, model rankings, lower-is-better bridge leadership, candidate inventory generation, and pretrained-free debug configs.
+- Added paper-style inspection pack generation:
+  - `scripts/create_paper_inspection_pack.py`
+  - output root: `outputs/paper_inspection_v1/`
+  - figures under `outputs/paper_inspection_v1/figures/`
+  - tables under `outputs/paper_inspection_v1/tables/`
+  - inspection README: `outputs/paper_inspection_v1/README.md`
 
 Verification:
 
@@ -1030,6 +1098,35 @@ SSL/multimodal candidate dry-inspection command:
 ```cmd
 .\.venv\Scripts\python.exe scripts\create_neural_roi500_configs.py --inspect-ssl-candidates --write-ssl-debug-configs --candidate-output outputs\neural_roi_summary\ssl_multimodal_candidate_inventory.csv
 ```
+
+Paper-style inspection pack command:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\create_paper_inspection_pack.py
+```
+
+Generated inspection figures:
+
+- `outputs/paper_inspection_v1/figures/figure1_behavior_static2000_nss.png`
+- `outputs/paper_inspection_v1/figures/figure2_neural_model_rankings.png`
+- `outputs/paper_inspection_v1/figures/figure3_roi_heatmaps.png`
+- `outputs/paper_inspection_v1/figures/figure4_behavior_neural_leader_overlap.png`
+
+Generated inspection tables:
+
+- `outputs/paper_inspection_v1/tables/table1_behavior_static2000_nss_top.md`
+- `outputs/paper_inspection_v1/tables/table2_neural_model_rankings.md`
+- `outputs/paper_inspection_v1/tables/table3_roi_winners.md`
+- `outputs/paper_inspection_v1/tables/table4_behavior_neural_overlap_summary.md`
+- `outputs/paper_inspection_v1/tables/table5_ssl_multimodal_candidates.md`
+
+Inspection-pack readout:
+
+- Report entry point: `outputs/paper_inspection_v1/README.md`.
+- Top displayed behavioral NSS row: CAT2000 / center bias / center bias, NSS `0.519`.
+- Neural ranking figure shows the current raw / efficiency split: `deit_small_patch16_224` leads raw encoding and latency-normalized neural scores, while `vit_base_patch16_224` leads raw RSA.
+- ROI heatmaps show DeiT encoding concentrated at `blocks.0`, ViT-base RSA concentrated at `blocks.6`, and ResNet-50 encoding concentrated at `layer1`.
+- Leader-overlap figure makes the current bridge caveat visible: internal-routing behavioral leaders line up with the encoding leader, but class-localization and evidence-sensitivity leaders do not; no current behavioral group matches the raw RSA leader.
 
 Headline analysis:
 
@@ -1053,11 +1150,11 @@ Candidate feasibility:
 - All 8 have verified hook layers with `pretrained=False`.
 - ViT-like candidates use `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, and `blocks.11`.
 - Local `resnet50_clip` exposes `stages.0`, `stages.1`, `stages.2`, and `stages.3`, not plain `layer1` through `layer4`.
-- No pretrained SSL or multimodal weights were run in this milestone.
+- Superseded by the latest SSL / multimodal pretrained milestone below: pretrained V1 debug runs have now completed for `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, and `resnet50_clip`; `vit_small_patch14_dinov2` has also completed full ROI500.
 
 ### Step 6: Architecture Expansion
 
-Status: initial supervised multi-model ROI500 expansion and paper-style behavior-neural analysis are complete. The next architecture step should prioritize pretrained self-supervised or multimodal debug runs only after confirming local weight availability or approving downloads.
+Status: initial supervised multi-model ROI500 expansion, paper-style behavior-neural analysis, pretrained SSL/VLM debug validation, and full DINOv2 ROI500 are complete. The next architecture step should add model-matched behavioral rows for the pretrained SSL/VLM candidates before expanding to additional neural-only families.
 
 Priority order from the proposal:
 
@@ -1072,43 +1169,301 @@ Acceptance criteria:
 - Results remain grouped by architecture family and saliency family.
 - Claims test alignment per computation, not only raw alignment or model size.
 
-## What To Do Next
+## Latest SSL / Multimodal Pretrained Milestone
 
-Recommended next implementation milestone: **SSL / Multimodal ROI500 Debug Runs V1**.
+Status: **SSL / Multimodal Pretrained Debug Runs V1 completed, with DINOv2 promoted to full ROI500.**
+
+Implemented:
+
+- Added reusable SSL/multimodal config generation in `scripts/create_neural_roi500_configs.py`.
+  - Existing pretrained-free debug configs remain under `configs/experiments/neural_roi500_ssl_candidates_debug/`.
+  - Pretrained V1 debug configs are under `configs/experiments/neural_roi500_ssl_pretrained_debug/`.
+  - Full pretrained SSL ROI500 configs are under `configs/experiments/neural_roi500_ssl/`.
+- Extended candidate inventory columns:
+  - `pretrained_debug_config_path`
+  - `pretrained_output_dir`
+  - `pretrained_run_status`
+  - `pretrained_weight_status`
+  - `pretrained_run_error`
+- Added pretrained metadata to neural output `metadata.json`:
+  - `model_name`
+  - `model_backend`
+  - `model_pretrained`
+- Updated paper-pack reporting so SSL/multimodal pretrained status is computed from the candidate inventory instead of hardcoded.
+- Added `scripts/merge_efficiency_profiles.py` and generated:
+  - `outputs/neural_roi500_ssl_pretrained_debug/efficiency/model_efficiency.csv`
+  - `outputs/neural_roi_summary/model_efficiency_with_ssl.csv`
+
+Weight policy result:
+
+- `vit_small_patch14_dinov2`: pretrained weights were downloaded with explicit approval, then cached locally.
+- `vit_base_patch16_clip_224`: pretrained weights were downloaded with explicit approval, then cached locally.
+- `resnet50_clip`: pretrained weights were downloaded with explicit approval, then cached locally.
+- No run silently fell back to random weights.
+
+Completed pretrained V1 debug outputs:
+
+- `outputs/neural_roi500_ssl_pretrained_debug/vit_small_patch14_dinov2_v1_pretrained_debug/`
+- `outputs/neural_roi500_ssl_pretrained_debug/vit_base_patch16_clip_224_v1_pretrained_debug/`
+- `outputs/neural_roi500_ssl_pretrained_debug/resnet50_clip_v1_pretrained_debug/`
+
+Each debug output contains:
+
+- `activations.npz`
+- `encoding_scores.csv`
+- `rsa_scores.csv`
+- `metadata.json`
+
+Full DINOv2 ROI500 outputs:
+
+- `outputs/neural_roi500_ssl/vit_small_patch14_dinov2_v1_500/`
+- `outputs/neural_roi500_ssl/vit_small_patch14_dinov2_v2_500/`
+- `outputs/neural_roi500_ssl/vit_small_patch14_dinov2_v3_500/`
+- `outputs/neural_roi500_ssl/vit_small_patch14_dinov2_hv4_500/`
+
+Layer and preprocessing notes:
+
+- `vit_small_patch14_dinov2` uses layers `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, and `blocks.11`.
+- `vit_base_patch16_clip_224` uses layers `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, and `blocks.11`.
+- `resnet50_clip` uses layers `stages.0`, `stages.1`, `stages.2`, and `stages.3`.
+- DINOv2 patch-14 configs use `input_size: [518, 518]`; this was required by the local `timm` model and fixed after the first pretrained run exposed the mismatch.
+- CLIP ViT and CLIP ResNet configs use `input_size: [224, 224]`.
+
+Regenerated summaries:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\summarize_neural_roi_results.py --input-dirs <16 existing supervised ROI500 dirs> <4 DINOv2 SSL ROI500 dirs> --output-dir outputs\neural_roi_summary --behavioral-csv outputs\real_matrix_v2\aggregated\results.csv --efficiency-csv outputs\neural_roi_summary\model_efficiency_with_ssl.csv
+.\.venv\Scripts\python.exe scripts\create_paper_inspection_pack.py
+```
+
+Updated inspection-pack readout:
+
+- Report entry point: `outputs/paper_inspection_v1/README.md`.
+- SSL/multimodal candidates dry-inspected: 8.
+- Pretrained debug runs complete: 3.
+- Pretrained status counts: 3 `complete`, 5 `not_run`.
+
+Updated ROI500 neural ranking after adding DINOv2:
+
+- Raw mean encoding leader remains `deit_small_patch16_224`, mean encoding `0.2610046714544296`.
+- Raw mean RSA leader remains `vit_base_patch16_224`, mean RSA `0.0875462059288639`.
+- New DINOv2 row:
+  - model: `vit_small_patch14_dinov2`
+  - mean encoding: `0.24179347604513168`, rank 2 of 5.
+  - mean RSA: `0.08272091669932777`, rank 2 of 5.
+  - latency-normalized encoding and RSA ranks are both 5 of 5 under the short debug efficiency profile.
+- Latency-normalized leader remains `deit_small_patch16_224` for both encoding and RSA.
+- Behavioral-neural leader overlap remains partial for encoding and absent for raw RSA because current frozen static2000 behavioral rows do not include SSL/multimodal saliency rows.
+
+Verification after implementation:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_model_wrappers.py tests\test_paper_inspection_pack.py tests\test_efficiency_metrics.py
+```
+
+Result: `31 passed, 1 warning`.
+
+Full verification:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `142 passed, 4 warnings`.
+
+The remaining warnings are the known Grad-CAM backward-hook warning and Windows `.pytest_cache` permission warning.
+
+## SSL / Multimodal Behavioral Bridge Rows V1 Plan And Progress
+
+Execution status as of 2026-05-20: **DINOv2 behavioral bridge completed; broader CLIP/VLM static matrix remains partial.**
+
+Implemented:
+
+- Added SSL/VLM behavioral config generation:
+  - `scripts/create_ssl_behavior_v1_configs.py`
+  - configs under `configs/experiments/real_matrix_v2_ssl_behavior/`
+  - outputs under `outputs/real_matrix_v2_ssl_behavior/`
+- Added reusable behavior-aggregate merging:
+  - `scripts/merge_behavioral_aggregates.py`
+  - merged output: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
+- Extended `scripts/run_v2_matrix.py` so reliability gates can be supplied through CLI / CSV and so the built-in gates include the SSL/VLM pilot checks.
+- Regenerated the behavior-neural summaries and paper inspection pack from the merged behavioral CSV.
+- Updated the paper inspection README so it records the behavioral source CSV.
+
+Completed execution:
+
+- Generated 36 SSL/VLM behavioral configs.
+- Completed all 18 pilot SSL/VLM behavioral rows.
+- Completed the SALICON pilot reliability gates for:
+  - `vit_small_patch14_dinov2 + attention_rollout`
+  - `vit_base_patch16_clip_224 + attention_rollout`
+  - `resnet50_clip + gradcam`
+- Completed static2000 rows for:
+  - `vit_small_patch14_dinov2 + vanilla_gradient` on SALICON, CAT2000, and COCO-Search18.
+  - `vit_small_patch14_dinov2 + attention_rollout` on SALICON, CAT2000, and COCO-Search18.
+  - `resnet50_clip + gradcam` on CAT2000.
+- The full static SSL/VLM matrix was started but timed out after one hour during `cat2000_static2000 :: resnet50_clip + vanilla_gradient`; resume can continue later.
+
+Generated / regenerated outputs:
+
+- SSL behavior aggregate: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`.
+- Merged behavioral aggregate: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`.
+- DINOv2 bridge rows are now present in `outputs/neural_roi_summary/behavior_neural_bridge.csv`:
+  - 84 rows for `vit_small_patch14_dinov2 + vanilla_gradient`.
+  - 84 rows for `vit_small_patch14_dinov2 + attention_rollout`.
+- Paper inspection pack regenerated under `outputs/paper_inspection_v1/`.
+- `table1_behavior_static2000_nss_top.csv` now includes DINOv2 static NSS rows for all three static datasets:
+  - SALICON: DINOv2 ViT-S/14 + Gradient, NSS `0.220`; Attention rollout, NSS `0.133`.
+  - CAT2000: DINOv2 ViT-S/14 + Attention rollout, NSS `0.670`; Gradient, NSS `0.250`.
+  - COCO-Search18: DINOv2 ViT-S/14 + Attention rollout, NSS `0.547`; Gradient, NSS `0.324`.
+  - In the regenerated inspection pack, CAT2000 / DINOv2 attention rollout is the top displayed behavioral NSS row.
+
+Verification:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_saliency_benchmark.py tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py tests\test_summarize_results.py tests\test_ssl_behavior_configs.py tests\test_merge_behavioral_aggregates.py
+```
+
+Result: `31 passed, 2 warnings`.
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Result: `148 passed, 4 warnings`.
+
+Remaining work after the DINOv2 bridge pass:
+
+- Resume and complete the remaining static2000 CLIP behavior rows if a broader VLM comparison is needed:
+  - `vit_base_patch16_clip_224 + vanilla_gradient`
+  - `vit_base_patch16_clip_224 + attention_rollout`
+  - `resnet50_clip + vanilla_gradient`
+  - remaining `resnet50_clip + gradcam` datasets
+- Re-aggregate and regenerate the bridge / inspection pack after any additional CLIP rows finish.
+- The current `results_with_ssl_behavior.csv` is now valid for DINOv2 bridge interpretation, but remains partial for CLIP/VLM behavioral claims.
+
+Original target milestone: **SSL / Multimodal Behavioral Bridge Rows V1**.
+
+Why this is next:
+
+- DINOv2 now has full ROI500 neural encoding/RSA outputs, but the frozen static2000 behavioral aggregate does not contain DINOv2 or CLIP saliency rows.
+- `summarize_neural_roi_results.py` only creates behavior-neural bridge rows when the behavioral aggregate has matching `model` values and one of the bridge methods: `vanilla_gradient`, `gradcam`, or `attention_rollout`.
+- Because of that, the current paper inspection pack can rank DINOv2 neurally but cannot test whether SSL/VLM behavioral saliency leaders overlap with neural leaders.
 
 Goal:
 
-- Move from dry-inspected candidate feasibility to a small, controlled pretrained debug pass.
-- Add one or two self-supervised / multimodal encoders to the neural ROI500 pipeline only after pretrained weights are locally available or download approval is explicit.
-- Keep claims descriptive until SSL/multimodal outputs are available across all four PRF visual ROIs.
+- Add a small, controlled behavioral matrix for the pretrained SSL/VLM candidates that already passed debug.
+- Merge those rows with the frozen V2 static2000 behavioral aggregate without disturbing the original `outputs/real_matrix_v2/aggregated/results.csv`.
+- Regenerate neural bridge summaries and the paper inspection pack from the merged behavioral aggregate.
 
-Recommended one-session implementation plan:
+Implementation plan:
 
-1. Select the first debug candidates from `outputs/neural_roi_summary/ssl_multimodal_candidate_inventory.csv`.
-   - Recommended first pair: `vit_small_patch14_dinov2` and `vit_base_patch16_clip_224`.
-   - Use `configs/experiments/neural_roi500_ssl_candidates_debug/` as the starting point.
-   - Keep `pretrained: False` configs for structural validation and create separate pretrained debug configs only after weights are confirmed.
-2. Run V1 debug neural alignment for selected candidates.
-   - Start with V1 and `max_items: 16`.
-   - Confirm named-layer hooks, activation shapes, encoding output, and RSA output.
-   - Do not run full ROI500 until debug outputs are valid.
-3. Add efficiency profiling for selected candidate models.
-   - Reuse `scripts/profile_efficiency.py`.
-   - Add rows that can join cleanly to `neural_model_rankings.csv`.
-4. If debug runs pass, expand to four ROI500 configs for the selected candidate family.
-   - Keep one family at a time to preserve interpretation clarity.
-   - Re-run `scripts/summarize_neural_roi_results.py` after each completed model family.
-5. Update documentation with:
-   - candidate model weights status,
-   - debug run outputs,
-   - any hook-layer adjustments,
-   - whether SSL/multimodal models change raw or efficiency-normalized neural leaders.
+1. Add SSL/VLM behavioral config generation.
+   - New script: `scripts/create_ssl_behavior_v1_configs.py`.
+   - Config root: `configs/experiments/real_matrix_v2_ssl_behavior/`.
+   - Output root: `outputs/real_matrix_v2_ssl_behavior/`.
+   - Reuse V2 static datasets and metrics from `scripts/create_real_matrix_v2_configs.py`.
+   - Keep the original core V2 configs untouched.
+   - Candidate rows:
+     - `vit_small_patch14_dinov2 + vanilla_gradient`
+     - `vit_small_patch14_dinov2 + attention_rollout`
+     - `vit_base_patch16_clip_224 + vanilla_gradient`
+     - `vit_base_patch16_clip_224 + attention_rollout`
+     - `resnet50_clip + vanilla_gradient`
+     - `resnet50_clip + gradcam`, with `target_layer: stages.3`
+   - Preprocessing:
+     - `vit_small_patch14_dinov2`: `input_size: [518, 518]`.
+     - `vit_base_patch16_clip_224`: `input_size: [224, 224]`.
+     - `resnet50_clip`: `input_size: [224, 224]`.
 
-Acceptance criteria for the next milestone:
+2. Add reliability-gated execution support.
+   - Prefer reusing `scripts/run_v2_matrix.py` with:
 
-- At least one SSL or multimodal model completes a pretrained V1 debug run, or the documentation clearly records that pretrained weights are unavailable locally and downloads were not approved.
-- Debug outputs include `activations.npz`, `encoding_scores.csv`, `rsa_scores.csv`, and `metadata.json`.
-- Candidate efficiency rows are available or a concrete blocker is documented.
-- No full ROI500 SSL/multimodal claim is made from V1 debug output alone.
+```cmd
+.\.venv\Scripts\python.exe scripts\run_v2_matrix.py --config-dir configs\experiments\real_matrix_v2_ssl_behavior --output-root outputs\real_matrix_v2_ssl_behavior --phase pilot --resume --progress-interval 50
+```
 
-Do not start selective-computation models, video models, Brain-Score, CKA, or saliency-guided training yet. The project now has frozen behavioral controls, a supervised multi-model neural benchmark, paper-style bridge analysis, and a feasible candidate list; the next step is a controlled pretrained SSL/multimodal debug pass.
+   - Pilot reliability checks should run first on `salicon_pilot500` for:
+     - `vit_small_patch14_dinov2 + attention_rollout`
+     - `vit_base_patch16_clip_224 + attention_rollout`
+     - `resnet50_clip + gradcam`
+   - If a candidate method fails on pilot reliability, do not run its static2000 configs.
+   - If DINOv2 518x518 static runs are too slow, keep DINOv2 behavioral rows to `static2000` plus no visualizations and document runtime; do not silently lower input size.
+
+3. Run the targeted static2000 behavioral matrix.
+   - Static datasets:
+     - `salicon_static2000`
+     - `cat2000_static2000`
+     - `coco_search18_static2000`
+   - Static metrics:
+     - `nss`
+     - `shuffled_auc`
+     - `auc_borji`
+     - `auc_judd`
+     - `cc`
+     - `similarity`
+     - `kl`
+   - Keep `emd` pilot-only if pilot configs are generated; do not add static EMD.
+   - Use cache reuse:
+     - `cache.enabled: true`
+     - `cache.dir: saliency_maps`
+     - `cache.reuse: true`
+
+4. Merge behavioral aggregates for bridge reporting.
+   - Add or use a small merge script such as `scripts/merge_behavioral_aggregates.py`.
+   - Inputs:
+     - `outputs/real_matrix_v2/aggregated/results.csv`
+     - `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`
+   - Output:
+     - `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
+   - Preserve all original columns.
+   - De-duplicate by `dataset`, `model`, `saliency_method`, `saliency_family`, and `metric`, with later SSL rows replacing only identical duplicate keys.
+
+5. Regenerate behavior-neural summaries with the merged behavioral CSV.
+   - Use the existing neural input dirs:
+     - 16 supervised ROI500 dirs.
+     - 4 DINOv2 ROI500 dirs.
+   - Use the merged efficiency CSV:
+     - `outputs/neural_roi_summary/model_efficiency_with_ssl.csv`
+   - Summary command should target the same output directory:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\summarize_neural_roi_results.py --input-dirs <16 supervised ROI500 dirs> <4 DINOv2 ROI500 dirs> --output-dir outputs\neural_roi_summary --behavioral-csv outputs\real_matrix_v2\aggregated\results_with_ssl_behavior.csv --efficiency-csv outputs\neural_roi_summary\model_efficiency_with_ssl.csv
+```
+
+6. Regenerate the paper inspection pack.
+
+```cmd
+.\.venv\Scripts\python.exe scripts\create_paper_inspection_pack.py --behavioral-csv outputs\real_matrix_v2\aggregated\results_with_ssl_behavior.csv
+```
+
+   - Update the inspection README and tables so they clearly say the behavioral table now uses `results_with_ssl_behavior.csv`.
+   - Confirm `table5_ssl_multimodal_candidates` still reports 3 completed pretrained debug runs.
+   - Confirm `behavior_neural_bridge.csv` now contains `vit_small_patch14_dinov2` bridge rows.
+
+7. Update this status document after execution.
+   - Record successful pilot reliability rows.
+   - Record static2000 SSL/VLM behavioral rows completed.
+   - Record any failed or skipped methods.
+   - Record whether DINOv2 changes behavioral leader overlap with raw encoding or raw RSA leaders.
+   - Record verification result.
+
+Acceptance criteria:
+
+- SSL/VLM behavioral configs are generated under `configs/experiments/real_matrix_v2_ssl_behavior/`.
+- At least `vit_small_patch14_dinov2` has completed static2000 behavioral rows for one bridge method, preferably both `vanilla_gradient` and `attention_rollout`.
+- `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv` exists and contains the original V2 rows plus SSL/VLM rows.
+- `outputs/neural_roi_summary/behavior_neural_bridge.csv` includes DINOv2 bridge rows.
+- `outputs/paper_inspection_v1/README.md` and tables are regenerated from the merged behavioral CSV.
+- Tests pass:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_saliency_benchmark.py tests\test_paper_inspection_pack.py
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Non-goals:
+
+- Do not add new neural families in this milestone.
+- Do not run full ROI500 for CLIP/SigLIP until the behavioral bridge gap is closed for DINOv2.
+- Do not start selective-computation models, video models, Brain-Score, CKA, or saliency-guided training.

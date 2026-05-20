@@ -113,10 +113,6 @@ def run_saliency_benchmark(
                 cache_writes += 1
         prediction_map = _prepare_prediction_map(prediction, target.shape)
 
-        row: dict[str, Any] = {
-            "image_id": item.get("image_id", f"item_{item_index:04d}"),
-            "image_path": item.get("image_path", ""),
-        }
         metric_context = _build_metric_context(
             item=item,
             item_index=item_index,
@@ -124,6 +120,11 @@ def run_saliency_benchmark(
             shuffled_pool=shuffled_pool,
             settings=metric_context_settings,
         )
+        row: dict[str, Any] = {
+            "image_id": item.get("image_id", f"item_{item_index:04d}"),
+            "image_path": item.get("image_path", ""),
+            "fixation_protocol": metric_context.get("fixation_protocol", ""),
+        }
         for metric_name, metric_fn in metric_fns.items():
             row[metric_name] = metric_fn(prediction_map, target, metric_context)
         rows.append(row)
@@ -166,12 +167,20 @@ def _build_metric_functions(metric_names: list[str], config: dict[str, Any]) -> 
     shuffled_auc_splits = int(controls.get("shuffled_auc_splits", 100))
     emd_downsample = controls.get("emd_downsample", 32)
     registry: dict[str, MetricFn] = {
-        "nss": lambda prediction, target, _context: nss(prediction, target),
-        "auc_judd": lambda prediction, target, _context: auc_judd(prediction, target),
-        "auc_borji": lambda prediction, target, context: auc_borji(
+        "nss": lambda prediction, target, context: nss(
             prediction,
             target,
             positive_fixations=context.get("positive_fixations"),
+        ),
+        "auc_judd": lambda prediction, target, context: auc_judd(
+            prediction,
+            target,
+            positive_fixations=context.get("positive_fixations"),
+        ),
+        "auc_borji": lambda prediction, target, context: auc_borji(
+            prediction,
+            target,
+            positive_fixations=context.get("sampled_positive_fixations"),
             splits=auc_borji_splits,
             seed=seed + int(context.get("item_index", 0)),
         ),
@@ -179,7 +188,7 @@ def _build_metric_functions(metric_names: list[str], config: dict[str, Any]) -> 
             prediction,
             target,
             context.get("negative_fixations", np.zeros((0, 2), dtype=np.int64)),
-            positive_fixations=context.get("positive_fixations"),
+            positive_fixations=context.get("sampled_positive_fixations"),
             splits=shuffled_auc_splits,
             seed=seed + int(context.get("item_index", 0)),
         ),
@@ -214,8 +223,12 @@ def _build_metric_context(
     settings: dict[str, Any],
 ) -> MetricContext:
     image_id = str(item.get("image_id", f"item_{item_index:04d}"))
-    positive_fixations = _sample_coords(
-        _fixation_coords_for_item(item, target_shape),
+    positive_fixations, fixation_protocol = _fixation_coords_and_protocol_for_item(
+        item,
+        target_shape,
+    )
+    sampled_positive_fixations = _sample_coords(
+        positive_fixations,
         max_points=int(settings["max_positive_fixations_per_image"]),
         seed=int(settings["seed"]) + item_index,
     )
@@ -224,6 +237,8 @@ def _build_metric_context(
         "item_index": item_index,
         "image_id": image_id,
         "positive_fixations": positive_fixations,
+        "sampled_positive_fixations": sampled_positive_fixations,
+        "fixation_protocol": fixation_protocol,
     }
     if shuffled_pool is not None:
         context["negative_fixations"] = _negative_fixations_for_item(shuffled_pool, image_id)
@@ -293,13 +308,24 @@ def _negative_fixations_for_item(pool: dict[str, Any], image_id: str) -> np.ndar
 
 
 def _fixation_coords_for_item(item: dict[str, Any], target_shape: tuple[int, int]) -> np.ndarray:
+    coords, _protocol = _fixation_coords_and_protocol_for_item(item, target_shape)
+    return coords
+
+
+def _fixation_coords_and_protocol_for_item(
+    item: dict[str, Any],
+    target_shape: tuple[int, int],
+) -> tuple[np.ndarray, str]:
     points = item.get("fixation_points")
     if points is not None:
         point_array = np.asarray(_to_numpy(points), dtype=np.float32)
         if point_array.size:
-            return _xy_points_to_yx_coords(point_array, target_shape)
+            metadata = item.get("metadata", {})
+            dataset = str(metadata.get("dataset", "")) if isinstance(metadata, dict) else ""
+            protocol = "task_points" if dataset == "coco_search18" else "points"
+            return _xy_points_to_yx_coords(point_array, target_shape), protocol
     fixation_map = _as_2d_array(item.get("fixation_map"))
-    return np.argwhere(fixation_map > 0).astype(np.int64)
+    return np.argwhere(fixation_map > 0).astype(np.int64), "density_fallback"
 
 
 def _sample_coords(
@@ -484,7 +510,7 @@ def _prepare_prediction_map(prediction: Any, target_shape: tuple[int, int]) -> n
             array = array.mean(axis=0)
     elif array.ndim != 2:
         raise ValueError(f"Expected saliency map with 2-4 dimensions, got {array.shape}")
-    return postprocess_saliency_map(array, target_shape=target_shape)
+    return postprocess_saliency_map(array, target_shape=target_shape, normalize=False)
 
 
 def _as_2d_array(values: Any) -> np.ndarray:
@@ -508,7 +534,7 @@ def _write_per_image_csv(
     rows: list[dict[str, Any]],
     metric_names: list[str],
 ) -> None:
-    fieldnames = ["image_id", "image_path", *metric_names]
+    fieldnames = ["image_id", "image_path", "fixation_protocol", *metric_names]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
@@ -540,11 +566,27 @@ def _build_aggregate(
         "model": config.get("model", {}).get("name"),
         "saliency_method": config.get("saliency", {}).get("method"),
         "saliency_family": _saliency_family(config.get("saliency", {}).get("method")),
+        "fixation_protocol": _aggregate_fixation_protocol(rows),
         "cache_hits": int(cache_hits),
         "cache_writes": int(cache_writes),
         "per_image_csv": str(per_image_csv),
         "aggregate_json": str(aggregate_json),
     }
+
+
+def _aggregate_fixation_protocol(rows: list[dict[str, Any]]) -> str:
+    protocols = sorted(
+        {
+            str(row.get("fixation_protocol", ""))
+            for row in rows
+            if row.get("fixation_protocol")
+        }
+    )
+    if not protocols:
+        return "unknown"
+    if len(protocols) == 1:
+        return protocols[0]
+    return "mixed:" + ",".join(protocols)
 
 
 def _save_visualization(

@@ -35,6 +35,20 @@ def test_nss_cc_similarity_and_kl_on_synthetic_arrays():
     assert np.isclose(kl_divergence(saliency, saliency), 0.0)
 
 
+def test_nss_uses_explicit_fixation_coordinates_when_available():
+    saliency = np.array([[0.0, 1.0], [2.0, 3.0]], dtype=np.float32)
+    dense_fixation_map = np.ones((2, 2), dtype=np.float32)
+    positive_fixations = np.asarray([[1, 1]], dtype=np.int64)
+    z = (saliency - saliency.mean()) / saliency.std()
+
+    assert nss(
+        saliency,
+        dense_fixation_map,
+        positive_fixations=positive_fixations,
+    ) == pytest.approx(float(z[1, 1]))
+    assert nss(saliency, dense_fixation_map) == pytest.approx(0.0)
+
+
 def test_auc_judd_returns_finite_unit_interval_score():
     saliency = np.array([[0.1, 0.2], [0.3, 1.0]], dtype=np.float32)
     fixation = np.array([[0.0, 0.0], [0.0, 1.0]], dtype=np.float32)
@@ -43,6 +57,21 @@ def test_auc_judd_returns_finite_unit_interval_score():
 
     assert np.isfinite(score)
     assert 0.0 <= score <= 1.0
+
+
+def test_auc_judd_uses_explicit_fixation_coordinates_when_available():
+    saliency = np.array([[1.0, 0.0], [0.0, 0.0]], dtype=np.float32)
+    dense_fixation_map = np.ones((2, 2), dtype=np.float32)
+
+    fallback_score = auc_judd(saliency, dense_fixation_map)
+    point_score = auc_judd(
+        saliency,
+        dense_fixation_map,
+        positive_fixations=np.asarray([[0, 0]], dtype=np.int64),
+    )
+
+    assert fallback_score == 0.0
+    assert point_score > fallback_score
 
 
 def test_auc_borji_rewards_correct_fixation_ranking():
@@ -129,6 +158,7 @@ def test_resize_and_postprocess_saliency_map():
     assert resized.shape == (4, 4)
     assert np.isclose(resized[0, 0], 0.0)
     assert np.isclose(resized[-1, -1], 3.0)
+    assert 0.0 < resized[1, 1] < 3.0
     assert processed.shape == (4, 4)
     assert processed.min() == 0.0
     assert processed.max() == 1.0

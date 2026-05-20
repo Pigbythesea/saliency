@@ -52,6 +52,29 @@ def test_output_path_rejects_separator(tmp_path):
         exporter.output_path_for_image_id(tmp_path, "nested/id")
 
 
+def test_output_path_for_row_supports_collision_safe_map_key(tmp_path):
+    image_root = tmp_path / "images"
+    row_a = {"image_id": "001", "image_path": "Action/001.jpg"}
+    row_b = {"image_id": "001", "image_path": "Art/001.jpg"}
+
+    path_a = exporter.output_path_for_row(
+        tmp_path,
+        row_a,
+        image_root=image_root,
+        filename_template="{map_key}.npy",
+    )
+    path_b = exporter.output_path_for_row(
+        tmp_path,
+        row_b,
+        image_root=image_root,
+        filename_template="{map_key}.npy",
+    )
+
+    assert path_a != path_b
+    assert path_a.suffix == ".npy"
+    assert path_b.suffix == ".npy"
+
+
 def test_predict_deepgaze_map_with_fake_model():
     torch = pytest.importorskip("torch")
 

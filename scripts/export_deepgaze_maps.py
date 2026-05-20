@@ -11,6 +11,8 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
+from hma.saliency.precomputed import precomputed_map_key
+
 
 DEFAULT_CENTERBIAS = "data/precomputed/deepgaze/centerbias_mit1003.npy"
 
@@ -26,6 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing maps.")
     parser.add_argument("--dry-run", action="store_true", help="List planned work without loading DeepGaze.")
     parser.add_argument("--save-log-density", action="store_true", help="Save log-density instead of probability map.")
+    parser.add_argument(
+        "--filename-template",
+        default="{image_id}.npy",
+        help="Output filename template. Supports {image_id} and collision-safe {map_key}.",
+    )
     parser.add_argument("--progress-interval", type=int, default=25)
     return parser
 
@@ -41,7 +48,15 @@ def main() -> None:
     centerbias_template = np.load(args.centerbias)
 
     planned = [
-        (row, output_path_for_image_id(output_dir, row["image_id"]))
+        (
+            row,
+            output_path_for_row(
+                output_dir,
+                row,
+                image_root=image_root,
+                filename_template=args.filename_template,
+            ),
+        )
         for row in rows
     ]
     if args.dry_run:
@@ -180,6 +195,23 @@ def output_path_for_image_id(output_dir: Path, image_id: str) -> Path:
     if "/" in image_id or "\\" in image_id:
         raise ValueError(f"image_id cannot contain path separators for map export: {image_id}")
     return output_dir / f"{image_id}.npy"
+
+
+def output_path_for_row(
+    output_dir: Path,
+    row: dict[str, str],
+    *,
+    image_root: Path,
+    filename_template: str,
+) -> Path:
+    resolved_image_path = resolve_image_path(image_root, row["image_path"])
+    map_key = precomputed_map_key(resolved_image_path)
+    filename = filename_template.format(image_id=row["image_id"], map_key=map_key)
+    if "/" in filename or "\\" in filename:
+        raise ValueError(f"filename_template cannot produce nested paths: {filename}")
+    if not filename.endswith((".npy", ".npz", ".png", ".jpg", ".jpeg")):
+        filename = f"{filename}.npy"
+    return output_dir / filename
 
 
 def load_rgb_image(path: Path) -> np.ndarray:

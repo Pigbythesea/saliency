@@ -850,15 +850,35 @@ def _write_multimodel_interpretation_note(
         compatible = [
             row for row in candidate_rows if row.get("wrapper_compatible") == "true"
         ]
+        complete = [
+            row for row in candidate_rows if row.get("pretrained_weights_run") == "true"
+        ]
+        status_counts = _status_counts(candidate_rows, "pretrained_run_status")
         lines.append(f"- Candidate inventory CSV: {candidate_inventory}.")
         lines.append(
             f"- Dry-inspected compatible candidates: {len(compatible)}/"
             f"{len(candidate_rows)}."
         )
-        lines.append("- No pretrained SSL or multimodal weights were run in this milestone.")
+        lines.append(f"- Pretrained debug runs complete: {len(complete)}.")
+        if status_counts:
+            lines.append(
+                "- Pretrained status counts: "
+                + ", ".join(
+                    f"{status}={count}" for status, count in sorted(status_counts.items())
+                )
+                + "."
+            )
     else:
         lines.append("- Candidate inventory CSV was not present when this note was generated.")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _status_counts(rows: Iterable[dict[str, Any]], field: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        status = str(row.get(field) or "not_run")
+        counts[status] = counts.get(status, 0) + 1
+    return counts
 
 
 def _load_csv_rows(path: str | Path) -> list[dict[str, str]]:

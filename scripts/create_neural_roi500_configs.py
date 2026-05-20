@@ -15,10 +15,16 @@ from hma.utils.config import save_yaml
 CONFIG_ROOT = Path("configs/experiments/neural_roi500")
 DEBUG_CONFIG_ROOT = Path("configs/experiments/neural_roi500_debug")
 SSL_CANDIDATE_CONFIG_ROOT = Path("configs/experiments/neural_roi500_ssl_candidates_debug")
+SSL_PRETRAINED_DEBUG_CONFIG_ROOT = Path(
+    "configs/experiments/neural_roi500_ssl_pretrained_debug"
+)
+SSL_CONFIG_ROOT = Path("configs/experiments/neural_roi500_ssl")
 MANIFEST_PATH = "data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv"
 OUTPUT_ROOT = "outputs/neural_roi500"
 DEBUG_OUTPUT_ROOT = "outputs/neural_roi500_debug"
 SSL_CANDIDATE_OUTPUT_ROOT = "outputs/neural_roi500_ssl_candidates_debug"
+SSL_PRETRAINED_DEBUG_OUTPUT_ROOT = "outputs/neural_roi500_ssl_pretrained_debug"
+SSL_OUTPUT_ROOT = "outputs/neural_roi500_ssl"
 ROI_CONFIGS = [
     ("V1", "v1"),
     ("V2", "v2"),
@@ -49,6 +55,17 @@ SSL_MULTIMODAL_CANDIDATES = [
     {"model_name": "vit_base_patch16_siglip_224", "family": "SigLIP"},
     {"model_name": "eva02_base_patch16_clip_224", "family": "EVA-CLIP"},
 ]
+DEFAULT_SSL_PRETRAINED_MODELS = [
+    "vit_small_patch14_dinov2",
+    "vit_base_patch16_clip_224",
+    "resnet50_clip",
+]
+REQUIRED_NEURAL_OUTPUT_FILES = [
+    "activations.npz",
+    "encoding_scores.csv",
+    "rsa_scores.csv",
+    "metadata.json",
+]
 SSL_CANDIDATE_FIELDNAMES = [
     "model_name",
     "family",
@@ -60,6 +77,11 @@ SSL_CANDIDATE_FIELDNAMES = [
     "wrapper_compatible",
     "pretrained_weights_run",
     "debug_config_path",
+    "pretrained_debug_config_path",
+    "pretrained_output_dir",
+    "pretrained_run_status",
+    "pretrained_weight_status",
+    "pretrained_run_error",
     "inspection_error",
 ]
 
@@ -133,6 +155,11 @@ def inspect_ssl_multimodal_candidates(
             "wrapper_compatible": "false",
             "pretrained_weights_run": "false",
             "debug_config_path": "",
+            "pretrained_debug_config_path": "",
+            "pretrained_output_dir": "",
+            "pretrained_run_status": "not_run",
+            "pretrained_weight_status": "",
+            "pretrained_run_error": "",
             "inspection_error": "",
         }
         if model_name not in available_models:
@@ -197,6 +224,148 @@ def create_ssl_multimodal_debug_configs(
         row["debug_config_path"] = str(path)
         written.append(path)
     return written
+
+
+def create_ssl_multimodal_candidate_configs(
+    candidate_rows: Iterable[dict[str, Any]],
+    *,
+    output_dir: str | Path,
+    output_root: str | Path,
+    manifest_path: str = MANIFEST_PATH,
+    rois: Iterable[str] | None = None,
+    max_items: int = 500,
+    name_suffix: str = "500",
+    pretrained: bool = True,
+    models: Iterable[str] | None = None,
+    config_path_field: str | None = None,
+) -> list[Path]:
+    """Write SSL/multimodal configs for compatible candidate rows."""
+    root = Path(output_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    roi_slug_by_name = dict(ROI_CONFIGS)
+    selected_rois = list(rois) if rois is not None else [roi for roi, _slug in ROI_CONFIGS]
+    for roi in selected_rois:
+        if roi not in roi_slug_by_name:
+            raise ValueError(f"Unknown ROI '{roi}'. Available ROIs: {sorted(roi_slug_by_name)}")
+    selected_models = set(models) if models is not None else None
+
+    written = []
+    for row in candidate_rows:
+        if str(row.get("wrapper_compatible", "")).lower() != "true":
+            continue
+        model_name = str(row["model_name"])
+        if selected_models is not None and model_name not in selected_models:
+            continue
+        layers = str(row.get("verified_layers", "")).split()
+        if not layers:
+            continue
+        for roi in selected_rois:
+            name = _run_name(model_name, roi_slug_by_name[roi], name_suffix)
+            config = _config_for_candidate_roi(
+                model_name=model_name,
+                layers=layers,
+                roi=roi,
+                name=name,
+                manifest_path=manifest_path,
+                output_root=str(output_root),
+                max_items=max_items,
+                pretrained=pretrained,
+            )
+            path = root / f"{name}.yaml"
+            save_yaml(config, path)
+            if config_path_field is not None:
+                row[config_path_field] = str(path)
+            if pretrained and name_suffix == "pretrained_debug":
+                row["pretrained_output_dir"] = config["output"]["dir"]
+            written.append(path)
+    return written
+
+
+def create_ssl_multimodal_pretrained_debug_configs(
+    candidate_rows: Iterable[dict[str, Any]],
+    *,
+    output_dir: str | Path = SSL_PRETRAINED_DEBUG_CONFIG_ROOT,
+    output_root: str | Path = SSL_PRETRAINED_DEBUG_OUTPUT_ROOT,
+    manifest_path: str = MANIFEST_PATH,
+    models: Iterable[str] | None = None,
+) -> list[Path]:
+    """Write pretrained=True V1 debug configs for selected SSL/multimodal candidates."""
+    return create_ssl_multimodal_candidate_configs(
+        candidate_rows,
+        output_dir=output_dir,
+        output_root=output_root,
+        manifest_path=manifest_path,
+        rois=["V1"],
+        max_items=16,
+        name_suffix="pretrained_debug",
+        pretrained=True,
+        models=models or DEFAULT_SSL_PRETRAINED_MODELS,
+        config_path_field="pretrained_debug_config_path",
+    )
+
+
+def create_ssl_multimodal_roi500_configs(
+    candidate_rows: Iterable[dict[str, Any]],
+    *,
+    output_dir: str | Path = SSL_CONFIG_ROOT,
+    output_root: str | Path = SSL_OUTPUT_ROOT,
+    manifest_path: str = MANIFEST_PATH,
+    models: Iterable[str] | None = None,
+) -> list[Path]:
+    """Write pretrained=True full ROI500 configs for selected SSL/multimodal candidates."""
+    return create_ssl_multimodal_candidate_configs(
+        candidate_rows,
+        output_dir=output_dir,
+        output_root=output_root,
+        manifest_path=manifest_path,
+        rois=[roi for roi, _slug in ROI_CONFIGS],
+        max_items=500,
+        name_suffix="500",
+        pretrained=True,
+        models=models,
+    )
+
+
+def refresh_ssl_pretrained_status(
+    candidate_rows: Iterable[dict[str, Any]],
+    *,
+    output_root: str | Path = SSL_PRETRAINED_DEBUG_OUTPUT_ROOT,
+) -> list[dict[str, Any]]:
+    """Refresh pretrained debug status by scanning expected neural output files."""
+    rows = list(candidate_rows)
+    root = Path(output_root)
+    for row in rows:
+        model_name = str(row.get("model_name", ""))
+        output_dir = Path(
+            row.get("pretrained_output_dir")
+            or root / _run_name(model_name, "v1", "pretrained_debug")
+        )
+        row["pretrained_output_dir"] = str(output_dir)
+        missing = [
+            name
+            for name in REQUIRED_NEURAL_OUTPUT_FILES
+            if not (output_dir / name).is_file()
+        ]
+        existing = [
+            name for name in REQUIRED_NEURAL_OUTPUT_FILES if (output_dir / name).is_file()
+        ]
+        if not existing:
+            row["pretrained_weights_run"] = "false"
+            row["pretrained_run_status"] = row.get("pretrained_run_status") or "not_run"
+            row["pretrained_weight_status"] = row.get("pretrained_weight_status", "")
+            row["pretrained_run_error"] = row.get("pretrained_run_error", "")
+            continue
+        if missing:
+            row["pretrained_weights_run"] = "false"
+            row["pretrained_run_status"] = "incomplete"
+            row["pretrained_weight_status"] = _metadata_pretrained_status(output_dir)
+            row["pretrained_run_error"] = "missing " + " ".join(missing)
+            continue
+        row["pretrained_weights_run"] = "true"
+        row["pretrained_run_status"] = "complete"
+        row["pretrained_weight_status"] = _metadata_pretrained_status(output_dir)
+        row["pretrained_run_error"] = ""
+    return rows
 
 
 def _config_for_roi(
@@ -264,6 +433,7 @@ def _config_for_candidate_roi(
     manifest_path: str,
     output_root: str,
     max_items: int,
+    pretrained: bool = False,
 ) -> dict:
     return {
         "seed": 123,
@@ -283,11 +453,11 @@ def _config_for_candidate_roi(
         "model": {
             "name": model_name,
             "backend": "timm",
-            "pretrained": False,
+            "pretrained": bool(pretrained),
             "eval_mode": True,
         },
         "preprocessing": {
-            "input_size": [224, 224],
+            "input_size": _input_size_for_candidate(model_name),
             "mean": "imagenet",
             "std": "imagenet",
         },
@@ -358,12 +528,36 @@ def _candidate_layers(model_name: str, module_names: set[str]) -> list[str]:
     return [f"blocks.{index}" for index in selected_indices]
 
 
+def _input_size_for_candidate(model_name: str) -> list[int]:
+    if "dinov2" in model_name:
+        return [518, 518]
+    return [224, 224]
+
+
 def _write_candidate_inventory(path: Path, rows: Iterable[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=SSL_CANDIDATE_FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _metadata_pretrained_status(output_dir: Path) -> str:
+    metadata_path = output_dir / "metadata.json"
+    if not metadata_path.is_file():
+        return ""
+    try:
+        import json
+
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except Exception:
+        return "metadata_unreadable"
+    pretrained = metadata.get("model_pretrained")
+    if pretrained is True:
+        return "pretrained_true"
+    if pretrained is False:
+        return "pretrained_false"
+    return "metadata_missing_model_pretrained"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -396,8 +590,39 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Write pretrained=False V1 debug configs for compatible candidates.",
     )
+    parser.add_argument(
+        "--write-ssl-pretrained-debug-configs",
+        action="store_true",
+        help="Write pretrained=True V1 debug configs for selected compatible candidates.",
+    )
+    parser.add_argument(
+        "--write-ssl-roi500-configs",
+        action="store_true",
+        help="Write pretrained=True full ROI500 configs for selected compatible candidates.",
+    )
+    parser.add_argument(
+        "--refresh-ssl-pretrained-status",
+        action="store_true",
+        help="Refresh candidate pretrained run status by scanning pretrained debug outputs.",
+    )
+    parser.add_argument(
+        "--ssl-models",
+        nargs="+",
+        default=None,
+        help="Optional SSL/multimodal model names to generate configs for.",
+    )
     parser.add_argument("--ssl-debug-output-dir", default=str(SSL_CANDIDATE_CONFIG_ROOT))
     parser.add_argument("--ssl-debug-output-root", default=str(SSL_CANDIDATE_OUTPUT_ROOT))
+    parser.add_argument(
+        "--ssl-pretrained-debug-output-dir",
+        default=str(SSL_PRETRAINED_DEBUG_CONFIG_ROOT),
+    )
+    parser.add_argument(
+        "--ssl-pretrained-debug-output-root",
+        default=str(SSL_PRETRAINED_DEBUG_OUTPUT_ROOT),
+    )
+    parser.add_argument("--ssl-roi500-output-dir", default=str(SSL_CONFIG_ROOT))
+    parser.add_argument("--ssl-roi500-output-root", default=str(SSL_OUTPUT_ROOT))
     return parser
 
 
@@ -412,6 +637,33 @@ def main() -> None:
                 output_root=args.ssl_debug_output_root,
                 manifest_path=args.manifest_path,
             )
+        if args.write_ssl_pretrained_debug_configs:
+            create_ssl_multimodal_pretrained_debug_configs(
+                rows,
+                output_dir=args.ssl_pretrained_debug_output_dir,
+                output_root=args.ssl_pretrained_debug_output_root,
+                manifest_path=args.manifest_path,
+                models=args.ssl_models,
+            )
+        if args.write_ssl_roi500_configs:
+            create_ssl_multimodal_roi500_configs(
+                rows,
+                output_dir=args.ssl_roi500_output_dir,
+                output_root=args.ssl_roi500_output_root,
+                manifest_path=args.manifest_path,
+                models=args.ssl_models,
+            )
+        if args.refresh_ssl_pretrained_status:
+            refresh_ssl_pretrained_status(
+                rows,
+                output_root=args.ssl_pretrained_debug_output_root,
+            )
+        if (
+            args.write_ssl_debug_configs
+            or args.write_ssl_pretrained_debug_configs
+            or args.write_ssl_roi500_configs
+            or args.refresh_ssl_pretrained_status
+        ):
             _write_candidate_inventory(Path(args.candidate_output), rows)
         print(args.candidate_output)
         return

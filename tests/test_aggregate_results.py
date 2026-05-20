@@ -14,13 +14,17 @@ from hma.experiments.aggregate_results import (
 def _write_result_dir(path, model, nss_values, cc_values):
     path.mkdir()
     with (path / "per_image_metrics.csv").open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["image_id", "image_path", "nss", "cc"])
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["image_id", "image_path", "fixation_protocol", "nss", "cc"],
+        )
         writer.writeheader()
         for index, (nss, cc) in enumerate(zip(nss_values, cc_values)):
             writer.writerow(
                 {
                     "image_id": f"img_{index}",
                     "image_path": f"images/img_{index}.png",
+                    "fixation_protocol": "points",
                     "nss": nss,
                     "cc": cc,
                 }
@@ -33,6 +37,7 @@ def _write_result_dir(path, model, nss_values, cc_values):
                 "model": model,
                 "saliency_method": "dummy_gradient_free",
                 "saliency_family": "unknown",
+                "fixation_protocol": "points",
             }
         ),
         encoding="utf-8",
@@ -58,6 +63,7 @@ def test_aggregate_result_files_computes_expected_columns_and_stats(tmp_path):
         "model",
         "saliency_method",
         "saliency_family",
+        "fixation_protocol",
         "metric",
         "n",
         "mean",
@@ -74,6 +80,7 @@ def test_aggregate_result_files_computes_expected_columns_and_stats(tmp_path):
     assert model_a_nss["dataset"] == "dummy_static_saliency"
     assert model_a_nss["saliency_method"] == "dummy_gradient_free"
     assert model_a_nss["saliency_family"] == "unknown"
+    assert model_a_nss["fixation_protocol"] == "points"
     assert model_a_nss["n"] == 2
     assert model_a_nss["mean"] == pytest.approx(2.0)
     assert model_a_nss["std"] == pytest.approx(math.sqrt(2.0))
@@ -89,6 +96,7 @@ def test_save_aggregate_table_writes_csv(tmp_path):
             "model": "m",
             "saliency_method": "s",
             "saliency_family": "baseline",
+            "fixation_protocol": "points",
             "metric": "nss",
             "n": 1,
             "mean": 1.0,

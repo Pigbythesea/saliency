@@ -43,11 +43,20 @@ def normalize_map(x: np.ndarray, eps: float = 1e-8) -> np.ndarray:
     return ((array - minimum) / (maximum - minimum)).astype(np.float32)
 
 
-def auc_judd(saliency_map: np.ndarray, fixation_map: np.ndarray) -> float:
-    """Compute Judd AUC using positive fixation-map values as fixation locations."""
+def auc_judd(
+    saliency_map: np.ndarray,
+    fixation_map: np.ndarray,
+    *,
+    positive_fixations: np.ndarray | None = None,
+) -> float:
+    """Compute Judd AUC using discrete fixation locations when available."""
     saliency, fixations = _check_same_shape(saliency_map, fixation_map)
-    saliency = normalize_map(saliency).ravel()
-    fixation_mask = _fixation_mask(fixations).ravel()
+    saliency = normalize_map(saliency)
+    fixation_mask = _coords_to_mask(
+        _positive_coords(fixations, positive_fixations),
+        saliency.shape,
+    ).ravel()
+    saliency = saliency.ravel()
 
     num_fixations = int(np.sum(fixation_mask))
     num_pixels = fixation_mask.size
@@ -168,10 +177,18 @@ def emd_2d(
     return float((y_distance + x_distance) / normalizer)
 
 
-def nss(saliency_map: np.ndarray, fixation_map: np.ndarray) -> float:
-    """Compute normalized scanpath saliency."""
+def nss(
+    saliency_map: np.ndarray,
+    fixation_map: np.ndarray,
+    *,
+    positive_fixations: np.ndarray | None = None,
+) -> float:
+    """Compute normalized scanpath saliency at fixation locations."""
     saliency, fixations = _check_same_shape(saliency_map, fixation_map)
-    fixation_mask = _fixation_mask(fixations)
+    fixation_mask = _coords_to_mask(
+        _positive_coords(fixations, positive_fixations),
+        saliency.shape,
+    )
     if not np.any(fixation_mask):
         return 0.0
 

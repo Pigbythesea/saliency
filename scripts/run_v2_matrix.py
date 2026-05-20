@@ -24,10 +24,13 @@ from hma.viz.plot_metrics import (
 
 DEFAULT_CONFIG_DIR = Path("configs/experiments/real_matrix_v2")
 DEFAULT_OUTPUT_ROOT = Path("outputs/real_matrix_v2")
-RELIABILITY_CHECKS = {
+DEFAULT_RELIABILITY_CHECKS = {
     ("salicon_pilot500", "vit_base_patch16_224", "attention_rollout"),
     ("salicon_pilot500", "deit_small_patch16_224", "attention_rollout"),
     ("salicon_pilot500", "convnext_tiny", "gradcam"),
+    ("salicon_pilot500", "vit_small_patch14_dinov2", "attention_rollout"),
+    ("salicon_pilot500", "vit_base_patch16_clip_224", "attention_rollout"),
+    ("salicon_pilot500", "resnet50_clip", "gradcam"),
 }
 REPORT_METRICS = ["nss", "shuffled_auc", "auc_borji", "auc_judd", "cc", "similarity", "kl"]
 
@@ -53,6 +56,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-runs", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--resume", action="store_true", help="Skip configs with aggregate JSON.")
+    parser.add_argument(
+        "--reliability-checks",
+        nargs="*",
+        default=None,
+        metavar="DATASET:MODEL:METHOD",
+        help=(
+            "Reliability gate entries. If omitted, built-in V2 and SSL gates are used. "
+            "Pass the flag with no entries to disable reliability gates."
+        ),
+    )
+    parser.add_argument(
+        "--reliability-checks-csv",
+        default=None,
+        help=(
+            "CSV with dataset, model, and saliency_method/method columns. "
+            "When provided, these checks replace the built-in defaults."
+        ),
+    )
     parser.add_argument("--no-report", action="store_true", help="Skip aggregation/summaries/plots.")
     parser.add_argument("--no-progress", action="store_true", help="Disable progress output.")
     parser.add_argument(
@@ -80,7 +101,8 @@ def main() -> None:
 
     configs = [_config_info(path) for path in sorted(config_dir.glob("*.yaml"))]
     selected = _selected_configs(configs, args.phase)
-    reliability = [info for info in configs if _reliability_key(info) in RELIABILITY_CHECKS]
+    reliability_checks = _reliability_checks_from_args(args)
+    reliability = [info for info in configs if _reliability_key(info) in reliability_checks]
     run_order = _dedupe_infos([*reliability, *selected])
     planned_runs = _planned_run_count(run_order, args.max_runs)
     if not args.no_progress:
@@ -117,7 +139,7 @@ def main() -> None:
             progress_interval=args.progress_interval,
         )
         rows.append(row)
-        if _reliability_key(info) in RELIABILITY_CHECKS and row["status"] == "failed":
+        if _reliability_key(info) in reliability_checks and row["status"] == "failed":
             failed_capabilities.add(capability)
         _write_ledger(ledger, rows)
 
@@ -128,6 +150,47 @@ def main() -> None:
         print("Run ledger unchanged: no configs were executed or skipped.")
     if not args.no_report and not args.dry_run:
         _write_reports(output_root, aggregate_csv, summary_dir, plots_dir, args.efficiency_csv)
+
+
+def _reliability_checks_from_args(args: argparse.Namespace) -> set[tuple[str, str, str]]:
+    supplied_inline = args.reliability_checks is not None
+    supplied_csv = bool(args.reliability_checks_csv)
+    if not supplied_inline and not supplied_csv:
+        return set(DEFAULT_RELIABILITY_CHECKS)
+
+    checks: set[tuple[str, str, str]] = set()
+    if supplied_csv:
+        checks.update(_read_reliability_checks_csv(Path(args.reliability_checks_csv)))
+    for entry in args.reliability_checks or []:
+        checks.add(_parse_reliability_check(entry))
+    return checks
+
+
+def _read_reliability_checks_csv(path: Path) -> set[tuple[str, str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        checks = set()
+        for row in reader:
+            dataset = str(row.get("dataset", "")).strip()
+            model = str(row.get("model", "")).strip()
+            method = str(row.get("saliency_method") or row.get("method") or "").strip()
+            if not dataset or not model or not method:
+                raise ValueError(
+                    "Reliability CSV rows must include dataset, model, and "
+                    "saliency_method or method"
+                )
+            checks.add((dataset, model, method))
+    return checks
+
+
+def _parse_reliability_check(entry: str) -> tuple[str, str, str]:
+    parts = [part.strip() for part in entry.split(":")]
+    if len(parts) != 3 or any(not part for part in parts):
+        raise ValueError(
+            "Reliability checks must use DATASET:MODEL:METHOD, "
+            f"got {entry!r}"
+        )
+    return parts[0], parts[1], parts[2]
 
 
 def _selected_configs(configs: list[dict[str, Any]], phase: str) -> list[dict[str, Any]]:

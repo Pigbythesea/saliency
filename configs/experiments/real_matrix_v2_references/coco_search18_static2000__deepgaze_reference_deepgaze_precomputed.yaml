@@ -20,7 +20,7 @@ model:
 saliency:
   method: deepgaze_precomputed
   root: data/precomputed/deepgaze/coco_search18_static2000
-  path_template: '{image_id}.npy'
+  path_template: '{map_key}.npy'
 metric_controls:
   seed: 123
   auc_borji_splits: 100

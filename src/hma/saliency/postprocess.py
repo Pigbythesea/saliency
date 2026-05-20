@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from PIL import Image
+
 from hma.metrics.saliency_metrics import normalize_map
 
 
@@ -13,7 +15,7 @@ def normalize_saliency_map(values: np.ndarray) -> np.ndarray:
 
 
 def resize_saliency_map(values: np.ndarray, target_shape: tuple[int, int]) -> np.ndarray:
-    """Resize a 2D saliency map with nearest-neighbor sampling."""
+    """Resize a 2D saliency map with bilinear interpolation."""
     array = np.asarray(values, dtype=np.float32)
     if array.ndim != 2:
         raise ValueError(f"Expected 2D saliency map, got shape {array.shape}")
@@ -22,19 +24,12 @@ def resize_saliency_map(values: np.ndarray, target_shape: tuple[int, int]) -> np
     if target_height <= 0 or target_width <= 0:
         raise ValueError("target_shape dimensions must be positive")
 
-    source_height, source_width = array.shape
-    if (source_height, source_width) == (target_height, target_width):
+    if array.shape == (target_height, target_width):
         return array.copy()
 
-    row_indices = np.floor(
-        np.linspace(0, source_height, target_height, endpoint=False)
-    ).astype(int)
-    col_indices = np.floor(
-        np.linspace(0, source_width, target_width, endpoint=False)
-    ).astype(int)
-    row_indices = np.clip(row_indices, 0, source_height - 1)
-    col_indices = np.clip(col_indices, 0, source_width - 1)
-    return array[np.ix_(row_indices, col_indices)].astype(np.float32)
+    image = Image.fromarray(array, mode="F")
+    resized = image.resize((target_width, target_height), Image.BILINEAR)
+    return np.asarray(resized, dtype=np.float32)
 
 
 def postprocess_saliency_map(

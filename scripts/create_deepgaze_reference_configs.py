@@ -60,8 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--path-template",
-        default="{image_id}.npy",
-        help="Map path template relative to each dataset-label precomputed root.",
+        default=None,
+        help=(
+            "Map path template relative to each dataset-label precomputed root. "
+            "Defaults to {image_id}.npy for SALICON and {map_key}.npy for datasets "
+            "with repeated image_id values."
+        ),
     )
     parser.add_argument("--npz-key", default=None, help="Optional NPZ key for map arrays.")
     return parser
@@ -76,7 +80,7 @@ def main() -> None:
         config = _reference_config(
             dataset,
             precomputed_root=Path(args.precomputed_root),
-            path_template=args.path_template,
+            path_template=args.path_template or _default_path_template(dataset),
             npz_key=args.npz_key,
         )
         output = config_dir / f"{dataset['label']}__deepgaze_reference_deepgaze_precomputed.yaml"
@@ -125,6 +129,12 @@ def _reference_config(
             "num_visualizations": 0,
         },
     }
+
+
+def _default_path_template(dataset: dict) -> str:
+    if dataset["label"] in {"cat2000_static2000", "coco_search18_static2000"}:
+        return "{map_key}.npy"
+    return "{image_id}.npy"
 
 
 if __name__ == "__main__":

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +52,7 @@ def _resolve_map_path(
         raw_path = path_template.format(
             image_id=item.get("image_id", ""),
             image_path=item.get("image_path", ""),
+            map_key=precomputed_map_key(item),
         )
     if raw_path is None or str(raw_path) == "":
         raise KeyError(
@@ -75,3 +78,17 @@ def _load_map(path: Path, *, npz_key: str | None) -> np.ndarray:
         return np.asarray(payload[key], dtype=np.float32)
     with Image.open(path) as image:
         return np.asarray(image.convert("L"), dtype=np.float32)
+
+
+def precomputed_map_key(item: dict[str, Any] | str | Path) -> str:
+    """Return a stable, filesystem-safe key for a precomputed map."""
+    if isinstance(item, dict):
+        source = str(item.get("image_path") or item.get("image_id") or "item")
+    else:
+        source = str(item)
+    normalized = source.replace("\\", "/")
+    stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", normalized).strip("._")
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
+    if len(stem) > 80:
+        stem = stem[-80:].strip("._")
+    return f"{stem or 'item'}_{digest}"

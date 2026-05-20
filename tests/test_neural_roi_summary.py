@@ -6,8 +6,12 @@ from hma.utils.config import load_yaml
 from scripts.create_neural_roi500_configs import (
     create_neural_roi500_configs,
     create_ssl_multimodal_debug_configs,
+    create_ssl_multimodal_pretrained_debug_configs,
+    create_ssl_multimodal_roi500_configs,
     inspect_ssl_multimodal_candidates,
+    refresh_ssl_pretrained_status,
 )
+from scripts.merge_efficiency_profiles import merge_efficiency_profiles
 
 
 def _write_csv(path, rows, fieldnames):
@@ -278,6 +282,54 @@ def test_summarize_neural_roi_results_writes_best_layers_and_bridge(tmp_path):
     assert all(row["behavior_metric_direction"] for row in overlap_rows)
 
 
+def test_behavior_neural_bridge_includes_dinov2_rows_from_merged_behavior_csv(tmp_path):
+    dino_output = tmp_path / "outputs" / "dinov2_v1"
+    _write_neural_output(
+        dino_output,
+        roi="V1",
+        model="vit_small_patch14_dinov2",
+    )
+    behavioral_csv = tmp_path / "results_with_ssl_behavior.csv"
+    _write_csv(
+        behavioral_csv,
+        [
+            {
+                "dataset": "salicon_static2000",
+                "model": "vit_small_patch14_dinov2",
+                "saliency_method": "attention_rollout",
+                "saliency_family": "internal_routing",
+                "metric": "nss",
+                "n": 2000,
+                "mean": 0.41,
+                "ci95_low": 0.4,
+                "ci95_high": 0.42,
+            }
+        ],
+        [
+            "dataset",
+            "model",
+            "saliency_method",
+            "saliency_family",
+            "metric",
+            "n",
+            "mean",
+            "ci95_low",
+            "ci95_high",
+        ],
+    )
+
+    outputs = summarize_neural_roi_results(
+        [dino_output],
+        tmp_path / "summary",
+        behavioral_csv=behavioral_csv,
+    )
+
+    bridge_rows = _read_csv(outputs["behavior_neural_bridge"])
+    assert len(bridge_rows) == 1
+    assert bridge_rows[0]["neural_model"] == "vit_small_patch14_dinov2"
+    assert bridge_rows[0]["behavior_saliency_method"] == "attention_rollout"
+
+
 def test_summarize_neural_roi_results_tolerates_missing_rsa(tmp_path):
     output_dir = tmp_path / "outputs" / "v1"
     _write_neural_output(output_dir, roi="V1", include_rsa=False)
@@ -288,6 +340,46 @@ def test_summarize_neural_roi_results_tolerates_missing_rsa(tmp_path):
     assert _read_csv(outputs["combined_rsa_scores"]) == []
     best_rows = _read_csv(outputs["best_layers_by_roi"])
     assert {row["score_type"] for row in best_rows} == {"encoding"}
+
+
+def test_multimodel_note_reports_pretrained_candidate_status(tmp_path):
+    output_dir = tmp_path / "outputs" / "v1"
+    summary_dir = tmp_path / "summary"
+    _write_neural_output(output_dir, roi="V1")
+    _write_csv(
+        summary_dir / "ssl_multimodal_candidate_inventory.csv",
+        [
+            {
+                "model_name": "vit_small_patch14_dinov2",
+                "family": "DINOv2",
+                "wrapper_compatible": "true",
+                "pretrained_weights_run": "true",
+                "pretrained_run_status": "complete",
+            },
+            {
+                "model_name": "vit_base_patch16_clip_224",
+                "family": "CLIP",
+                "wrapper_compatible": "true",
+                "pretrained_weights_run": "false",
+                "pretrained_run_status": "not_run",
+            },
+        ],
+        [
+            "model_name",
+            "family",
+            "wrapper_compatible",
+            "pretrained_weights_run",
+            "pretrained_run_status",
+        ],
+    )
+
+    outputs = summarize_neural_roi_results([output_dir], summary_dir)
+
+    text = outputs["multimodel_interpretation_note"].read_text(encoding="utf-8")
+    assert "Pretrained debug runs complete: 1." in text
+    assert "complete=1" in text
+    assert "not_run=1" in text
+    assert "No pretrained SSL or multimodal weights were run" not in text
 
 
 def test_create_neural_roi500_configs_writes_expected_defaults(tmp_path):
@@ -476,3 +568,145 @@ def test_ssl_multimodal_candidate_inventory_and_debug_configs(tmp_path):
         "layer3",
         "layer4",
     ]
+
+
+def test_ssl_pretrained_debug_and_roi500_configs_are_separate_from_dry_debug(tmp_path):
+    rows = [
+        {
+            "model_name": "vit_small_patch14_dinov2",
+            "family": "DINOv2",
+            "wrapper_compatible": "true",
+            "verified_layers": "blocks.0 blocks.3 blocks.6 blocks.9 blocks.11",
+        },
+        {
+            "model_name": "resnet50_clip",
+            "family": "CLIP",
+            "wrapper_compatible": "true",
+            "verified_layers": "stages.0 stages.1 stages.2 stages.3",
+        },
+    ]
+
+    dry_written = create_ssl_multimodal_debug_configs(
+        rows,
+        output_dir=tmp_path / "dry_configs",
+        output_root=tmp_path / "dry_outputs",
+    )
+    pretrained_written = create_ssl_multimodal_pretrained_debug_configs(
+        rows,
+        output_dir=tmp_path / "pretrained_configs",
+        output_root=tmp_path / "pretrained_outputs",
+        models=["vit_small_patch14_dinov2", "resnet50_clip"],
+    )
+    roi500_written = create_ssl_multimodal_roi500_configs(
+        rows,
+        output_dir=tmp_path / "roi500_configs",
+        output_root=tmp_path / "roi500_outputs",
+        models=["vit_small_patch14_dinov2"],
+    )
+
+    dry_config = load_yaml(dry_written[0])
+    assert dry_config["model"]["pretrained"] is False
+    assert dry_config["dataset"]["max_items"] == 16
+
+    pretrained_configs = {path.name: load_yaml(path) for path in pretrained_written}
+    dino_debug = pretrained_configs["vit_small_patch14_dinov2_v1_pretrained_debug.yaml"]
+    clip_resnet_debug = pretrained_configs["resnet50_clip_v1_pretrained_debug.yaml"]
+    assert dino_debug["model"]["pretrained"] is True
+    assert dino_debug["dataset"]["roi"] == "V1"
+    assert dino_debug["dataset"]["max_items"] == 16
+    assert dino_debug["preprocessing"]["input_size"] == [518, 518]
+    assert dino_debug["output"]["dir"].endswith(
+        "vit_small_patch14_dinov2_v1_pretrained_debug"
+    )
+    assert clip_resnet_debug["preprocessing"]["input_size"] == [224, 224]
+    assert clip_resnet_debug["neural"]["layers"] == [
+        "stages.0",
+        "stages.1",
+        "stages.2",
+        "stages.3",
+    ]
+
+    assert len(roi500_written) == 4
+    roi500_configs = {path.name: load_yaml(path) for path in roi500_written}
+    assert set(roi500_configs) == {
+        "vit_small_patch14_dinov2_v1_500.yaml",
+        "vit_small_patch14_dinov2_v2_500.yaml",
+        "vit_small_patch14_dinov2_v3_500.yaml",
+        "vit_small_patch14_dinov2_hv4_500.yaml",
+    }
+    assert all(config["model"]["pretrained"] is True for config in roi500_configs.values())
+    assert all(config["dataset"]["max_items"] == 500 for config in roi500_configs.values())
+
+
+def test_ssl_pretrained_status_refresh_marks_complete_and_incomplete_outputs(tmp_path):
+    complete = tmp_path / "outputs" / "vit_small_patch14_dinov2_v1_pretrained_debug"
+    incomplete = tmp_path / "outputs" / "vit_base_patch16_clip_224_v1_pretrained_debug"
+    complete.mkdir(parents=True)
+    incomplete.mkdir(parents=True)
+    for filename in ["activations.npz", "encoding_scores.csv", "rsa_scores.csv"]:
+        (complete / filename).write_text("", encoding="utf-8")
+    (complete / "metadata.json").write_text(
+        json.dumps({"model_pretrained": True}),
+        encoding="utf-8",
+    )
+    (incomplete / "encoding_scores.csv").write_text("", encoding="utf-8")
+
+    rows = refresh_ssl_pretrained_status(
+        [
+            {"model_name": "vit_small_patch14_dinov2"},
+            {"model_name": "vit_base_patch16_clip_224"},
+            {"model_name": "resnet50_clip"},
+        ],
+        output_root=tmp_path / "outputs",
+    )
+
+    by_model = {row["model_name"]: row for row in rows}
+    assert by_model["vit_small_patch14_dinov2"]["pretrained_weights_run"] == "true"
+    assert by_model["vit_small_patch14_dinov2"]["pretrained_run_status"] == "complete"
+    assert by_model["vit_small_patch14_dinov2"]["pretrained_weight_status"] == (
+        "pretrained_true"
+    )
+    assert by_model["vit_base_patch16_clip_224"]["pretrained_weights_run"] == "false"
+    assert by_model["vit_base_patch16_clip_224"]["pretrained_run_status"] == "incomplete"
+    assert "activations.npz" in by_model["vit_base_patch16_clip_224"]["pretrained_run_error"]
+    assert by_model["resnet50_clip"]["pretrained_run_status"] == "not_run"
+
+
+def test_merge_efficiency_profiles_uses_later_rows_for_duplicate_models(tmp_path):
+    base = tmp_path / "base.csv"
+    ssl = tmp_path / "ssl.csv"
+    _write_csv(
+        base,
+        [
+            {
+                "model_name": "resnet50",
+                "latency_mean_ms": 5.0,
+                "parameter_count": 10,
+            },
+            {
+                "model_name": "vit_small_patch14_dinov2",
+                "latency_mean_ms": 9.0,
+                "parameter_count": 20,
+            },
+        ],
+        ["model_name", "latency_mean_ms", "parameter_count"],
+    )
+    _write_csv(
+        ssl,
+        [
+            {
+                "model_name": "vit_small_patch14_dinov2",
+                "latency_mean_ms": 3.0,
+                "parameter_count": 30,
+                "model_size_mb": 12.0,
+            }
+        ],
+        ["model_name", "latency_mean_ms", "parameter_count", "model_size_mb"],
+    )
+
+    output = merge_efficiency_profiles([base, ssl], tmp_path / "merged.csv")
+
+    rows = {row["model_name"]: row for row in _read_csv(output)}
+    assert rows["resnet50"]["latency_mean_ms"] == "5.0"
+    assert rows["vit_small_patch14_dinov2"]["latency_mean_ms"] == "3.0"
+    assert rows["vit_small_patch14_dinov2"]["model_size_mb"] == "12.0"

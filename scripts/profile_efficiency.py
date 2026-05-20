@@ -38,7 +38,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="auto",
         help="Device for profiling. 'auto' uses GPU when available, otherwise CPU.",
     )
-    parser.add_argument("--input-shape", default="1,3,224,224")
+    parser.add_argument(
+        "--input-shape",
+        default="",
+        help="Optional shape like 1,3,224,224. Defaults to config preprocessing input_size.",
+    )
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--repeats", type=int, default=20)
     parser.add_argument("--flops", action="store_true")
@@ -50,7 +54,7 @@ def main() -> None:
     rows = profile_config(
         config_path=args.config,
         device=args.device,
-        input_shape=_parse_input_shape(args.input_shape),
+        input_shape=_parse_input_shape(args.input_shape) if args.input_shape else None,
         warmup=args.warmup,
         repeats=args.repeats,
         include_flops=args.flops,
@@ -64,12 +68,13 @@ def main() -> None:
 def profile_config(
     config_path: str | Path,
     device: str,
-    input_shape: tuple[int, ...],
+    input_shape: tuple[int, ...] | None,
     warmup: int,
     repeats: int,
     include_flops: bool,
 ) -> list[dict[str, object]]:
     config = load_yaml(config_path)
+    resolved_input_shape = input_shape or _input_shape_from_config(config)
     model_configs = _extract_model_configs(config)
     rows = []
     for model_config in model_configs:
@@ -83,7 +88,7 @@ def profile_config(
             row.update(
                 measure_latency(
                     model,
-                    input_shape=input_shape,
+                    input_shape=resolved_input_shape,
                     device=device,
                     warmup=warmup,
                     repeats=repeats,
@@ -94,7 +99,11 @@ def profile_config(
             for field in LATENCY_FIELDS:
                 row[field] = ""
         if include_flops:
-            row["flops"] = estimate_flops(model, input_shape=input_shape, device=device)
+            row["flops"] = estimate_flops(
+                model,
+                input_shape=resolved_input_shape,
+                device=device,
+            )
         rows.append(row)
     return rows
 
@@ -126,6 +135,14 @@ def _write_rows(path: Path, rows: list[dict[str, object]], include_flops: bool) 
 
 def _parse_input_shape(raw: str) -> tuple[int, ...]:
     return tuple(int(part.strip()) for part in raw.split(",") if part.strip())
+
+
+def _input_shape_from_config(config: dict) -> tuple[int, ...]:
+    preprocessing = config.get("preprocessing", {})
+    input_size = preprocessing.get("input_size")
+    if isinstance(input_size, (list, tuple)) and len(input_size) == 2:
+        return (1, 3, int(input_size[0]), int(input_size[1]))
+    return (1, 3, 224, 224)
 
 
 if __name__ == "__main__":

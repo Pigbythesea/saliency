@@ -70,3 +70,15 @@ def test_measure_latency_smoke_test_with_tiny_torch_model():
 
     assert result["latency_mean_ms"] >= 0.0
     assert result["latency_min_ms"] >= 0.0
+
+
+def test_profile_efficiency_input_shape_defaults_to_config_preprocessing():
+    from scripts.profile_efficiency import _input_shape_from_config
+
+    assert _input_shape_from_config({"preprocessing": {"input_size": [518, 518]}}) == (
+        1,
+        3,
+        518,
+        518,
+    )
+    assert _input_shape_from_config({}) == (1, 3, 224, 224)
