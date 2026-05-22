@@ -317,3 +317,183 @@ Recent full-suite runs before this document cleanup reported all tests passing, 
 ```
 
 This edit is documentation-only; no tests are required just to consume this file.
+
+## Artifact Cleanup State
+
+Updated: 2026-05-20
+
+Generated artifacts with stale or mixed behavioral protocols were cleared so the next benchmark pass cannot accidentally consume pre-fix NSS/AUC rows.
+
+Removed generated outputs:
+
+- `outputs/real_matrix_v1/`
+- `outputs/real_matrix_v2/`
+- `outputs/real_matrix_v2_ssl_behavior/`
+- `outputs/paper_inspection_v1/`
+- `outputs/neural_roi_summary/`
+- transient smoke/debug outputs: `outputs/default/`, `outputs/saliency_static_debug/`, `outputs/salicon_resnet50_debug/`, `outputs/neural_smoke_dummy/`, `outputs/neural_roi500_debug/`, `outputs/neural_nsd_algonauts_*_smoke/`
+
+Kept generated outputs:
+
+- `outputs/neural_roi500/`
+- `outputs/neural_roi500_ssl/`
+- `outputs/neural_roi500_ssl_pretrained_debug/`
+- `outputs/neural_nsd_algonauts_*_500/`
+
+Rationale:
+
+- The behavioral matrices and paper inspection pack are no longer scientifically usable because they were generated before, or mixed across, the corrected fixation-point protocol.
+- `outputs/neural_roi_summary/` was removed because it included behavior-neural bridge tables derived from stale behavioral aggregates. It should be regenerated after corrected behavioral references and model rows exist.
+- Current neural ROI500 run directories were kept because they remain valid raw-correlation diagnostics and are needed to regenerate neural-only summaries.
+- No source files, configs, manifests, raw data, or tests were removed. The tests remain usable; they validate current code paths, including the corrected fixation-protocol metadata.
+
+## Corrected Behavioral Reference Rerun V1 Status
+
+Updated: 2026-05-20
+
+The six static2000 reference rows were rerun after artifact cleanup:
+
+- SALICON center bias
+- SALICON DeepGaze precomputed
+- CAT2000 center bias
+- CAT2000 DeepGaze precomputed
+- COCO-Search18 center bias
+- COCO-Search18 DeepGaze precomputed
+
+Acceptance gate status: **passed**.
+
+Protocol metadata:
+
+- SALICON reference rows: `fixation_protocol=points`
+- CAT2000 reference rows: `fixation_protocol=points`
+- COCO-Search18 reference rows: `fixation_protocol=task_points`
+
+Corrected NSS sanity values:
+
+- SALICON center bias: `0.933`
+- SALICON DeepGaze IIE: `1.743`
+- CAT2000 center bias: `1.619`
+- CAT2000 DeepGaze IIE: `1.838`
+- COCO-Search18 center bias: `1.310`
+- COCO-Search18 DeepGaze IIE: `1.745`
+
+Interpretation:
+
+- The old protocol failure pattern is resolved for the reference rows. DeepGaze now beats center bias on NSS for SALICON, CAT2000, and COCO-Search18 under the corrected point/task-point protocols.
+- SALICON and CAT2000 values are still not official benchmark scores and should not be numerically equated with MIT/Tuebingen or SALICON leaderboard results, but the scale and ordering are no longer obvious failures.
+- COCO-Search18 remains task-driven search, so it should be interpreted separately from free-viewing SALICON/CAT2000.
+
+Next action:
+
+- Rerun the static2000 model rows in `configs/experiments/real_matrix_v2/`.
+- Then aggregate and inspect only rows with `fixation_protocol=points` or `task_points`.
+- After the core model rows pass, rerun SSL/VLM behavioral rows, regenerate merged behavioral aggregates, regenerate neural bridge summaries, and recreate `outputs/paper_inspection_v1/`.
+
+## Corrected Core Static2000 Matrix Status
+
+Updated: 2026-05-21
+
+The core `real_matrix_v2` static2000 matrix was rerun and re-aggregated after the corrected reference gate passed.
+
+Current clean aggregate:
+
+- Path: `outputs/real_matrix_v2/aggregated/results.csv`
+- Static datasets: `salicon_static2000`, `cat2000_static2000`, `coco_search18_static2000`
+- Per-image output directories: `36`
+- Aggregate rows: `252`
+- Protocol rows: `168` metric rows with `points`, `84` metric rows with `task_points`
+- Blank / `unknown` / `density_fallback` aggregate rows: none
+
+Note:
+
+- `scripts/run_v2_matrix.py --phase static2000` also created three SALICON pilot reliability-check outputs. Those pilot artifacts were removed before the final aggregate so `results.csv` is static2000-only.
+- The optional efficiency join was skipped during re-aggregation because `outputs/real_matrix_v2/efficiency/model_efficiency.csv` is not present after cleanup. This does not affect behavioral metric validity.
+
+Corrected static2000 NSS headline:
+
+- SALICON: DeepGaze `1.743`, center bias `0.933`, strongest model saliency row ConvNeXt-T Grad-CAM `0.633`.
+- CAT2000: DeepGaze `1.838`, center bias `1.619`, strongest model saliency row ResNet-50 Grad-CAM `0.882`.
+- COCO-Search18: DeepGaze `1.745`, center bias `1.310`, strongest model saliency row ResNet-50 Grad-CAM `0.955`.
+
+Interpretation:
+
+- The core behavioral matrix is now usable for diagnostic paper-style analysis under the corrected fixation protocol.
+- Dedicated DeepGaze reference rows are clearly stronger than generic XAI saliency maps, which is the expected sanity pattern.
+- The current model saliency rows should still be described as explanation-map-to-fixation similarity, not SOTA fixation prediction.
+
+Next action:
+
+- Rerun the SSL/VLM behavioral static2000 matrix under `configs/experiments/real_matrix_v2_ssl_behavior/`.
+- Re-aggregate SSL/VLM results, merge them with the corrected core aggregate, regenerate neural bridge summaries, and recreate the paper inspection pack.
+
+## Corrected SSL/VLM Static2000 Matrix Status
+
+Updated: 2026-05-22
+
+The SSL/VLM behavioral static2000 matrix was rerun and merged with the corrected core aggregate.
+
+SSL/VLM aggregate:
+
+- Path: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`
+- Static datasets: `salicon_static2000`, `cat2000_static2000`, `coco_search18_static2000`
+- Completed configs: `18`
+- Aggregate rows: `126`
+- Protocol rows: `84` metric rows with `points`, `42` metric rows with `task_points`
+- Blank / `unknown` / `density_fallback` aggregate rows: none
+
+Merged behavioral aggregate:
+
+- Path: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
+- Rows: `378`
+- Dataset rows: `126` each for SALICON, CAT2000, and COCO-Search18
+- Protocol rows: `252` metric rows with `points`, `126` metric rows with `task_points`
+- Blank / `unknown` / `density_fallback` aggregate rows: none
+
+Corrected merged NSS headline:
+
+- SALICON: DeepGaze `1.743`, center bias `0.933`, DINOv2 ViT-S/14 gradient `0.736`, ConvNeXt-T Grad-CAM `0.633`, ResNet-50 Grad-CAM `0.598`.
+- CAT2000: DeepGaze `1.838`, center bias `1.619`, ResNet-50 Grad-CAM `0.882`, DINOv2 ViT-S/14 gradient `0.810`, ConvNeXt-T Grad-CAM `0.759`.
+- COCO-Search18: DeepGaze `1.745`, center bias `1.310`, ResNet-50 Grad-CAM `0.955`, ConvNeXt-T Grad-CAM `0.908`, DINOv2 ViT-S/14 gradient `0.713`.
+
+Interpretation:
+
+- The corrected behavioral layer is now clean enough for paper-style diagnostic tables and figures.
+- DeepGaze remains the strongest reference row across all datasets, and center bias remains a strong baseline.
+- DINOv2 gradient is now a strong explanation-map row, especially on SALICON and CAT2000, but it should be framed as an attribution/fixation-similarity result rather than as a dedicated fixation-prediction model.
+
+Next action:
+
+- Regenerate `outputs/neural_roi_summary/` using `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`.
+- Recreate `outputs/paper_inspection_v1/` from the corrected merged behavioral aggregate and regenerated neural summary.
+
+## Corrected Inspection Pack Status
+
+Updated: 2026-05-22
+
+The neural bridge summaries and paper inspection pack were regenerated from the corrected merged behavioral aggregate.
+
+Inputs:
+
+- Behavioral CSV: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
+- Neural ROI outputs: `outputs/neural_roi500/` and `outputs/neural_roi500_ssl/`
+- SSL/multimodal candidate inventory: `outputs/neural_roi_summary/ssl_multimodal_candidate_inventory.csv`
+
+Regenerated outputs:
+
+- `outputs/neural_roi_summary/`
+- `outputs/paper_inspection_v1/`
+
+Inspection pack headline:
+
+- Top displayed behavioral NSS row: CAT2000 / DeepGaze IIE / DeepGaze, NSS `1.838`
+- Raw neural encoding leader: DeiT-S/16, mean encoding `0.261`
+- Raw neural RSA leader: ViT-B/16, mean RSA `0.088`
+- Overall behavior-to-encoding leader match rate: `0.079`
+- Overall behavior-to-RSA leader match rate: `0.000`
+- SSL/multimodal candidates dry-inspected: `8`; pretrained debug runs complete: `3`
+
+Current interpretation boundary:
+
+- The corrected behavioral table is now suitable for diagnostic paper-style discussion.
+- The behavior-neural bridge remains descriptive only because the neural side is still one-subject ROI500 raw-correlation output.
+- The next scientific upgrade should be neural benchmark-equivalent evaluation rather than more static behavioral cleanup.
