@@ -33,6 +33,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     neural_config = dict(config.get("neural", {}))
     layers = [str(layer) for layer in neural_config.get("layers", ["embedding"])]
     response_key = str(neural_config.get("response_key", "roi_responses"))
+    noise_ceiling_key = str(neural_config.get("noise_ceiling_key", "noise_ceiling"))
     alpha = float(neural_config.get("ridge_alpha", 1.0))
     ridge_alphas = _optional_float_list(neural_config.get("ridge_alphas"))
     validation_fraction = float(neural_config.get("validation_fraction", 0.2))
@@ -53,10 +54,11 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         config=config,
         layers=layers,
         response_key=response_key,
+        noise_ceiling_key=noise_ceiling_key,
         device=device,
         feature_reduction=feature_reduction,
     )
-    image_ids, responses, features_by_layer, item_metadata = collection
+    image_ids, responses, features_by_layer, item_metadata, noise_ceiling = collection
     if len(image_ids) < 2:
         raise ValueError("Neural alignment requires at least two response-bearing items")
 
@@ -76,6 +78,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         seed=seed,
         feature_reduction=feature_reduction,
         row_context=_score_row_context(config, item_metadata),
+        noise_ceiling=noise_ceiling,
     )
     scores_path = output_dir / "encoding_scores.csv"
     _write_score_rows(scores_path, score_rows)
@@ -106,6 +109,11 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "num_items": len(image_ids),
         "layers": layers,
         "response_key": response_key,
+        "noise_ceiling_key": noise_ceiling_key,
+        "noise_ceiling_available": noise_ceiling is not None,
+        "noise_ceiling_source": _single_or_mixed(
+            _unique_metadata_values(item_metadata, "noise_ceiling_source")
+        ),
         "feature_reduction": feature_reduction,
         "ridge_alpha": alpha,
         "ridge_alphas": ridge_alphas,
@@ -151,11 +159,19 @@ def _collect_features_and_responses(
     config: dict[str, Any],
     layers: list[str],
     response_key: str,
+    noise_ceiling_key: str,
     device: str,
     feature_reduction: str,
-) -> tuple[list[str], np.ndarray, dict[str, np.ndarray], list[dict[str, Any]]]:
+) -> tuple[
+    list[str],
+    np.ndarray,
+    dict[str, np.ndarray],
+    list[dict[str, Any]],
+    np.ndarray | None,
+]:
     image_ids: list[str] = []
     responses: list[np.ndarray] = []
+    noise_ceilings: list[np.ndarray | None] = []
     item_metadata: list[dict[str, Any]] = []
     collected: dict[str, list[np.ndarray]] = {layer: [] for layer in layers}
 
@@ -169,9 +185,16 @@ def _collect_features_and_responses(
         features = model.get_features(tensor, layers=layers)
         feature_dict = _normalize_feature_output(features, layers)
         image_ids.append(str(item.get("image_id", f"item_{index:04d}")))
-        responses.append(np.asarray(response, dtype=np.float32).ravel())
+        response_array = np.asarray(response, dtype=np.float32).ravel()
+        responses.append(response_array)
         metadata = item.get("metadata", {})
         item_metadata.append(metadata if isinstance(metadata, dict) else {})
+        noise_ceiling = _response_for_item(item, noise_ceiling_key)
+        noise_ceilings.append(
+            None
+            if noise_ceiling is None
+            else np.asarray(noise_ceiling, dtype=np.float32).ravel()
+        )
         for layer in layers:
             collected[layer].append(
                 _reduce_feature(feature_dict[layer], method=feature_reduction)
@@ -182,7 +205,12 @@ def _collect_features_and_responses(
         layer: _stack_consistent(values, f"features for layer {layer}")
         for layer, values in collected.items()
     }
-    return image_ids, response_matrix, feature_matrix, item_metadata
+    noise_ceiling_array = _validate_noise_ceiling(
+        noise_ceilings,
+        num_targets=response_matrix.shape[1],
+        key=noise_ceiling_key,
+    )
+    return image_ids, response_matrix, feature_matrix, item_metadata, noise_ceiling_array
 
 
 def _fit_and_score_layers(
@@ -198,6 +226,7 @@ def _fit_and_score_layers(
     seed: int,
     feature_reduction: str,
     row_context: dict[str, Any],
+    noise_ceiling: np.ndarray | None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     n_items = responses.shape[0]
     n_train = min(max(1, int(round(n_items * train_fraction))), n_items - 1)
@@ -246,10 +275,12 @@ def _fit_and_score_layers(
             for target_row in benchmark_encoding_target_scores(
                 predictions,
                 responses[test_idx],
+                noise_ceiling=noise_ceiling,
             )
         ]
         target_rows.extend(layer_target_rows)
         metric_scope = _metric_scope_from_target_rows(layer_target_rows)
+        noise_summary = _noise_normalized_layer_summary(layer_target_rows)
         rows.append(
             {
                 **layer_context,
@@ -260,10 +291,37 @@ def _fit_and_score_layers(
                 "mean_r2_score_from_r": float(
                     np.mean([float(row["r2_score_from_r"]) for row in layer_target_rows])
                 ),
+                **noise_summary,
                 "metric_scope": metric_scope,
             }
         )
     return rows, target_rows
+
+
+def _noise_normalized_layer_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    valid_scores: list[float] = []
+    zero_count = 0
+    invalid_count = 0
+    for row in rows:
+        ceiling = _optional_float(row.get("noise_ceiling"))
+        if ceiling is None or not np.isfinite(ceiling) or ceiling < 0.0:
+            invalid_count += 1
+            continue
+        if ceiling == 0.0:
+            zero_count += 1
+            continue
+        score = _optional_float(row.get("noise_normalized_score"))
+        if score is None or not np.isfinite(score):
+            invalid_count += 1
+            continue
+        valid_scores.append(score)
+    return {
+        "mean_noise_normalized_score": float(np.mean(valid_scores)) if valid_scores else "",
+        "median_noise_normalized_score": float(np.median(valid_scores)) if valid_scores else "",
+        "valid_noise_ceiling_targets": len(valid_scores),
+        "zero_noise_ceiling_targets": zero_count,
+        "invalid_noise_ceiling_targets": invalid_count,
+    }
 
 
 def _select_ridge_alpha(
@@ -346,10 +404,50 @@ def _optional_float_list(values: Any) -> list[float] | None:
     return parsed or None
 
 
+def _optional_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _metric_scope_from_target_rows(rows: list[dict[str, Any]]) -> str:
     if rows and all(row.get("metric_scope") == "benchmark_style_noise_normalized" for row in rows):
         return "benchmark_style_noise_normalized"
     return "benchmark_style_non_noise_normalized"
+
+
+def _validate_noise_ceiling(
+    values: list[np.ndarray | None],
+    *,
+    num_targets: int,
+    key: str,
+) -> np.ndarray | None:
+    present = [value for value in values if value is not None]
+    if not present:
+        return None
+    if len(present) != len(values):
+        raise ValueError(
+            f"Noise ceiling metadata '{key}' is partially missing across dataset items"
+        )
+
+    first = present[0]
+    if first.size != num_targets:
+        raise ValueError(
+            f"Noise ceiling metadata '{key}' must have one value per target: "
+            f"{first.size} values for {num_targets} targets"
+        )
+    for value in present[1:]:
+        if value.size != num_targets:
+            raise ValueError(
+                f"Noise ceiling metadata '{key}' must have one value per target: "
+                f"{value.size} values for {num_targets} targets"
+            )
+        if not np.allclose(value, first, equal_nan=True):
+            raise ValueError(
+                f"Noise ceiling metadata '{key}' must be consistent across dataset items"
+            )
+    return first.astype(np.float32, copy=False)
 
 
 def _response_for_item(item: dict[str, Any], response_key: str) -> Any:
@@ -449,6 +547,11 @@ def _write_score_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "median_score",
         "std_score",
         "mean_r2_score_from_r",
+        "mean_noise_normalized_score",
+        "median_noise_normalized_score",
+        "valid_noise_ceiling_targets",
+        "zero_noise_ceiling_targets",
+        "invalid_noise_ceiling_targets",
         "selected_ridge_alpha",
         "alpha_selection_mode",
         "split_seed",
@@ -475,6 +578,7 @@ def _write_target_score_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "prediction_r2",
         "noise_ceiling",
         "noise_normalized_score",
+        "valid_noise_ceiling",
         "valid_prediction_variance",
         "valid_target_variance",
         "n_train",

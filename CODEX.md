@@ -47,7 +47,7 @@ the current project engineering level implementation progress as well as global 
 ## Coding rules
 
 Use Python 3.10+.
-when providing commands for user to run in terminal, use cmd always.
+when providing commands for user to run in terminal, use cmd always-do not use powershell
 
 Prefer:
 - PyTorch

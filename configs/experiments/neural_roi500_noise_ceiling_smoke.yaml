@@ -1,0 +1,35 @@
+seed: 123
+device: cpu
+experiment:
+  name: neural_roi500_noise_ceiling_smoke
+dataset:
+  name: nsd_algonauts
+  label: neural_roi500_noise_ceiling_smoke
+  root: data/raw/nsd_algonauts
+  manifest_path: data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv
+  split: train
+  subject_id: subj01
+  roi: V1
+  max_items: 8
+  validate_files: true
+model:
+  name: dummy_vision_encoder
+  noise_scale: 0.0
+  seed: 7
+preprocessing:
+  input_size:
+  - 16
+  - 16
+  mean: none
+  std: none
+neural:
+  layers:
+  - embedding
+  response_key: roi_responses
+  noise_ceiling_key: noise_ceiling
+  feature_reduction: spatial_mean
+  train_fraction: 0.75
+  ridge_alpha: 1.0
+  metric: correlation
+output:
+  dir: outputs/neural_roi500_noise_ceiling_smoke

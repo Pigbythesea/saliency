@@ -2,6 +2,7 @@ from scripts.create_paper_inspection_pack import (
     MODEL_COLORS,
     MODEL_LABELS,
     _candidate_table,
+    _neural_ranking_table,
     _top_behavior_rows,
     _write_readme,
 )
@@ -79,6 +80,65 @@ def test_readme_reports_dynamic_pretrained_counts(tmp_path):
     assert "complete=1" in text
     assert "not_run=1" in text
     assert "pretrained weights run: false" not in text
+
+
+def test_neural_ranking_table_prefers_noise_normalized_rank():
+    rows = _neural_ranking_table(
+        [
+            {
+                "model": "raw_leader",
+                "mean_encoding_score": "0.9",
+                "rank_mean_encoding": "1",
+                "mean_noise_normalized_score": "0.1",
+                "mean_noise_normalized_score_x100": "10.0",
+                "rank_mean_noise_normalized": "2",
+                "mean_rsa_score": "0.2",
+                "rank_mean_rsa": "1",
+            },
+            {
+                "model": "normalized_leader",
+                "mean_encoding_score": "0.2",
+                "rank_mean_encoding": "2",
+                "mean_noise_normalized_score": "0.8",
+                "mean_noise_normalized_score_x100": "80.0",
+                "rank_mean_noise_normalized": "1",
+                "mean_rsa_score": "0.1",
+                "rank_mean_rsa": "2",
+            },
+        ]
+    )
+
+    assert rows[0]["model"] == "normalized_leader"
+    assert rows[0]["noise_normalized_rank"] == "1"
+    assert rows[0]["mean_encoding"] == "0.200"
+    assert rows[0]["mean_rsa"] == "0.100"
+
+
+def test_readme_reports_noise_normalized_neural_leader_when_available(tmp_path):
+    path = _write_readme(
+        tmp_path / "README.md",
+        behavior_table=[],
+        neural_table=[
+            {
+                "model": "DINOv2 ViT-S/14",
+                "mean_noise_normalized": "0.8",
+                "mean_noise_normalized_x100": "80",
+                "noise_normalized_rank": "1",
+                "mean_encoding": "0.3",
+                "mean_rsa": "0.1",
+                "encoding_rank": "2",
+                "rsa_rank": "1",
+            }
+        ],
+        overlap_table=[],
+        candidate_table=[],
+        outputs={},
+    )
+
+    text = path.read_text(encoding="utf-8")
+    assert "Noise-normalized neural encoding leader: DINOv2 ViT-S/14" in text
+    assert "Raw neural encoding leader" not in text
+    assert "Raw neural RSA leader" in text
 
 
 def test_ssl_model_labels_and_colors_are_defined():

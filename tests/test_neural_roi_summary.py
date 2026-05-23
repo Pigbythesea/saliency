@@ -419,6 +419,345 @@ def test_summarize_neural_roi_results_tolerates_old_outputs_without_target_score
     assert "Benchmark-style encoding scope: not available" in text
 
 
+def test_summarize_neural_roi_results_preserves_noise_ceiling_target_fields(tmp_path):
+    output_dir = tmp_path / "outputs" / "normalized"
+    _write_neural_output(output_dir, roi="V1")
+    _write_csv(
+        output_dir / "encoding_target_scores.csv",
+        [
+            {
+                "dataset": "nsd_V1",
+                "model": "resnet50",
+                "subject_id": "subj01",
+                "roi": "V1",
+                "layer": "layer2",
+                "metric": "correlation",
+                "metric_scope": "benchmark_style_noise_normalized",
+                "target_index": 0,
+                "pearson_r": 0.4,
+                "r2_score_from_r": 0.16,
+                "prediction_r2": 0.12,
+                "noise_ceiling": 0.5,
+                "noise_normalized_score": 0.32,
+                "valid_prediction_variance": "true",
+                "valid_target_variance": "true",
+                "n_train": 400,
+                "n_test": 100,
+                "selected_ridge_alpha": 1.0,
+                "alpha_selection_mode": "fixed",
+                "split_seed": 123,
+                "feature_reduction": "spatial_mean",
+            }
+        ],
+        [
+            "dataset",
+            "model",
+            "subject_id",
+            "roi",
+            "layer",
+            "metric",
+            "metric_scope",
+            "target_index",
+            "pearson_r",
+            "r2_score_from_r",
+            "prediction_r2",
+            "noise_ceiling",
+            "noise_normalized_score",
+            "valid_prediction_variance",
+            "valid_target_variance",
+            "n_train",
+            "n_test",
+            "selected_ridge_alpha",
+            "alpha_selection_mode",
+            "split_seed",
+            "feature_reduction",
+        ],
+    )
+
+    outputs = summarize_neural_roi_results([output_dir], tmp_path / "summary")
+
+    target_rows = _read_csv(outputs["combined_encoding_target_scores"])
+    assert target_rows[0]["noise_ceiling"] == "0.5"
+    assert target_rows[0]["noise_normalized_score"] == "0.32"
+    assert target_rows[0]["metric_scope"] == "benchmark_style_noise_normalized"
+    text = outputs["summary_note"].read_text(encoding="utf-8")
+    assert "Benchmark-style encoding scope: noise-normalized." in text
+
+
+def test_summarize_neural_roi_results_reports_mixed_noise_scope(tmp_path):
+    output_dir = tmp_path / "outputs" / "mixed"
+    _write_neural_output(output_dir, roi="hV4")
+    _write_csv(
+        output_dir / "encoding_target_scores.csv",
+        [
+            {
+                "dataset": "nsd_hV4",
+                "model": "resnet50",
+                "subject_id": "subj01",
+                "roi": "hV4",
+                "layer": "layer2",
+                "metric": "correlation",
+                "metric_scope": "benchmark_style_noise_normalized",
+                "target_index": 0,
+                "pearson_r": 0.4,
+                "r2_score_from_r": 0.16,
+                "prediction_r2": 0.12,
+                "noise_ceiling": 0.5,
+                "noise_normalized_score": 0.32,
+                "valid_prediction_variance": "true",
+                "valid_target_variance": "true",
+                "n_train": 400,
+                "n_test": 100,
+                "selected_ridge_alpha": 1.0,
+                "alpha_selection_mode": "fixed",
+                "split_seed": 123,
+                "feature_reduction": "spatial_mean",
+            },
+            {
+                "dataset": "nsd_hV4",
+                "model": "resnet50",
+                "subject_id": "subj01",
+                "roi": "hV4",
+                "layer": "layer2",
+                "metric": "correlation",
+                "metric_scope": "benchmark_style_non_noise_normalized",
+                "target_index": 1,
+                "pearson_r": 0.2,
+                "r2_score_from_r": 0.04,
+                "prediction_r2": 0.01,
+                "noise_ceiling": 0.0,
+                "noise_normalized_score": "",
+                "valid_prediction_variance": "true",
+                "valid_target_variance": "true",
+                "n_train": 400,
+                "n_test": 100,
+                "selected_ridge_alpha": 1.0,
+                "alpha_selection_mode": "fixed",
+                "split_seed": 123,
+                "feature_reduction": "spatial_mean",
+            },
+        ],
+        [
+            "dataset",
+            "model",
+            "subject_id",
+            "roi",
+            "layer",
+            "metric",
+            "metric_scope",
+            "target_index",
+            "pearson_r",
+            "r2_score_from_r",
+            "prediction_r2",
+            "noise_ceiling",
+            "noise_normalized_score",
+            "valid_prediction_variance",
+            "valid_target_variance",
+            "n_train",
+            "n_test",
+            "selected_ridge_alpha",
+            "alpha_selection_mode",
+            "split_seed",
+            "feature_reduction",
+        ],
+    )
+
+    outputs = summarize_neural_roi_results([output_dir], tmp_path / "summary")
+
+    text = outputs["summary_note"].read_text(encoding="utf-8")
+    assert "Benchmark-style encoding scope: mixed target-level scope" in text
+    assert "benchmark_style_noise_normalized=1" in text
+    assert "benchmark_style_non_noise_normalized=1" in text
+
+
+def test_summarize_neural_roi_results_ranks_by_noise_normalized_when_available(tmp_path):
+    raw_leader = tmp_path / "outputs" / "raw_leader"
+    normalized_leader = tmp_path / "outputs" / "normalized_leader"
+    for path, model, raw_score, normalized_score, ceiling in [
+        (raw_leader, "raw_leader", 0.9, 0.1, 0.9),
+        (normalized_leader, "normalized_leader", 0.1, 0.8, 0.2),
+    ]:
+        path.mkdir(parents=True)
+        (path / "metadata.json").write_text(
+            json.dumps({"config_path": f"configs/{model}.yaml", "num_items": 500}),
+            encoding="utf-8",
+        )
+        _write_csv(
+            path / "encoding_scores.csv",
+            [
+                {
+                    "dataset": "nsd_V1",
+                    "model": model,
+                    "subject_id": "subj01",
+                    "roi": "V1",
+                    "layer": "layer1",
+                    "metric": "correlation",
+                    "n_train": 400,
+                    "n_test": 100,
+                    "num_targets": 1,
+                    "mean_score": raw_score,
+                    "median_score": raw_score,
+                    "std_score": 0.0,
+                }
+            ],
+            [
+                "dataset",
+                "model",
+                "subject_id",
+                "roi",
+                "layer",
+                "metric",
+                "n_train",
+                "n_test",
+                "num_targets",
+                "mean_score",
+                "median_score",
+                "std_score",
+            ],
+        )
+        _write_csv(
+            path / "encoding_target_scores.csv",
+            [
+                {
+                    "dataset": "nsd_V1",
+                    "model": model,
+                    "subject_id": "subj01",
+                    "roi": "V1",
+                    "layer": "layer1",
+                    "metric": "correlation",
+                    "metric_scope": "benchmark_style_noise_normalized",
+                    "target_index": 0,
+                    "pearson_r": raw_score,
+                    "r2_score_from_r": normalized_score * ceiling,
+                    "prediction_r2": 0.0,
+                    "noise_ceiling": ceiling,
+                    "noise_normalized_score": normalized_score,
+                    "valid_prediction_variance": "true",
+                    "valid_target_variance": "true",
+                    "n_train": 400,
+                    "n_test": 100,
+                    "selected_ridge_alpha": 1.0,
+                    "alpha_selection_mode": "fixed",
+                    "split_seed": 123,
+                    "feature_reduction": "spatial_mean",
+                }
+            ],
+            [
+                "dataset",
+                "model",
+                "subject_id",
+                "roi",
+                "layer",
+                "metric",
+                "metric_scope",
+                "target_index",
+                "pearson_r",
+                "r2_score_from_r",
+                "prediction_r2",
+                "noise_ceiling",
+                "noise_normalized_score",
+                "valid_prediction_variance",
+                "valid_target_variance",
+                "n_train",
+                "n_test",
+                "selected_ridge_alpha",
+                "alpha_selection_mode",
+                "split_seed",
+                "feature_reduction",
+            ],
+        )
+
+    outputs = summarize_neural_roi_results(
+        [raw_leader, normalized_leader],
+        tmp_path / "summary",
+    )
+
+    ranking_rows = _read_csv(outputs["neural_model_rankings"])
+    assert ranking_rows[0]["model"] == "normalized_leader"
+    assert ranking_rows[0]["rank_mean_noise_normalized"] == "1"
+    raw_row = next(row for row in ranking_rows if row["model"] == "raw_leader")
+    assert raw_row["rank_mean_encoding"] == "1"
+    assert raw_row["mean_noise_normalized_score"] == "0.1"
+    best_rows = _read_csv(outputs["best_layers_by_roi"])
+    assert {row["encoding_score_type"] for row in best_rows if row["score_type"] == "encoding"} == {
+        "noise_normalized"
+    }
+
+
+def test_summarize_neural_roi_results_excludes_zero_ceiling_from_normalized_aggregates(tmp_path):
+    output_dir = tmp_path / "outputs" / "zero_ceiling"
+    _write_neural_output(output_dir, roi="hV4")
+    _write_csv(
+        output_dir / "encoding_target_scores.csv",
+        [
+            {
+                "dataset": "nsd_hV4",
+                "model": "resnet50",
+                "subject_id": "subj01",
+                "roi": "hV4",
+                "layer": "layer2",
+                "metric": "correlation",
+                "metric_scope": "benchmark_style_noise_normalized",
+                "target_index": 0,
+                "pearson_r": 0.4,
+                "r2_score_from_r": 0.16,
+                "prediction_r2": 0.12,
+                "noise_ceiling": 0.5,
+                "noise_normalized_score": 0.32,
+                "valid_prediction_variance": "true",
+                "valid_target_variance": "true",
+            },
+            {
+                "dataset": "nsd_hV4",
+                "model": "resnet50",
+                "subject_id": "subj01",
+                "roi": "hV4",
+                "layer": "layer2",
+                "metric": "correlation",
+                "metric_scope": "benchmark_style_non_noise_normalized",
+                "target_index": 1,
+                "pearson_r": 0.2,
+                "r2_score_from_r": 0.04,
+                "prediction_r2": 0.01,
+                "noise_ceiling": 0.0,
+                "noise_normalized_score": "",
+                "valid_prediction_variance": "true",
+                "valid_target_variance": "true",
+            },
+        ],
+        [
+            "dataset",
+            "model",
+            "subject_id",
+            "roi",
+            "layer",
+            "metric",
+            "metric_scope",
+            "target_index",
+            "pearson_r",
+            "r2_score_from_r",
+            "prediction_r2",
+            "noise_ceiling",
+            "noise_normalized_score",
+            "valid_prediction_variance",
+            "valid_target_variance",
+        ],
+    )
+
+    outputs = summarize_neural_roi_results([output_dir], tmp_path / "summary")
+
+    combined_targets = _read_csv(outputs["combined_encoding_target_scores"])
+    assert len(combined_targets) == 2
+    assert [row["valid_noise_ceiling"] for row in combined_targets] == ["true", "false"]
+    best_encoding = [
+        row for row in _read_csv(outputs["best_encoding_by_model_roi"])
+        if row["score_type"] == "encoding"
+    ][0]
+    assert best_encoding["mean_noise_normalized_score"] == "0.32"
+    assert best_encoding["valid_noise_ceiling_targets"] == "1"
+    assert best_encoding["zero_noise_ceiling_targets"] == "1"
+
+
 def test_multimodel_note_reports_pretrained_candidate_status(tmp_path):
     output_dir = tmp_path / "outputs" / "v1"
     summary_dir = tmp_path / "summary"

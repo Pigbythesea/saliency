@@ -32,6 +32,9 @@ class _NSDAlgonautsRow:
     roi: str | None
     roi_response_path: Path | None
     roi_responses: np.ndarray | None
+    noise_ceiling_path: Path | None
+    noise_ceiling_values: np.ndarray | None
+    noise_ceiling_source: str | None
 
 
 class NSDAlgonautsDataset(BaseVisionDataset):
@@ -90,6 +93,7 @@ class NSDAlgonautsDataset(BaseVisionDataset):
         image = Image.open(row.image_path).convert("RGB")
         output_image = self.transform(image) if self.transform is not None else image
         roi_responses = self._load_roi_responses(row)
+        noise_ceiling = self._load_noise_ceiling(row)
 
         return {
             "image": output_image,
@@ -106,6 +110,11 @@ class NSDAlgonautsDataset(BaseVisionDataset):
                 "roi_response_path": (
                     str(row.roi_response_path) if row.roi_response_path else None
                 ),
+                "noise_ceiling": noise_ceiling,
+                "noise_ceiling_path": (
+                    str(row.noise_ceiling_path) if row.noise_ceiling_path else None
+                ),
+                "noise_ceiling_source": row.noise_ceiling_source,
             },
         }
 
@@ -135,6 +144,10 @@ class NSDAlgonautsDataset(BaseVisionDataset):
                 if self.roi is not None and record_roi != self.roi:
                     continue
                 response_path = _optional_str(record.get("roi_response_path"))
+                noise_ceiling_path = _optional_str(record.get("noise_ceiling_path"))
+                noise_ceiling_values = _parse_optional_array(
+                    record.get("noise_ceiling_values")
+                )
                 rows.append(
                     _NSDAlgonautsRow(
                         image_id=record["image_id"],
@@ -148,6 +161,17 @@ class NSDAlgonautsDataset(BaseVisionDataset):
                             else None
                         ),
                         roi_responses=_parse_roi_responses(record.get("roi_responses")),
+                        noise_ceiling_path=(
+                            self._resolve_path(noise_ceiling_path, self.root)
+                            if noise_ceiling_path
+                            else None
+                        ),
+                        noise_ceiling_values=noise_ceiling_values,
+                        noise_ceiling_source=_noise_ceiling_source(
+                            record.get("noise_ceiling_source"),
+                            noise_ceiling_path=noise_ceiling_path,
+                            noise_ceiling_values=noise_ceiling_values,
+                        ),
                     )
                 )
 
@@ -160,6 +184,11 @@ class NSDAlgonautsDataset(BaseVisionDataset):
             return _load_response_file(row.roi_response_path)
         return row.roi_responses
 
+    def _load_noise_ceiling(self, row: _NSDAlgonautsRow) -> np.ndarray | None:
+        if row.noise_ceiling_path is not None:
+            return _load_array_file(row.noise_ceiling_path, preferred_keys=["noise_ceiling"])
+        return row.noise_ceiling_values
+
     def _validate_files_exist(self) -> None:
         for row in self.rows:
             if not row.image_path.is_file():
@@ -169,6 +198,10 @@ class NSDAlgonautsDataset(BaseVisionDataset):
             if row.roi_response_path is not None and not row.roi_response_path.is_file():
                 raise FileNotFoundError(
                     f"NSD / Algonauts response file not found: {row.roi_response_path}"
+                )
+            if row.noise_ceiling_path is not None and not row.noise_ceiling_path.is_file():
+                raise FileNotFoundError(
+                    f"NSD / Algonauts noise ceiling file not found: {row.noise_ceiling_path}"
                 )
 
     @staticmethod
@@ -180,20 +213,45 @@ class NSDAlgonautsDataset(BaseVisionDataset):
 
 
 def _load_response_file(path: Path) -> np.ndarray:
+    return _load_array_file(path, preferred_keys=["responses"])
+
+
+def _load_array_file(path: Path, *, preferred_keys: list[str]) -> np.ndarray:
     if path.suffix == ".npz":
         data = np.load(path)
-        if "responses" in data:
-            return np.asarray(data["responses"], dtype=np.float32)
+        for key in preferred_keys:
+            if key in data:
+                return np.asarray(data[key], dtype=np.float32)
         first_key = data.files[0]
         return np.asarray(data[first_key], dtype=np.float32)
     return np.asarray(np.load(path), dtype=np.float32)
 
 
 def _parse_roi_responses(raw: str | None) -> np.ndarray | None:
+    return _parse_optional_array(raw)
+
+
+def _parse_optional_array(raw: str | None) -> np.ndarray | None:
     value = _optional_str(raw)
     if value is None:
         return None
     return np.asarray(json.loads(value), dtype=np.float32)
+
+
+def _noise_ceiling_source(
+    value: str | None,
+    *,
+    noise_ceiling_path: str | None,
+    noise_ceiling_values: np.ndarray | None,
+) -> str | None:
+    source = _optional_str(value)
+    if source is not None:
+        return source
+    if noise_ceiling_path:
+        return "manifest_noise_ceiling_path"
+    if noise_ceiling_values is not None:
+        return "manifest_noise_ceiling_values"
+    return None
 
 
 def _optional_str(value: str | None) -> str | None:

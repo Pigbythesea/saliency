@@ -83,8 +83,10 @@ def benchmark_encoding_target_scores(
         squared = float(correlation * correlation)
         ceiling = ceilings[index] if ceilings is not None else None
         normalized: float | str = ""
+        valid_noise_ceiling = False
         scope = "benchmark_style_non_noise_normalized"
-        if ceiling is not None and np.isfinite(ceiling) and ceiling > _EPSILON:
+        if ceiling is not None and np.isfinite(ceiling) and ceiling > 0.0:
+            valid_noise_ceiling = True
             normalized = float(squared / ceiling)
             scope = "benchmark_style_noise_normalized"
         rows.append(
@@ -95,6 +97,7 @@ def benchmark_encoding_target_scores(
                 "prediction_r2": float(prediction_r2[index]),
                 "noise_ceiling": "" if ceiling is None or not np.isfinite(ceiling) else float(ceiling),
                 "noise_normalized_score": normalized,
+                "valid_noise_ceiling": str(valid_noise_ceiling).lower(),
                 "valid_prediction_variance": str(bool(pred_valid[index])).lower(),
                 "valid_target_variance": str(bool(target_valid[index])).lower(),
                 "metric_scope": scope,

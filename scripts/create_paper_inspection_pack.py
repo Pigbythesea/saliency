@@ -11,7 +11,7 @@ from typing import Any, Iterable
 from hma.utils.paths import ensure_dir
 
 
-DEFAULT_BEHAVIORAL_CSV = Path("outputs/real_matrix_v2/aggregated/results.csv")
+DEFAULT_BEHAVIORAL_CSV = Path("outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv")
 DEFAULT_NEURAL_DIR = Path("outputs/neural_roi_summary")
 DEFAULT_OUTPUT_DIR = Path("outputs/paper_inspection_v1")
 LOWER_IS_BETTER = {"kl", "emd", "emd_2d", "mae", "mse", "rmse", "loss"}
@@ -218,14 +218,22 @@ def _top_behavior_rows(rows: list[dict[str, str]], *, limit_per_dataset: int) ->
 
 
 def _neural_ranking_table(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
-    ranked = sorted(rows, key=lambda row: int(float(row.get("rank_mean_encoding") or 999)))
+    use_normalized = any(row.get("rank_mean_noise_normalized") for row in rows)
+    rank_key = "rank_mean_noise_normalized" if use_normalized else "rank_mean_encoding"
+    ranked = sorted(rows, key=lambda row: int(float(row.get(rank_key) or 999)))
     return [
         {
             "model": MODEL_LABELS.get(row["model"], row["model"]),
+            "mean_noise_normalized": _fmt(row.get("mean_noise_normalized_score")),
+            "mean_noise_normalized_x100": _fmt(row.get("mean_noise_normalized_score_x100")),
+            "noise_normalized_rank": row.get("rank_mean_noise_normalized", ""),
             "mean_encoding": _fmt(row.get("mean_encoding_score")),
             "encoding_rank": row.get("rank_mean_encoding", ""),
             "mean_rsa": _fmt(row.get("mean_rsa_score")),
             "rsa_rank": row.get("rank_mean_rsa", ""),
+            "valid_noise_ceiling_targets": row.get("valid_noise_ceiling_targets", ""),
+            "zero_noise_ceiling_targets": row.get("zero_noise_ceiling_targets", ""),
+            "invalid_noise_ceiling_targets": row.get("invalid_noise_ceiling_targets", ""),
             "encoding_per_latency_rank": row.get("rank_encoding_per_latency", ""),
             "rsa_per_latency_rank": row.get("rank_rsa_per_latency", ""),
             "latency_ms": _fmt(row.get("latency_mean_ms")),
@@ -282,6 +290,11 @@ def _roi_winner_table(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
             "model": MODEL_LABELS.get(row["model"], row["model"]),
             "roi": row["roi"],
             "encoding_layer": row.get("best_encoding_layer", ""),
+            "encoding_score_type": row.get("best_encoding_score_type", ""),
+            "noise_normalized_encoding": _fmt(
+                row.get("best_encoding_mean_noise_normalized_score")
+            ),
+            "raw_encoding": _fmt(row.get("best_encoding_raw_score")),
             "encoding_score": _fmt(row.get("best_encoding_score")),
             "rsa_layer": row.get("best_rsa_layer", ""),
             "rsa_score": _fmt(row.get("best_rsa_score")),
@@ -386,13 +399,18 @@ def _plot_behavior_nss(rows: list[dict[str, str]], output_stem: Path) -> dict[st
 def _plot_neural_rankings(rows: list[dict[str, str]], output_stem: Path) -> dict[str, Path]:
     plt = _pyplot()
     _set_style(plt)
-    ranked = sorted(rows, key=lambda row: _float(row["mean_encoding_score"]), reverse=True)
+    primary_field = (
+        "mean_noise_normalized_score"
+        if any(row.get("mean_noise_normalized_score") for row in rows)
+        else "mean_encoding_score"
+    )
+    ranked = sorted(rows, key=lambda row: _float(row.get(primary_field)), reverse=True)
     labels = [MODEL_LABELS.get(row["model"], row["model"]) for row in ranked]
     colors = [MODEL_COLORS.get(row["model"], "#6b7280") for row in ranked]
     metrics = [
-        ("mean_encoding_score", "Mean encoding"),
+        (primary_field, "Mean noise-normalized encoding" if primary_field == "mean_noise_normalized_score" else "Mean encoding"),
+        ("mean_encoding_score", "Mean raw encoding"),
         ("mean_rsa_score", "Mean RSA"),
-        ("encoding_score_per_latency_mean_ms", "Encoding / ms"),
         ("rsa_score_per_latency_mean_ms", "RSA / ms"),
     ]
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(11.8, 7.2))
@@ -418,8 +436,18 @@ def _plot_roi_heatmaps(rows: list[dict[str, str]], output_stem: Path) -> dict[st
     _set_style(plt)
     models = sorted({row["model"] for row in rows}, key=lambda model: MODEL_LABELS.get(model, model))
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(11.2, 5.4))
+    encoding_field = (
+        "best_encoding_mean_noise_normalized_score"
+        if any(row.get("best_encoding_mean_noise_normalized_score") for row in rows)
+        else "best_encoding_score"
+    )
+    encoding_title = (
+        "Best noise-normalized encoding"
+        if encoding_field == "best_encoding_mean_noise_normalized_score"
+        else "Best encoding score"
+    )
     for ax, field, title in [
-        (axes[0], "best_encoding_score", "Best encoding score"),
+        (axes[0], encoding_field, encoding_title),
         (axes[1], "best_rsa_score", "Best RSA score"),
     ]:
         matrix = []
@@ -435,7 +463,7 @@ def _plot_roi_heatmaps(rows: list[dict[str, str]], output_stem: Path) -> dict[st
         for y, model in enumerate(models):
             for x, roi in enumerate(ROI_ORDER):
                 value = matrix[y][x]
-                layer_field = "best_encoding_layer" if field == "best_encoding_score" else "best_rsa_layer"
+                layer_field = "best_encoding_layer" if field == encoding_field else "best_rsa_layer"
                 layer = next(
                     (
                         row.get(layer_field, "")
@@ -499,7 +527,12 @@ def _write_readme(
     sanity_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     best_behavior = behavior_table[0] if behavior_table else {}
-    best_neural_encoding = sorted(neural_table, key=lambda row: int(row["encoding_rank"] or 999))[0]
+    normalized_available = any(row.get("noise_normalized_rank") for row in neural_table)
+    encoding_rank_key = "noise_normalized_rank" if normalized_available else "encoding_rank"
+    best_neural_encoding = sorted(
+        neural_table,
+        key=lambda row: int(row.get(encoding_rank_key) or 999),
+    )[0]
     best_neural_rsa = sorted(neural_table, key=lambda row: int(row["rsa_rank"] or 999))[0]
     all_overlap = next((row for row in overlap_table if row["saliency_family"] == "all"), {})
     pretrained_count = sum(
@@ -518,7 +551,13 @@ def _write_readme(
         "## Headline Readout",
         "",
         f"- Top displayed behavioral NSS row: {best_behavior.get('dataset', '')} / {best_behavior.get('model', '')} / {best_behavior.get('saliency_method', '')}, NSS={best_behavior.get('nss_mean', '')}.",
-        f"- Raw neural encoding leader: {best_neural_encoding.get('model', '')}, mean encoding={best_neural_encoding.get('mean_encoding', '')}.",
+        (
+            f"- Noise-normalized neural encoding leader: {best_neural_encoding.get('model', '')}, "
+            f"mean noise-normalized score={best_neural_encoding.get('mean_noise_normalized', '')} "
+            f"(x100={best_neural_encoding.get('mean_noise_normalized_x100', '')})."
+            if normalized_available
+            else f"- Raw neural encoding leader: {best_neural_encoding.get('model', '')}, mean encoding={best_neural_encoding.get('mean_encoding', '')}."
+        ),
         f"- Raw neural RSA leader: {best_neural_rsa.get('model', '')}, mean RSA={best_neural_rsa.get('mean_rsa', '')}.",
         f"- Overall behavior-to-encoding leader match rate: {all_overlap.get('encoding_match_rate', '')}.",
         f"- Overall behavior-to-RSA leader match rate: {all_overlap.get('rsa_match_rate', '')}.",
@@ -528,8 +567,8 @@ def _write_readme(
         "## Figures",
         "",
         "- `figures/figure1_behavior_static2000_nss.png`: top static2000 NSS rows by dataset.",
-        "- `figures/figure2_neural_model_rankings.png`: raw and latency-normalized neural scores.",
-        "- `figures/figure3_roi_heatmaps.png`: best encoding/RSA layers and scores by model and ROI.",
+        "- `figures/figure2_neural_model_rankings.png`: noise-normalized encoding, raw encoding, RSA, and latency-normalized RSA scores.",
+        "- `figures/figure3_roi_heatmaps.png`: best noise-normalized encoding/RSA layers and scores by model and ROI.",
         "- `figures/figure4_behavior_neural_leader_overlap.png`: descriptive leader-overlap rates.",
         "",
         "## Tables",
@@ -540,6 +579,13 @@ def _write_readme(
         "- `tables/table4_behavior_neural_overlap_summary.md`",
         "- `tables/table5_ssl_multimodal_candidates.md`",
         "- `tables/table6_benchmark_sanity_ranges.md`",
+        "",
+        "## Academic SOTA Context",
+        "",
+        "- Behavioral free-viewing: current local DeepGaze IIE reference rows are below or near published benchmark ranges, but preserve the expected ordering over center bias. The local CAT2000 DeepGaze IIE NSS is 1.838 versus MIT/Tuebingen CAT2000 DeepGaze IIE NSS 2.5265, and the local SALICON DeepGaze IIE NSS is 1.743 versus the DeepGaze IIE SALICON test NSS 1.996 reported in the ICCV 2021 supplement.",
+        "- Behavioral task-driven search: COCO-Search18 rows are not directly comparable to free-viewing saliency SOTA. A COCO-Search18 task-trained CNN report gives NSS 4.64, AUC-Judd 0.95, sAUC 0.84, and CC 0.72; the local DeepGaze IIE row is a free-viewing reference applied to a task-search dataset, not a task-trained SOTA model.",
+        "- Neural Algonauts/NSD: the current neural pack is still one-subject ROI500 and internal-split. The official Algonauts 2023 leaderboard uses mean noise-normalized encoding accuracy across held-out test vertices, subjects, and hemispheres, so the local raw mean correlations and ROI500 summaries are method diagnostics rather than leaderboard-comparable scores.",
+        "- References: https://saliency.tuebingen.ai/results.html ; https://openaccess.thecvf.com/content/ICCV2021/supplemental/Linardos_DeepGaze_IIE_Calibrated_ICCV_2021_supplemental.pdf ; https://arxiv.org/abs/2210.15093 ; https://algonautsproject.com/2023/challenge.html",
         "",
         "## Behavioral Metric Boundary",
         "",

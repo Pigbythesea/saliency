@@ -88,7 +88,23 @@ def test_benchmark_encoding_target_scores_noise_normalizes_when_ceiling_exists()
 
     assert row["noise_ceiling"] == pytest.approx(0.5)
     assert row["noise_normalized_score"] == pytest.approx(2.0)
+    assert row["valid_noise_ceiling"] == "true"
     assert row["metric_scope"] == "benchmark_style_noise_normalized"
+
+
+def test_benchmark_encoding_target_scores_excludes_zero_and_invalid_ceilings():
+    target = np.array([[0.0, 1.0, 2.0], [1.0, 2.0, 3.0], [2.0, 3.0, 4.0]])
+    predictions = target.copy()
+
+    rows = benchmark_encoding_target_scores(
+        predictions,
+        target,
+        noise_ceiling=np.array([0.0, -1.0, np.nan]),
+    )
+
+    assert [row["valid_noise_ceiling"] for row in rows] == ["false", "false", "false"]
+    assert all(row["noise_normalized_score"] == "" for row in rows)
+    assert all(row["metric_scope"] == "benchmark_style_non_noise_normalized" for row in rows)
 
 
 def test_rdm_shape_symmetry_and_comparison():
@@ -229,6 +245,257 @@ def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
     assert {row["metric_scope"] for row in target_rows} == {
         "benchmark_style_non_noise_normalized"
     }
+
+
+def test_run_neural_alignment_noise_normalizes_with_ceiling_metadata(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 12
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index) / 10.0
+            return {
+                "image": np.full((3, 4, 4), feature, dtype=np.float32),
+                "image_id": f"item_{index:04d}",
+                "metadata": {
+                    "roi": "synthetic_roi",
+                    "subject_id": "subj_test",
+                    "roi_responses": np.array([feature, 2.0 * feature], dtype=np.float32),
+                    "noise_ceiling": np.array([0.5, 0.25], dtype=np.float32),
+                    "noise_ceiling_source": "synthetic_test_ceiling",
+                },
+            }
+
+    class SyntheticModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            try:
+                import torch
+            except ImportError:
+                torch = None
+            if torch is not None and isinstance(images, torch.Tensor):
+                feature = float(images.mean().detach().cpu().numpy())
+            else:
+                feature = float(np.asarray(images).mean())
+            return {layer: np.array([[feature]], dtype=np.float32) for layer in layers}
+
+    config_path = tmp_path / "neural_ceiling.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "seed": 0,
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {
+                "layers": ["embedding"],
+                "response_key": "roi_responses",
+                "noise_ceiling_key": "noise_ceiling",
+                "train_fraction": 0.75,
+            },
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: SyntheticModel())
+
+    result = run_neural_alignment(config_path)
+
+    assert result["noise_ceiling_available"] is True
+    assert result["noise_ceiling_source"] == "synthetic_test_ceiling"
+    assert result["score_rows"][0]["metric_scope"] == "benchmark_style_noise_normalized"
+    assert result["score_rows"][0]["valid_noise_ceiling_targets"] == 2
+    assert result["score_rows"][0]["zero_noise_ceiling_targets"] == 0
+    assert result["score_rows"][0]["invalid_noise_ceiling_targets"] == 0
+    assert result["score_rows"][0]["mean_noise_normalized_score"]
+    target_rows = _read_csv(output_dir / "encoding_target_scores.csv")
+    assert {row["metric_scope"] for row in target_rows} == {
+        "benchmark_style_noise_normalized"
+    }
+    assert all(row["noise_ceiling"] for row in target_rows)
+    assert all(row["noise_normalized_score"] for row in target_rows)
+    assert all(row["valid_noise_ceiling"] == "true" for row in target_rows)
+
+
+def test_run_neural_alignment_counts_zero_noise_ceiling_targets(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 12
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index) / 10.0
+            return {
+                "image": np.full((3, 4, 4), feature, dtype=np.float32),
+                "image_id": f"item_{index:04d}",
+                "metadata": {
+                    "roi": "synthetic_roi",
+                    "subject_id": "subj_test",
+                    "roi_responses": np.array([feature, 2.0 * feature], dtype=np.float32),
+                    "noise_ceiling": np.array([0.5, 0.0], dtype=np.float32),
+                },
+            }
+
+    class SyntheticModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            feature = float(images.mean().detach().cpu().numpy())
+            return {layer: np.array([[feature]], dtype=np.float32) for layer in layers}
+
+    config_path = tmp_path / "neural_zero_ceiling.yaml"
+    save_yaml(
+        {
+            "seed": 0,
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {"layers": ["embedding"], "response_key": "roi_responses"},
+            "output": {"dir": str(tmp_path / "outputs")},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: SyntheticModel())
+
+    result = run_neural_alignment(config_path)
+
+    row = result["score_rows"][0]
+    assert row["valid_noise_ceiling_targets"] == 1
+    assert row["zero_noise_ceiling_targets"] == 1
+    assert row["invalid_noise_ceiling_targets"] == 0
+    target_rows = result["target_score_rows"]
+    assert [target["valid_noise_ceiling"] for target in target_rows] == ["true", "false"]
+    assert target_rows[1]["noise_normalized_score"] == ""
+
+
+def test_run_neural_alignment_rejects_noise_ceiling_length_mismatch(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 4
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index)
+            return {
+                "image": np.full((3, 4, 4), feature, dtype=np.float32),
+                "metadata": {
+                    "roi_responses": np.array([feature, feature + 1.0], dtype=np.float32),
+                    "noise_ceiling": np.array([0.5], dtype=np.float32),
+                },
+            }
+
+    class SyntheticModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            return {layer: np.ones((1, 1), dtype=np.float32) for layer in layers}
+
+    config_path = tmp_path / "neural_bad_ceiling.yaml"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {"layers": ["embedding"], "response_key": "roi_responses"},
+            "output": {"dir": str(tmp_path / "outputs")},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: SyntheticModel())
+
+    with pytest.raises(ValueError, match="one value per target"):
+        run_neural_alignment(config_path)
+
+
+def test_run_neural_alignment_rejects_partially_missing_noise_ceiling(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 4
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index)
+            metadata = {
+                "roi_responses": np.array([feature, feature + 1.0], dtype=np.float32),
+            }
+            if index != 0:
+                metadata["noise_ceiling"] = np.array([0.5, 0.7], dtype=np.float32)
+            return {
+                "image": np.full((3, 4, 4), feature, dtype=np.float32),
+                "metadata": metadata,
+            }
+
+    class SyntheticModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            return {layer: np.ones((1, 1), dtype=np.float32) for layer in layers}
+
+    config_path = tmp_path / "neural_partial_ceiling.yaml"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {"layers": ["embedding"], "response_key": "roi_responses"},
+            "output": {"dir": str(tmp_path / "outputs")},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: SyntheticModel())
+
+    with pytest.raises(ValueError, match="partially missing"):
+        run_neural_alignment(config_path)
 
 
 def test_run_neural_alignment_selects_cv_ridge_alpha(monkeypatch, tmp_path):

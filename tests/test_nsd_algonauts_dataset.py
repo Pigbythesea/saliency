@@ -143,3 +143,109 @@ def test_nsd_algonauts_dataset_filters_subject_and_roi(tmp_path):
     assert item["image_id"] == "image_001"
     assert item["metadata"]["subject_id"] == "subj01"
     assert item["metadata"]["roi"] == "V1"
+
+
+def test_nsd_algonauts_dataset_loads_inline_noise_ceiling_values(tmp_path):
+    root = tmp_path / "nsd"
+    image_path = root / "images" / "image_001.png"
+    response_path = root / "responses" / "image_001.npy"
+    _write_image(image_path)
+    response_path.parent.mkdir(parents=True, exist_ok=True)
+    np.save(response_path, np.array([0.1, 0.2, 0.3], dtype=np.float32))
+
+    manifest = tmp_path / "manifest.csv"
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "image_id",
+                "image_path",
+                "split",
+                "subject_id",
+                "roi",
+                "roi_response_path",
+                "roi_responses",
+                "noise_ceiling_path",
+                "noise_ceiling_values",
+                "noise_ceiling_source",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "image_id": "image_001",
+                "image_path": "images/image_001.png",
+                "split": "train",
+                "subject_id": "subj01",
+                "roi": "V1",
+                "roi_response_path": "responses/image_001.npy",
+                "roi_responses": "",
+                "noise_ceiling_path": "",
+                "noise_ceiling_values": "[0.5, 0.6, 0.7]",
+                "noise_ceiling_source": "synthetic_inline",
+            }
+        )
+
+    dataset = NSDAlgonautsDataset(root=root, manifest_path=manifest, split="train")
+    item = dataset[0]
+
+    assert np.allclose(item["metadata"]["noise_ceiling"], [0.5, 0.6, 0.7])
+    assert item["metadata"]["noise_ceiling_path"] is None
+    assert item["metadata"]["noise_ceiling_source"] == "synthetic_inline"
+
+
+def test_nsd_algonauts_dataset_loads_noise_ceiling_sidecar(tmp_path):
+    root = tmp_path / "nsd"
+    image_path = root / "images" / "image_001.png"
+    response_path = root / "responses" / "image_001.npy"
+    ceiling_path = root / "ceilings" / "v1.npy"
+    _write_image(image_path)
+    response_path.parent.mkdir(parents=True, exist_ok=True)
+    ceiling_path.parent.mkdir(parents=True, exist_ok=True)
+    np.save(response_path, np.array([0.1, 0.2], dtype=np.float32))
+    np.save(ceiling_path, np.array([0.4, 0.8], dtype=np.float32))
+
+    manifest = tmp_path / "manifest.csv"
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "image_id",
+                "image_path",
+                "split",
+                "subject_id",
+                "roi",
+                "roi_response_path",
+                "roi_responses",
+                "noise_ceiling_path",
+                "noise_ceiling_values",
+                "noise_ceiling_source",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "image_id": "image_001",
+                "image_path": "images/image_001.png",
+                "split": "train",
+                "subject_id": "subj01",
+                "roi": "V1",
+                "roi_response_path": "responses/image_001.npy",
+                "roi_responses": "",
+                "noise_ceiling_path": "ceilings/v1.npy",
+                "noise_ceiling_values": "",
+                "noise_ceiling_source": "",
+            }
+        )
+
+    dataset = NSDAlgonautsDataset(
+        root=root,
+        manifest_path=manifest,
+        split="train",
+        validate_files=True,
+    )
+    item = dataset[0]
+
+    assert np.allclose(item["metadata"]["noise_ceiling"], [0.4, 0.8])
+    assert Path(item["metadata"]["noise_ceiling_path"]).name == "v1.npy"
+    assert item["metadata"]["noise_ceiling_source"] == "manifest_noise_ceiling_path"

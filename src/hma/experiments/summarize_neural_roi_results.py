@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -33,6 +34,11 @@ def summarize_neural_roi_results(
 
     output = ensure_dir(output_dir)
     encoding_rows, encoding_target_rows, rsa_rows = _load_neural_rows(dirs)
+    _annotate_target_noise_validity(encoding_target_rows)
+    encoding_rows = _attach_noise_normalized_aggregates(
+        encoding_rows,
+        encoding_target_rows,
+    )
     best_rows = _best_layer_rows(encoding_rows, rsa_rows)
 
     outputs = {
@@ -197,11 +203,11 @@ def _best_layer_rows(
     rsa_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for group in _best_by_group(
+    for group in _best_encoding_by_group(
         encoding_rows,
         keys=["model", "subject_id", "roi", "metric"],
-        score_key="mean_score",
     ):
+        primary_score, score_type = _primary_encoding_score(group)
         rows.append(
             {
                 "score_type": "encoding",
@@ -211,9 +217,16 @@ def _best_layer_rows(
                 "layer": group.get("layer", ""),
                 "metric": group.get("metric", ""),
                 "compare_method": "",
-                "score": group.get("mean_score", ""),
+                "score": primary_score,
+                "encoding_score_type": score_type,
+                "raw_score": group.get("mean_score", ""),
                 "median_score": group.get("median_score", ""),
                 "std_score": group.get("std_score", ""),
+                "mean_noise_normalized_score": group.get("mean_noise_normalized_score", ""),
+                "median_noise_normalized_score": group.get("median_noise_normalized_score", ""),
+                "valid_noise_ceiling_targets": group.get("valid_noise_ceiling_targets", ""),
+                "zero_noise_ceiling_targets": group.get("zero_noise_ceiling_targets", ""),
+                "invalid_noise_ceiling_targets": group.get("invalid_noise_ceiling_targets", ""),
                 "n_train": group.get("n_train", ""),
                 "n_test": group.get("n_test", ""),
                 "n_items": "",
@@ -273,6 +286,113 @@ def _best_by_group(
             )[0]
         )
     return best_rows
+
+
+def _best_encoding_by_group(
+    rows: Iterable[dict[str, Any]],
+    *,
+    keys: list[str],
+) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(tuple(str(row.get(key, "")) for key in keys), []).append(row)
+
+    best_rows = []
+    for key in sorted(grouped):
+        candidates = grouped[key]
+        if any(_optional_float(row.get("mean_noise_normalized_score")) is not None for row in candidates):
+            score_key = "mean_noise_normalized_score"
+        else:
+            score_key = "mean_score"
+        best_rows.append(
+            sorted(
+                candidates,
+                key=lambda row: _float(row.get(score_key)),
+                reverse=True,
+            )[0]
+        )
+    return best_rows
+
+
+def _primary_encoding_score(row: dict[str, Any]) -> tuple[Any, str]:
+    normalized = row.get("mean_noise_normalized_score", "")
+    if _optional_float(normalized) is not None:
+        return normalized, "noise_normalized"
+    return row.get("mean_score", ""), "raw"
+
+
+def _attach_noise_normalized_aggregates(
+    encoding_rows: list[dict[str, Any]],
+    target_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not target_rows:
+        return encoding_rows
+
+    grouped_targets: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+    for row in target_rows:
+        grouped_targets.setdefault(_encoding_layer_key(row), []).append(row)
+
+    enriched: list[dict[str, Any]] = []
+    for row in encoding_rows:
+        updated = dict(row)
+        target_group = grouped_targets.get(_encoding_layer_key(row), [])
+        if target_group:
+            updated.update(_noise_normalized_summary(target_group))
+        else:
+            updated.setdefault("mean_noise_normalized_score", "")
+            updated.setdefault("median_noise_normalized_score", "")
+            updated.setdefault("valid_noise_ceiling_targets", "")
+            updated.setdefault("zero_noise_ceiling_targets", "")
+            updated.setdefault("invalid_noise_ceiling_targets", "")
+        enriched.append(updated)
+    return enriched
+
+
+def _encoding_layer_key(row: dict[str, Any]) -> tuple[str, ...]:
+    return (
+        str(row.get("source_dir", "")),
+        str(row.get("dataset", "")),
+        str(row.get("model", "")),
+        str(row.get("subject_id", "")),
+        str(row.get("roi", "")),
+        str(row.get("layer", "")),
+        str(row.get("metric", "")),
+    )
+
+
+def _annotate_target_noise_validity(rows: list[dict[str, Any]]) -> None:
+    for row in rows:
+        if "valid_noise_ceiling" in row and str(row.get("valid_noise_ceiling", "")):
+            continue
+        ceiling = _optional_float(row.get("noise_ceiling"))
+        valid = ceiling is not None and ceiling > 0.0
+        row["valid_noise_ceiling"] = str(valid).lower()
+
+
+def _noise_normalized_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    valid_scores: list[float] = []
+    zero_count = 0
+    invalid_count = 0
+    for row in rows:
+        ceiling = _optional_float(row.get("noise_ceiling"))
+        score = _optional_float(row.get("noise_normalized_score"))
+        if ceiling is None or ceiling < 0.0:
+            invalid_count += 1
+            continue
+        if ceiling == 0.0:
+            zero_count += 1
+            continue
+        if score is None:
+            invalid_count += 1
+            continue
+        valid_scores.append(score)
+    return {
+        "mean_noise_normalized_score": _mean(valid_scores) if valid_scores else "",
+        "median_noise_normalized_score": _median(valid_scores) if valid_scores else "",
+        "valid_noise_ceiling_targets": len(valid_scores),
+        "zero_noise_ceiling_targets": zero_count,
+        "invalid_noise_ceiling_targets": invalid_count,
+    }
 
 
 def _behavior_neural_bridge(
@@ -408,8 +528,24 @@ def _paper_model_roi_winners(
                 "best_encoding_layer": encoding.get("layer", ""),
                 "best_encoding_metric": encoding.get("metric", ""),
                 "best_encoding_score": encoding.get("score", ""),
+                "best_encoding_score_type": encoding.get("encoding_score_type", ""),
+                "best_encoding_raw_score": encoding.get("raw_score", ""),
                 "best_encoding_median_score": encoding.get("median_score", ""),
                 "best_encoding_std_score": encoding.get("std_score", ""),
+                "best_encoding_mean_noise_normalized_score": encoding.get(
+                    "mean_noise_normalized_score",
+                    "",
+                ),
+                "best_encoding_median_noise_normalized_score": encoding.get(
+                    "median_noise_normalized_score",
+                    "",
+                ),
+                "valid_noise_ceiling_targets": encoding.get("valid_noise_ceiling_targets", ""),
+                "zero_noise_ceiling_targets": encoding.get("zero_noise_ceiling_targets", ""),
+                "invalid_noise_ceiling_targets": encoding.get(
+                    "invalid_noise_ceiling_targets",
+                    "",
+                ),
                 "best_encoding_n_train": encoding.get("n_train", ""),
                 "best_encoding_n_test": encoding.get("n_test", ""),
                 "best_rsa_layer": rsa.get("layer", ""),
@@ -446,9 +582,15 @@ def _neural_model_rankings(
     for model in sorted(grouped):
         model_rows = grouped[model]
         encoding_scores = [
-            _float(row.get("score"))
+            _float(row.get("raw_score") or row.get("score"))
             for row in model_rows
             if row.get("score_type") == "encoding"
+        ]
+        normalized_scores = [
+            _float(row.get("mean_noise_normalized_score"))
+            for row in model_rows
+            if row.get("score_type") == "encoding"
+            and _optional_float(row.get("mean_noise_normalized_score")) is not None
         ]
         rsa_scores = [
             _float(row.get("score"))
@@ -456,7 +598,23 @@ def _neural_model_rankings(
             if row.get("score_type") == "rsa"
         ]
         mean_encoding = _mean(encoding_scores)
+        mean_normalized = _mean(normalized_scores) if normalized_scores else ""
         mean_rsa = _mean(rsa_scores)
+        valid_targets = sum(
+            int(_float(row.get("valid_noise_ceiling_targets")))
+            for row in model_rows
+            if row.get("score_type") == "encoding"
+        )
+        zero_targets = sum(
+            int(_float(row.get("zero_noise_ceiling_targets")))
+            for row in model_rows
+            if row.get("score_type") == "encoding"
+        )
+        invalid_targets = sum(
+            int(_float(row.get("invalid_noise_ceiling_targets")))
+            for row in model_rows
+            if row.get("score_type") == "encoding"
+        )
         efficiency = efficiency_by_model.get(model, {})
         latency = _optional_float(efficiency.get("latency_mean_ms"))
         params = _optional_float(efficiency.get("parameter_count"))
@@ -468,6 +626,13 @@ def _neural_model_rankings(
                 "num_encoding_rois": len(encoding_scores),
                 "num_rsa_rois": len(rsa_scores),
                 "mean_encoding_score": mean_encoding,
+                "mean_noise_normalized_score": mean_normalized,
+                "mean_noise_normalized_score_x100": (
+                    mean_normalized * 100.0 if normalized_scores else ""
+                ),
+                "valid_noise_ceiling_targets": valid_targets,
+                "zero_noise_ceiling_targets": zero_targets,
+                "invalid_noise_ceiling_targets": invalid_targets,
                 "mean_rsa_score": mean_rsa,
                 "latency_mean_ms": efficiency.get("latency_mean_ms", ""),
                 "parameter_count": efficiency.get("parameter_count", ""),
@@ -493,6 +658,7 @@ def _neural_model_rankings(
         )
 
     _add_rank_column(rows, "mean_encoding_score", "rank_mean_encoding")
+    _add_rank_column(rows, "mean_noise_normalized_score", "rank_mean_noise_normalized")
     _add_rank_column(rows, "mean_rsa_score", "rank_mean_rsa")
     _add_rank_column(
         rows,
@@ -510,7 +676,10 @@ def _neural_model_rankings(
         "rsa_score_per_million_parameters",
         "rank_rsa_per_million_parameters",
     )
-    rows.sort(key=lambda row: int(row.get("rank_mean_encoding") or 10**9))
+    if any(row.get("rank_mean_noise_normalized") for row in rows):
+        rows.sort(key=lambda row: int(row.get("rank_mean_noise_normalized") or 10**9))
+    else:
+        rows.sort(key=lambda row: int(row.get("rank_mean_encoding") or 10**9))
     return rows
 
 
@@ -547,8 +716,13 @@ def _behavior_neural_alignment_summary(
                 "num_rois": len({row.get("roi", "") for row in bridge_group}),
                 "behavior_mean": bridge_group[0].get("behavior_mean", ""),
                 "mean_encoding_score": ranking.get("mean_encoding_score", ""),
+                "mean_noise_normalized_score": ranking.get("mean_noise_normalized_score", ""),
                 "mean_rsa_score": ranking.get("mean_rsa_score", ""),
                 "rank_mean_encoding": ranking.get("rank_mean_encoding", ""),
+                "rank_mean_noise_normalized": ranking.get(
+                    "rank_mean_noise_normalized",
+                    "",
+                ),
                 "rank_mean_rsa": ranking.get("rank_mean_rsa", ""),
                 "rank_encoding_per_latency": ranking.get("rank_encoding_per_latency", ""),
                 "rank_rsa_per_latency": ranking.get("rank_rsa_per_latency", ""),
@@ -573,7 +747,12 @@ def _behavior_neural_leader_overlap(
         )
         grouped.setdefault(key, []).append(row)
 
-    encoding_leader = _leader_by_score(neural_ranking_rows, "mean_encoding_score")
+    encoding_leader_key = (
+        "mean_noise_normalized_score"
+        if any(_optional_float(row.get("mean_noise_normalized_score")) is not None for row in neural_ranking_rows)
+        else "mean_encoding_score"
+    )
+    encoding_leader = _leader_by_score(neural_ranking_rows, encoding_leader_key)
     rsa_leader = _leader_by_score(neural_ranking_rows, "mean_rsa_score")
     rows: list[dict[str, Any]] = []
     for key in sorted(grouped):
@@ -599,7 +778,7 @@ def _behavior_neural_leader_overlap(
                 "behavior_leader_mean": behavioral_leader.get("behavior_mean", ""),
                 "neural_encoding_leader_model": encoding_leader.get("model", ""),
                 "neural_encoding_leader_mean_score": encoding_leader.get(
-                    "mean_encoding_score",
+                    encoding_leader_key,
                     "",
                 ),
                 "matches_encoding_leader": str(
@@ -733,6 +912,7 @@ def _write_summary_note(
                 "- "
                 f"{row['model']} {row['subject_id']} {row['roi']} "
                 f"{row['metric']}: {row['layer']} score={_float(row['score']):.6g}."
+                f" score_type={row.get('encoding_score_type', 'raw')}."
             )
     else:
         lines.append("- No encoding best-layer rows are available.")
@@ -766,9 +946,15 @@ def _write_summary_note(
 def _benchmark_target_scope_note(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "not available; input directories do not include per-target benchmark scores"
-    scopes = {str(row.get("metric_scope", "")) for row in rows}
+    scope_counts = _status_counts(rows, "metric_scope")
+    scopes = set(scope_counts)
     if scopes == {"benchmark_style_noise_normalized"}:
         return "noise-normalized"
+    if "benchmark_style_noise_normalized" in scopes:
+        counts = ", ".join(
+            f"{scope}={count}" for scope, count in sorted(scope_counts.items())
+        )
+        return f"mixed target-level scope ({counts})"
     return "non-noise-normalized"
 
 
@@ -783,6 +969,10 @@ def _write_multimodel_interpretation_note(
     behavioral_csv: str | Path | None,
     efficiency_csv: str | Path | None,
 ) -> None:
+    normalized_encoding = _leader_by_score(
+        neural_ranking_rows,
+        "mean_noise_normalized_score",
+    )
     raw_encoding = _leader_by_score(neural_ranking_rows, "mean_encoding_score")
     raw_rsa = _leader_by_score(neural_ranking_rows, "mean_rsa_score")
     latency_encoding = _leader_by_score(
@@ -813,12 +1003,19 @@ def _write_multimodel_interpretation_note(
         "- Interpretation boundary: descriptive only; one subject, ROI500 subset, and "
         "frozen static2000 behavioral rows.",
         "",
-        "## Raw Neural Ranking",
+        "## Neural Ranking",
         "",
     ]
+    if normalized_encoding:
+        lines.append(
+            "- Strongest mean ROI500 noise-normalized encoding model: "
+            f"{normalized_encoding.get('model')} "
+            f"({_float(normalized_encoding.get('mean_noise_normalized_score')):.6g}; "
+            f"x100={_float(normalized_encoding.get('mean_noise_normalized_score_x100')):.6g})."
+        )
     if raw_encoding:
         lines.append(
-            "- Strongest mean ROI500 encoding model: "
+            "- Strongest mean ROI500 raw encoding model: "
             f"{raw_encoding.get('model')} "
             f"({ _float(raw_encoding.get('mean_encoding_score')):.6g})."
         )
@@ -940,13 +1137,24 @@ def _float(value: Any) -> float:
 
 def _optional_float(value: Any) -> float | None:
     try:
-        return float(value)
+        parsed = float(value)
     except (TypeError, ValueError):
         return None
+    return parsed if math.isfinite(parsed) else None
 
 
 def _mean(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
+
+
+def _median(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    sorted_values = sorted(values)
+    midpoint = len(sorted_values) // 2
+    if len(sorted_values) % 2:
+        return sorted_values[midpoint]
+    return (sorted_values[midpoint - 1] + sorted_values[midpoint]) / 2.0
 
 
 ENCODING_FIELDNAMES = [
@@ -964,6 +1172,11 @@ ENCODING_FIELDNAMES = [
     "median_score",
     "std_score",
     "mean_r2_score_from_r",
+    "mean_noise_normalized_score",
+    "median_noise_normalized_score",
+    "valid_noise_ceiling_targets",
+    "zero_noise_ceiling_targets",
+    "invalid_noise_ceiling_targets",
     "selected_ridge_alpha",
     "alpha_selection_mode",
     "split_seed",
@@ -987,6 +1200,7 @@ ENCODING_TARGET_FIELDNAMES = [
     "prediction_r2",
     "noise_ceiling",
     "noise_normalized_score",
+    "valid_noise_ceiling",
     "valid_prediction_variance",
     "valid_target_variance",
     "n_train",
@@ -1025,8 +1239,15 @@ BEST_LAYER_FIELDNAMES = [
     "metric",
     "compare_method",
     "score",
+    "encoding_score_type",
+    "raw_score",
     "median_score",
     "std_score",
+    "mean_noise_normalized_score",
+    "median_noise_normalized_score",
+    "valid_noise_ceiling_targets",
+    "zero_noise_ceiling_targets",
+    "invalid_noise_ceiling_targets",
     "n_train",
     "n_test",
     "n_items",
@@ -1078,8 +1299,15 @@ PAPER_WINNER_FIELDNAMES = [
     "best_encoding_layer",
     "best_encoding_metric",
     "best_encoding_score",
+    "best_encoding_score_type",
+    "best_encoding_raw_score",
     "best_encoding_median_score",
     "best_encoding_std_score",
+    "best_encoding_mean_noise_normalized_score",
+    "best_encoding_median_noise_normalized_score",
+    "valid_noise_ceiling_targets",
+    "zero_noise_ceiling_targets",
+    "invalid_noise_ceiling_targets",
     "best_encoding_n_train",
     "best_encoding_n_test",
     "best_rsa_layer",
@@ -1096,6 +1324,12 @@ NEURAL_RANKING_FIELDNAMES = [
     "num_rsa_rois",
     "mean_encoding_score",
     "rank_mean_encoding",
+    "mean_noise_normalized_score",
+    "mean_noise_normalized_score_x100",
+    "rank_mean_noise_normalized",
+    "valid_noise_ceiling_targets",
+    "zero_noise_ceiling_targets",
+    "invalid_noise_ceiling_targets",
     "mean_rsa_score",
     "rank_mean_rsa",
     "latency_mean_ms",
@@ -1126,8 +1360,10 @@ BEHAVIOR_NEURAL_ALIGNMENT_FIELDNAMES = [
     "num_rois",
     "behavior_mean",
     "mean_encoding_score",
+    "mean_noise_normalized_score",
     "mean_rsa_score",
     "rank_mean_encoding",
+    "rank_mean_noise_normalized",
     "rank_mean_rsa",
     "rank_encoding_per_latency",
     "rank_rsa_per_latency",
