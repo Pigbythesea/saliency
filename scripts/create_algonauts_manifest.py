@@ -17,7 +17,13 @@ MANIFEST_COLUMNS = [
     "roi",
     "roi_response_path",
     "roi_responses",
+    "noise_ceiling_path",
+    "noise_ceiling_values",
+    "noise_ceiling_source",
 ]
+PRF_VISUAL_ROIS = ["V1", "V2", "V3", "hV4"]
+DEFAULT_NOISE_CEILING_SOURCE = "nsd_ncsnr_mgh_n_trials_3"
+DEFAULT_FULL_PRF_MANIFEST = "data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv"
 
 
 def create_algonauts_manifest(
@@ -34,6 +40,9 @@ def create_algonauts_manifest(
     output_manifest: str | Path = "data/manifests/nsd_algonauts_manifest.csv",
     max_items: int | None = None,
     overwrite_responses: bool = False,
+    attach_noise_ceilings: bool = False,
+    noise_ceiling_dir: str | Path | None = None,
+    noise_ceiling_source: str = DEFAULT_NOISE_CEILING_SOURCE,
 ) -> dict[str, str | int]:
     """Write per-image response files and a manifest for one Algonauts subject."""
     root_path = Path(root).expanduser().resolve()
@@ -52,6 +61,9 @@ def create_algonauts_manifest(
             output_manifest=output_manifest,
             max_items=max_items,
             overwrite_responses=overwrite_responses,
+            attach_noise_ceilings=attach_noise_ceilings,
+            noise_ceiling_dir=noise_ceiling_dir,
+            noise_ceiling_source=noise_ceiling_source,
         )
 
     fmri_path = (
@@ -99,6 +111,9 @@ def create_algonauts_manifest(
                 "roi": roi_label,
                 "roi_response_path": _relative_posix(response_path, root_path),
                 "roi_responses": "",
+                "noise_ceiling_path": "",
+                "noise_ceiling_values": "",
+                "noise_ceiling_source": "",
             }
         )
 
@@ -143,6 +158,9 @@ def _create_roi_manifest(
     output_manifest: str | Path,
     max_items: int | None,
     overwrite_responses: bool,
+    attach_noise_ceilings: bool,
+    noise_ceiling_dir: str | Path | None,
+    noise_ceiling_source: str,
 ) -> dict[str, str | int]:
     if not roi_names:
         raise ValueError("ROI manifest mode requires at least one ROI name")
@@ -150,6 +168,11 @@ def _create_roi_manifest(
         raise ValueError("Multiple hemispheres require --combine-hemispheres")
 
     subject_dir = root_path / subject
+    ceiling_dir = _resolve_noise_ceiling_dir(
+        root_path=root_path,
+        subject=subject,
+        noise_ceiling_dir=noise_ceiling_dir,
+    )
     image_dir = subject_dir / "training_split" / "training_images"
     images = sorted(image_dir.glob("train-*_nsd-*.png"))
     selected_images = images[: int(max_items)] if max_items is not None else images
@@ -221,6 +244,13 @@ def _create_roi_manifest(
                     "roi": roi_name,
                     "roi_response_path": _relative_posix(response_path, root_path),
                     "roi_responses": "",
+                    **_noise_ceiling_manifest_fields(
+                        root_path=root_path,
+                        roi_name=roi_name,
+                        ceiling_dir=ceiling_dir,
+                        attach_noise_ceilings=attach_noise_ceilings,
+                        noise_ceiling_source=noise_ceiling_source,
+                    ),
                 }
             )
 
@@ -238,6 +268,48 @@ def _create_roi_manifest(
         "roi": ",".join(roi_names),
         "rows": len(rows),
         "response_dim": ",".join(f"{roi}:{roi_dims[roi]}" for roi in roi_names),
+    }
+
+
+def _resolve_noise_ceiling_dir(
+    *,
+    root_path: Path,
+    subject: str,
+    noise_ceiling_dir: str | Path | None,
+) -> Path:
+    if noise_ceiling_dir is None:
+        return root_path / subject / "noise_ceilings"
+    path = Path(noise_ceiling_dir).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+    return (root_path / path).resolve()
+
+
+def _noise_ceiling_manifest_fields(
+    *,
+    root_path: Path,
+    roi_name: str,
+    ceiling_dir: Path,
+    attach_noise_ceilings: bool,
+    noise_ceiling_source: str,
+) -> dict[str, str]:
+    if not attach_noise_ceilings:
+        return {
+            "noise_ceiling_path": "",
+            "noise_ceiling_values": "",
+            "noise_ceiling_source": "",
+        }
+    ceiling_path = ceiling_dir / f"{roi_name}.npy"
+    if not ceiling_path.is_file():
+        return {
+            "noise_ceiling_path": "",
+            "noise_ceiling_values": "",
+            "noise_ceiling_source": "",
+        }
+    return {
+        "noise_ceiling_path": _relative_posix(ceiling_path, root_path),
+        "noise_ceiling_values": "",
+        "noise_ceiling_source": noise_ceiling_source,
     }
 
 
@@ -268,29 +340,54 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--roi-names", nargs="+", help="ROI names to export, for example V1 V2 V3 hV4.")
     parser.add_argument("--combine-hemispheres", action="store_true")
     parser.add_argument(
+        "--full-prf-visualrois",
+        action="store_true",
+        help="Convenience mode for bilateral V1 V2 V3 hV4 full-subject export.",
+    )
+    parser.add_argument(
         "--output-manifest",
         default="data/manifests/nsd_algonauts_manifest.csv",
     )
     parser.add_argument("--max-items", type=int)
     parser.add_argument("--overwrite-responses", action="store_true")
+    parser.add_argument("--attach-noise-ceilings", action="store_true")
+    parser.add_argument("--noise-ceiling-dir", default=None)
+    parser.add_argument("--noise-ceiling-source", default=DEFAULT_NOISE_CEILING_SOURCE)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    roi_class = args.roi_class
+    roi_names = args.roi_names
+    hemispheres = args.hemispheres
+    combine_hemispheres = args.combine_hemispheres
+    output_manifest = args.output_manifest
+    attach_noise_ceilings = args.attach_noise_ceilings
+    if args.full_prf_visualrois:
+        roi_class = "prf-visualrois"
+        roi_names = PRF_VISUAL_ROIS
+        hemispheres = ["lh", "rh"]
+        combine_hemispheres = True
+        attach_noise_ceilings = True
+        if output_manifest == "data/manifests/nsd_algonauts_manifest.csv":
+            output_manifest = DEFAULT_FULL_PRF_MANIFEST
     summary = create_algonauts_manifest(
         root=args.root,
         subject=args.subject,
         hemisphere=args.hemisphere,
-        hemispheres=args.hemispheres,
+        hemispheres=hemispheres,
         num_vertices=args.num_vertices,
         roi=args.roi,
-        roi_class=args.roi_class,
-        roi_names=args.roi_names,
-        combine_hemispheres=args.combine_hemispheres,
-        output_manifest=args.output_manifest,
+        roi_class=roi_class,
+        roi_names=roi_names,
+        combine_hemispheres=combine_hemispheres,
+        output_manifest=output_manifest,
         max_items=args.max_items,
         overwrite_responses=args.overwrite_responses,
+        attach_noise_ceilings=attach_noise_ceilings,
+        noise_ceiling_dir=args.noise_ceiling_dir,
+        noise_ceiling_source=args.noise_ceiling_source,
     )
     for key, value in summary.items():
         print(f"{key}: {value}")

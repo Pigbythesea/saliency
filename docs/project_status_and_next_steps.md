@@ -203,6 +203,8 @@ Neural Reliability / Noise-Ceiling Metadata V1 is implemented for `subj01` PRF v
 
 Neural Scoring Foundation V1 is implemented for the current ROI500 summary and paper inspection outputs. Neural encoding model rankings now use valid-target mean `noise_normalized_score` as the primary encoding rank when positive noise ceilings are available, while raw Pearson encoding and RSA ranks remain separate diagnostics.
 
+Large NSD/Algonauts Manifest And Run Configs V1 is implemented for `subj01` PRF visual ROIs. The project now has full-image-count manifest plumbing and a validated large-manifest smoke run while keeping the current spatial-mean ridge method unchanged.
+
 Benchmark-equivalent implementation:
 
 - Per-target benchmark-style encoding rows are now written to `encoding_target_scores.csv` by `scripts/run_neural_alignment.py`.
@@ -235,6 +237,20 @@ Full regeneration status:
 - `outputs/neural_roi_summary/neural_model_rankings.csv` now includes `mean_noise_normalized_score`, `mean_noise_normalized_score_x100`, `rank_mean_noise_normalized`, and valid/zero/invalid ceiling target counts.
 - `outputs/paper_inspection_v1/README.md` now reports the noise-normalized encoding leader as the paper-facing neural headline.
 
+Large/full manifest and config status:
+
+- Full PRF visual ROI manifest: `data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv`.
+- Full manifest rows: `39364` (`9841` training images x `4` ROIs).
+- ROI response sidecars now exist for `9841` images each under `data/raw/nsd_algonauts/subj01/responses/V1`, `V2`, `V3`, and `hV4`.
+- Full manifest columns include `noise_ceiling_path`, `noise_ceiling_values`, and `noise_ceiling_source`.
+- Attached noise-ceiling source: `nsd_ncsnr_mgh_n_trials_3`.
+- Large smoke config: `configs/experiments/neural_large_smoke/deit_small_patch16_224_v1_smoke.yaml`.
+- First full-run config: `configs/experiments/neural_subj01_full/deit_small_patch16_224_v1_full.yaml`.
+- Large smoke output: `outputs/neural_large_smoke/deit_small_patch16_224_v1_smoke/`.
+- Large smoke result: `64` images, `51` train / `13` test, `2973` V1 targets, `noise_ceiling_available=true`, all target rows `benchmark_style_noise_normalized`.
+- Large manifest focused verification: `25 passed` for `tests/test_create_algonauts_manifest.py`, `tests/test_nsd_algonauts_dataset.py`, and `tests/test_neural_roi_summary.py`.
+- Full production config was written but not run in this session because RSA is still enabled and would allocate full `9841 x 9841` RDMs; run it only after deciding whether to disable/approximate RSA for production or after sufficient memory planning.
+
 Neural reliability / noise-ceiling implementation:
 
 - `NSDAlgonautsDataset` now accepts optional manifest columns `noise_ceiling_path`, `noise_ceiling_values`, and `noise_ceiling_source`.
@@ -258,7 +274,7 @@ Full verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result: `171 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+Result: `173 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
 
 ## Next Concrete Milestone
 
@@ -282,9 +298,9 @@ Step 1: scoring policy and reporting foundation. **Status: implemented.**
 - Update `neural_model_rankings.csv`, ROI winner tables, and paper inspection figures so raw-rank and noise-normalized-rank are separate.
 - Regenerate `outputs/neural_roi_summary/` and `outputs/paper_inspection_v1/`.
 
-Step 2: full-image-count manifest and run configs.
+Step 2: full-image-count manifest and run configs. **Status: implemented.**
 
-This is the next concrete implementation step.
+This is implemented for `subj01` full PRF visual ROIs.
 
 - Build full-subject or large-subject manifests from local NSD/Algonauts files instead of ROI500-only manifests.
 - Keep the same ROI targets at first (`V1`, `V2`, `V3`, `hV4`) to isolate the image-count and method changes.
@@ -292,6 +308,8 @@ This is the next concrete implementation step.
 - Add smoke configs that run on a small image count, then production configs that use the largest local `subj01` image count available.
 
 Step 3: feature representation upgrade.
+
+This is the next concrete implementation step.
 
 - Stop using `feature_reduction: spatial_mean` for competitive neural runs.
 - Add a training-only dimensionality-reduction path for flattened feature tensors: PCA or randomized SVD fit on train images only, then applied to validation/test images.
@@ -350,8 +368,8 @@ Step 10: uncertainty and robustness.
 
 Implementation order for the next Codex sessions:
 
-1. Implement Step 2 large-manifest plumbing and smoke checks.
-2. Implement Step 3 train-only `flatten_pca`.
+1. Implement Step 3 train-only `flatten_pca`.
+2. Add a production-safe RSA policy for full-image-count runs, such as disabled RSA by default or sampled/validation-only RSA.
 3. Implement Step 4 cross-validated ridge defaults and production configs.
 4. Run the strongest `subj01` ROI pipeline and compare directly to the organizer-baseline scale.
 5. Only then decide whether to implement learned spatial readouts or broaden model count.
@@ -465,7 +483,7 @@ Latest regenerated target scope: `222134` rows total; `222042` `benchmark_style_
 For the next neural method implementation, run:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py tests\test_nsd_algonauts_dataset.py
+.\.venv\Scripts\python.exe -m pytest tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_paper_inspection_pack.py
 ```
 
 For broader confidence after code changes:
@@ -474,4 +492,4 @@ For broader confidence after code changes:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Latest full result: `171 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+Latest full result: `173 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.

@@ -14,14 +14,19 @@ from hma.utils.config import save_yaml
 
 CONFIG_ROOT = Path("configs/experiments/neural_roi500")
 DEBUG_CONFIG_ROOT = Path("configs/experiments/neural_roi500_debug")
+LARGE_SMOKE_CONFIG_ROOT = Path("configs/experiments/neural_large_smoke")
+FULL_SUBJECT_CONFIG_ROOT = Path("configs/experiments/neural_subj01_full")
 SSL_CANDIDATE_CONFIG_ROOT = Path("configs/experiments/neural_roi500_ssl_candidates_debug")
 SSL_PRETRAINED_DEBUG_CONFIG_ROOT = Path(
     "configs/experiments/neural_roi500_ssl_pretrained_debug"
 )
 SSL_CONFIG_ROOT = Path("configs/experiments/neural_roi500_ssl")
 MANIFEST_PATH = "data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv"
+FULL_MANIFEST_PATH = "data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv"
 OUTPUT_ROOT = "outputs/neural_roi500"
 DEBUG_OUTPUT_ROOT = "outputs/neural_roi500_debug"
+LARGE_SMOKE_OUTPUT_ROOT = "outputs/neural_large_smoke"
+FULL_SUBJECT_OUTPUT_ROOT = "outputs/neural_subj01_full"
 SSL_CANDIDATE_OUTPUT_ROOT = "outputs/neural_roi500_ssl_candidates_debug"
 SSL_PRETRAINED_DEBUG_OUTPUT_ROOT = "outputs/neural_roi500_ssl_pretrained_debug"
 SSL_OUTPUT_ROOT = "outputs/neural_roi500_ssl"
@@ -128,6 +133,50 @@ def create_neural_roi500_configs(
             save_yaml(config, path)
             written.append(path)
     return written
+
+
+def create_neural_large_smoke_configs(
+    *,
+    output_dir: str | Path = LARGE_SMOKE_CONFIG_ROOT,
+    manifest_path: str = FULL_MANIFEST_PATH,
+    output_root: str | Path = LARGE_SMOKE_OUTPUT_ROOT,
+    models: Iterable[str] | None = None,
+    rois: Iterable[str] | None = None,
+    max_items: int = 64,
+    name_suffix: str = "smoke",
+) -> list[Path]:
+    """Write cheap smoke configs against the full PRF visual ROI manifest."""
+    return create_neural_roi500_configs(
+        output_dir=output_dir,
+        manifest_path=manifest_path,
+        output_root=output_root,
+        models=models or ["deit_small_patch16_224"],
+        rois=rois or ["V1"],
+        max_items=max_items,
+        name_suffix=name_suffix,
+    )
+
+
+def create_neural_full_subject_configs(
+    *,
+    output_dir: str | Path = FULL_SUBJECT_CONFIG_ROOT,
+    manifest_path: str = FULL_MANIFEST_PATH,
+    output_root: str | Path = FULL_SUBJECT_OUTPUT_ROOT,
+    models: Iterable[str] | None = None,
+    rois: Iterable[str] | None = None,
+    max_items: int = 9841,
+    name_suffix: str = "full",
+) -> list[Path]:
+    """Write full-subject configs against the full PRF visual ROI manifest."""
+    return create_neural_roi500_configs(
+        output_dir=output_dir,
+        manifest_path=manifest_path,
+        output_root=output_root,
+        models=models,
+        rois=rois,
+        max_items=max_items,
+        name_suffix=name_suffix,
+    )
 
 
 def inspect_ssl_multimodal_candidates(
@@ -572,6 +621,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-items", type=int, default=500)
     parser.add_argument("--name-suffix", default="500")
     parser.add_argument(
+        "--large-smoke",
+        action="store_true",
+        help="Generate a V1 smoke config against the full PRF visual ROI manifest.",
+    )
+    parser.add_argument(
+        "--full-subject",
+        action="store_true",
+        help="Generate full-subject configs against the full PRF visual ROI manifest.",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Generate V1-only debug configs with max_items=16 under debug paths.",
@@ -672,6 +731,8 @@ def main() -> None:
     output_root = args.output_root
     max_items = args.max_items
     name_suffix = args.name_suffix
+    manifest_path = args.manifest_path
+    models = args.models
     rois = args.rois
     if args.debug:
         output_dir = str(DEBUG_CONFIG_ROOT)
@@ -679,11 +740,21 @@ def main() -> None:
         max_items = 16
         name_suffix = "debug"
         rois = ["V1"]
+    if args.large_smoke:
+        written = create_neural_large_smoke_configs(models=models)
+        for path in written:
+            print(path)
+        return
+    if args.full_subject:
+        written = create_neural_full_subject_configs(models=models, rois=rois)
+        for path in written:
+            print(path)
+        return
     written = create_neural_roi500_configs(
         output_dir=output_dir,
-        manifest_path=args.manifest_path,
+        manifest_path=manifest_path,
         output_root=output_root,
-        models=args.models,
+        models=models,
         rois=rois,
         max_items=max_items,
         name_suffix=name_suffix,

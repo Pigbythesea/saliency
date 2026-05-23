@@ -4,6 +4,8 @@ import json
 from hma.experiments.summarize_neural_roi_results import summarize_neural_roi_results
 from hma.utils.config import load_yaml
 from scripts.create_neural_roi500_configs import (
+    create_neural_full_subject_configs,
+    create_neural_large_smoke_configs,
     create_neural_roi500_configs,
     create_ssl_multimodal_debug_configs,
     create_ssl_multimodal_pretrained_debug_configs,
@@ -858,6 +860,42 @@ def test_create_neural_roi500_configs_supports_debug_subset(tmp_path):
     assert config["dataset"]["max_items"] == 16
     assert config["dataset"]["roi"] == "V1"
     assert config["output"]["dir"].endswith("convnext_tiny_v1_debug")
+
+
+def test_create_neural_large_smoke_and_full_subject_configs(tmp_path):
+    smoke_written = create_neural_large_smoke_configs(
+        output_dir=tmp_path / "smoke_configs",
+        output_root=tmp_path / "smoke_outputs",
+    )
+    full_written = create_neural_full_subject_configs(
+        output_dir=tmp_path / "full_configs",
+        output_root=tmp_path / "full_outputs",
+        models=["deit_small_patch16_224"],
+        rois=["V1"],
+    )
+
+    assert [path.name for path in smoke_written] == [
+        "deit_small_patch16_224_v1_smoke.yaml"
+    ]
+    smoke_config = load_yaml(smoke_written[0])
+    assert smoke_config["dataset"]["manifest_path"] == (
+        "data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv"
+    )
+    assert smoke_config["dataset"]["max_items"] == 64
+    assert smoke_config["dataset"]["roi"] == "V1"
+    assert smoke_config["neural"]["feature_reduction"] == "spatial_mean"
+    assert smoke_config["output"]["dir"].endswith("deit_small_patch16_224_v1_smoke")
+
+    assert [path.name for path in full_written] == [
+        "deit_small_patch16_224_v1_full.yaml"
+    ]
+    full_config = load_yaml(full_written[0])
+    assert full_config["dataset"]["manifest_path"] == (
+        "data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv"
+    )
+    assert full_config["dataset"]["max_items"] == 9841
+    assert full_config["neural"]["feature_reduction"] == "spatial_mean"
+    assert full_config["output"]["dir"].endswith("deit_small_patch16_224_v1_full")
 
 
 def test_behavior_neural_leader_overlap_handles_lower_is_better_metric(tmp_path):
