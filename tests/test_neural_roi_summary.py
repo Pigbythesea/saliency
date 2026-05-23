@@ -27,7 +27,14 @@ def _read_csv(path):
         return list(csv.DictReader(handle))
 
 
-def _write_neural_output(path, *, roi, model="resnet50", include_rsa=True):
+def _write_neural_output(
+    path,
+    *,
+    roi,
+    model="resnet50",
+    include_rsa=True,
+    include_target_scores=False,
+):
     path.mkdir(parents=True, exist_ok=True)
     (path / "metadata.json").write_text(
         json.dumps(
@@ -85,6 +92,58 @@ def _write_neural_output(path, *, roi, model="resnet50", include_rsa=True):
             "std_score",
         ],
     )
+    if include_target_scores:
+        _write_csv(
+            path / "encoding_target_scores.csv",
+            [
+                {
+                    "dataset": f"nsd_{roi}",
+                    "model": model,
+                    "subject_id": "subj01",
+                    "roi": roi,
+                    "layer": "layer2",
+                    "metric": "correlation",
+                    "metric_scope": "benchmark_style_non_noise_normalized",
+                    "target_index": 0,
+                    "pearson_r": 0.4,
+                    "r2_score_from_r": 0.16,
+                    "prediction_r2": 0.12,
+                    "noise_ceiling": "",
+                    "noise_normalized_score": "",
+                    "valid_prediction_variance": "true",
+                    "valid_target_variance": "true",
+                    "n_train": 400,
+                    "n_test": 100,
+                    "selected_ridge_alpha": 1.0,
+                    "alpha_selection_mode": "fixed",
+                    "split_seed": 123,
+                    "feature_reduction": "spatial_mean",
+                }
+            ],
+            [
+                "dataset",
+                "model",
+                "subject_id",
+                "roi",
+                "layer",
+                "metric",
+                "metric_scope",
+                "target_index",
+                "pearson_r",
+                "r2_score_from_r",
+                "prediction_r2",
+                "noise_ceiling",
+                "noise_normalized_score",
+                "valid_prediction_variance",
+                "valid_target_variance",
+                "n_train",
+                "n_test",
+                "selected_ridge_alpha",
+                "alpha_selection_mode",
+                "split_seed",
+                "feature_reduction",
+            ],
+        )
     if include_rsa:
         _write_csv(
             path / "rsa_scores.csv",
@@ -132,7 +191,7 @@ def _write_neural_output(path, *, roi, model="resnet50", include_rsa=True):
 def test_summarize_neural_roi_results_writes_best_layers_and_bridge(tmp_path):
     v1 = tmp_path / "outputs" / "v1"
     v2 = tmp_path / "outputs" / "v2"
-    _write_neural_output(v1, roi="V1")
+    _write_neural_output(v1, roi="V1", include_target_scores=True)
     _write_neural_output(v2, roi="V2", model="deit_small_patch16_224")
 
     behavioral_csv = tmp_path / "behavior.csv"
@@ -216,6 +275,7 @@ def test_summarize_neural_roi_results_writes_best_layers_and_bridge(tmp_path):
     )
 
     assert outputs["combined_encoding_scores"].is_file()
+    assert outputs["combined_encoding_target_scores"].is_file()
     assert outputs["combined_rsa_scores"].is_file()
     assert outputs["best_layers_by_roi"].is_file()
     assert outputs["best_encoding_by_model_roi"].is_file()
@@ -281,6 +341,12 @@ def test_summarize_neural_roi_results_writes_best_layers_and_bridge(tmp_path):
     assert overlap_rows
     assert all(row["behavior_metric_direction"] for row in overlap_rows)
 
+    target_rows = _read_csv(outputs["combined_encoding_target_scores"])
+    assert len(target_rows) == 1
+    assert target_rows[0]["metric_scope"] == "benchmark_style_non_noise_normalized"
+    summary_text = outputs["summary_note"].read_text(encoding="utf-8")
+    assert "Benchmark-style encoding scope: non-noise-normalized." in summary_text
+
 
 def test_behavior_neural_bridge_includes_dinov2_rows_from_merged_behavior_csv(tmp_path):
     dino_output = tmp_path / "outputs" / "dinov2_v1"
@@ -340,6 +406,17 @@ def test_summarize_neural_roi_results_tolerates_missing_rsa(tmp_path):
     assert _read_csv(outputs["combined_rsa_scores"]) == []
     best_rows = _read_csv(outputs["best_layers_by_roi"])
     assert {row["score_type"] for row in best_rows} == {"encoding"}
+
+
+def test_summarize_neural_roi_results_tolerates_old_outputs_without_target_scores(tmp_path):
+    output_dir = tmp_path / "outputs" / "old"
+    _write_neural_output(output_dir, roi="V1")
+
+    outputs = summarize_neural_roi_results([output_dir], tmp_path / "summary")
+
+    assert "combined_encoding_target_scores" not in outputs
+    text = outputs["summary_note"].read_text(encoding="utf-8")
+    assert "Benchmark-style encoding scope: not available" in text
 
 
 def test_multimodel_note_reports_pretrained_candidate_status(tmp_path):

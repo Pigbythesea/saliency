@@ -11,6 +11,7 @@ from hma.utils.paths import ensure_dir
 
 
 ENCODING_FILE = "encoding_scores.csv"
+ENCODING_TARGET_FILE = "encoding_target_scores.csv"
 RSA_FILE = "rsa_scores.csv"
 METADATA_FILE = "metadata.json"
 STATIC_SUFFIX = "_static2000"
@@ -31,7 +32,7 @@ def summarize_neural_roi_results(
         raise ValueError("At least one neural output directory is required")
 
     output = ensure_dir(output_dir)
-    encoding_rows, rsa_rows = _load_neural_rows(dirs)
+    encoding_rows, encoding_target_rows, rsa_rows = _load_neural_rows(dirs)
     best_rows = _best_layer_rows(encoding_rows, rsa_rows)
 
     outputs = {
@@ -50,6 +51,13 @@ def summarize_neural_roi_results(
     paper_winner_rows = _paper_model_roi_winners(best_encoding_rows, best_rsa_rows)
     neural_ranking_rows = _neural_model_rankings(best_rows, efficiency_csv)
     _write_rows(outputs["combined_encoding_scores"], encoding_rows, ENCODING_FIELDNAMES)
+    if encoding_target_rows:
+        outputs["combined_encoding_target_scores"] = output / "combined_encoding_target_scores.csv"
+        _write_rows(
+            outputs["combined_encoding_target_scores"],
+            encoding_target_rows,
+            ENCODING_TARGET_FIELDNAMES,
+        )
     _write_rows(outputs["combined_rsa_scores"], rsa_rows, RSA_FIELDNAMES)
     _write_rows(outputs["best_layers_by_roi"], best_rows, BEST_LAYER_FIELDNAMES)
     _write_rows(
@@ -112,6 +120,7 @@ def summarize_neural_roi_results(
     _write_summary_note(
         outputs["summary_note"],
         encoding_rows=encoding_rows,
+        encoding_target_rows=encoding_target_rows,
         rsa_rows=rsa_rows,
         best_rows=best_rows,
         bridge_rows=bridge_rows,
@@ -135,8 +144,11 @@ def summarize_neural_roi_results(
     return outputs
 
 
-def _load_neural_rows(dirs: list[Path]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _load_neural_rows(
+    dirs: list[Path],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     encoding_rows: list[dict[str, Any]] = []
+    encoding_target_rows: list[dict[str, Any]] = []
     rsa_rows: list[dict[str, Any]] = []
     for directory in dirs:
         if not directory.is_dir():
@@ -147,10 +159,16 @@ def _load_neural_rows(dirs: list[Path]) -> tuple[list[dict[str, Any]], list[dict
             raise FileNotFoundError(f"Encoding scores not found: {encoding_path}")
         encoding_rows.extend(_load_csv_with_context(encoding_path, directory, metadata))
 
+        encoding_target_path = directory / ENCODING_TARGET_FILE
+        if encoding_target_path.is_file():
+            encoding_target_rows.extend(
+                _load_csv_with_context(encoding_target_path, directory, metadata)
+            )
+
         rsa_path = directory / RSA_FILE
         if rsa_path.is_file():
             rsa_rows.extend(_load_csv_with_context(rsa_path, directory, metadata))
-    return encoding_rows, rsa_rows
+    return encoding_rows, encoding_target_rows, rsa_rows
 
 
 def _load_metadata(path: Path) -> dict[str, Any]:
@@ -681,6 +699,7 @@ def _write_summary_note(
     path: Path,
     *,
     encoding_rows: list[dict[str, Any]],
+    encoding_target_rows: list[dict[str, Any]],
     rsa_rows: list[dict[str, Any]],
     best_rows: list[dict[str, Any]],
     bridge_rows: list[dict[str, Any]],
@@ -699,9 +718,11 @@ def _write_summary_note(
         "",
         f"- Input directories: {len(input_dirs)}.",
         f"- Encoding rows: {len(encoding_rows)}.",
+        f"- Encoding target rows: {len(encoding_target_rows)}.",
         f"- RSA rows: {len(rsa_rows)}.",
         f"- Behavioral bridge CSV: {behavioral_csv if behavioral_csv else 'not provided'}.",
         f"- Efficiency CSV: {efficiency_csv if efficiency_csv else 'not provided'}.",
+        f"- Benchmark-style encoding scope: {_benchmark_target_scope_note(encoding_target_rows)}.",
         "",
         "## Best Encoding Layers",
         "",
@@ -740,6 +761,15 @@ def _write_summary_note(
         "exist for multiple model families."
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _benchmark_target_scope_note(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return "not available; input directories do not include per-target benchmark scores"
+    scopes = {str(row.get("metric_scope", "")) for row in rows}
+    if scopes == {"benchmark_style_noise_normalized"}:
+        return "noise-normalized"
+    return "non-noise-normalized"
 
 
 def _write_multimodel_interpretation_note(
@@ -926,12 +956,45 @@ ENCODING_FIELDNAMES = [
     "roi",
     "layer",
     "metric",
+    "metric_scope",
     "n_train",
     "n_test",
     "num_targets",
     "mean_score",
     "median_score",
     "std_score",
+    "mean_r2_score_from_r",
+    "selected_ridge_alpha",
+    "alpha_selection_mode",
+    "split_seed",
+    "feature_reduction",
+    "source_dir",
+    "metadata_num_items",
+    "metadata_config_path",
+]
+
+ENCODING_TARGET_FIELDNAMES = [
+    "dataset",
+    "model",
+    "subject_id",
+    "roi",
+    "layer",
+    "metric",
+    "metric_scope",
+    "target_index",
+    "pearson_r",
+    "r2_score_from_r",
+    "prediction_r2",
+    "noise_ceiling",
+    "noise_normalized_score",
+    "valid_prediction_variance",
+    "valid_target_variance",
+    "n_train",
+    "n_test",
+    "selected_ridge_alpha",
+    "alpha_selection_mode",
+    "split_seed",
+    "feature_reduction",
     "source_dir",
     "metadata_num_items",
     "metadata_config_path",

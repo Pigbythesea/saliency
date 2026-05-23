@@ -12,6 +12,7 @@ import numpy as np
 from hma.datasets import build_dataset
 from hma.models import build_model
 from hma.neural import (
+    benchmark_encoding_target_scores,
     compare_rdms,
     compute_rdm,
     evaluate_encoding,
@@ -33,6 +34,8 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     layers = [str(layer) for layer in neural_config.get("layers", ["embedding"])]
     response_key = str(neural_config.get("response_key", "roi_responses"))
     alpha = float(neural_config.get("ridge_alpha", 1.0))
+    ridge_alphas = _optional_float_list(neural_config.get("ridge_alphas"))
+    validation_fraction = float(neural_config.get("validation_fraction", 0.2))
     train_fraction = float(neural_config.get("train_fraction", 0.8))
     metric = str(neural_config.get("metric", "correlation"))
     seed = int(neural_config.get("seed", config.get("seed", 0)))
@@ -61,18 +64,23 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         {"image_ids": np.asarray(image_ids, dtype=object), **features_by_layer},
         output_dir / "activations.npz",
     )
-    score_rows = _fit_and_score_layers(
+    score_rows, target_score_rows = _fit_and_score_layers(
         features_by_layer,
         responses,
         layers=layers,
         train_fraction=train_fraction,
         alpha=alpha,
+        ridge_alphas=ridge_alphas,
+        validation_fraction=validation_fraction,
         metric=metric,
         seed=seed,
+        feature_reduction=feature_reduction,
         row_context=_score_row_context(config, item_metadata),
     )
     scores_path = output_dir / "encoding_scores.csv"
     _write_score_rows(scores_path, score_rows)
+    target_scores_path = output_dir / "encoding_target_scores.csv"
+    _write_target_score_rows(target_scores_path, target_score_rows)
     rsa_rows: list[dict[str, Any]] = []
     rsa_path: Path | None = None
     if bool(rsa_config.get("enabled", False)):
@@ -100,12 +108,22 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "response_key": response_key,
         "feature_reduction": feature_reduction,
         "ridge_alpha": alpha,
+        "ridge_alphas": ridge_alphas,
+        "validation_fraction": validation_fraction,
         "train_fraction": train_fraction,
         "metric": metric,
+        "metric_scope": _metric_scope_from_target_rows(target_score_rows),
+        "alpha_selection_modes": sorted(
+            {str(row.get("alpha_selection_mode", "")) for row in score_rows}
+        ),
+        "selected_ridge_alphas": {
+            str(row["layer"]): float(row["selected_ridge_alpha"]) for row in score_rows
+        },
         "subjects": sorted(_unique_metadata_values(item_metadata, "subject_id")),
         "rois": sorted(_unique_metadata_values(item_metadata, "roi")),
         "activations": str(activation_path),
         "encoding_scores": str(scores_path),
+        "encoding_target_scores": str(target_scores_path),
         "rsa_scores": str(rsa_path) if rsa_path is not None else None,
     }
     metadata_path = output_dir / "metadata.json"
@@ -114,6 +132,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         **metadata,
         "metadata": str(metadata_path),
         "score_rows": score_rows,
+        "target_score_rows": target_score_rows,
         "rsa_rows": rsa_rows,
     }
 
@@ -173,10 +192,13 @@ def _fit_and_score_layers(
     layers: list[str],
     train_fraction: float,
     alpha: float,
+    ridge_alphas: list[float] | None,
+    validation_fraction: float,
     metric: str,
     seed: int,
+    feature_reduction: str,
     row_context: dict[str, Any],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     n_items = responses.shape[0]
     n_train = min(max(1, int(round(n_items * train_fraction))), n_items - 1)
     rng = np.random.default_rng(seed)
@@ -185,25 +207,105 @@ def _fit_and_score_layers(
     test_idx = order[n_train:]
 
     rows: list[dict[str, Any]] = []
+    target_rows: list[dict[str, Any]] = []
     for layer in layers:
         features = features_by_layer[layer]
-        model = fit_ridge_encoding(features[train_idx], responses[train_idx], alpha=alpha)
+        alpha_result = _select_ridge_alpha(
+            features,
+            responses,
+            train_idx=train_idx,
+            alpha=alpha,
+            ridge_alphas=ridge_alphas,
+            validation_fraction=validation_fraction,
+            rng=rng,
+        )
+        selected_alpha = alpha_result["selected_alpha"]
+        model = fit_ridge_encoding(
+            features[train_idx],
+            responses[train_idx],
+            alpha=selected_alpha,
+        )
         predictions = predict_ridge_encoding(model, features[test_idx])
         scores = evaluate_encoding(predictions, responses[test_idx], metric=metric)
+        layer_context = {
+            **row_context,
+            "layer": layer,
+            "metric": metric,
+            "n_train": int(train_idx.size),
+            "n_test": int(test_idx.size),
+            "split_seed": int(seed),
+            "feature_reduction": feature_reduction,
+            "selected_ridge_alpha": float(selected_alpha),
+            "alpha_selection_mode": alpha_result["mode"],
+        }
+        layer_target_rows = [
+            {
+                **layer_context,
+                **target_row,
+            }
+            for target_row in benchmark_encoding_target_scores(
+                predictions,
+                responses[test_idx],
+            )
+        ]
+        target_rows.extend(layer_target_rows)
+        metric_scope = _metric_scope_from_target_rows(layer_target_rows)
         rows.append(
             {
-                **row_context,
-                "layer": layer,
-                "metric": metric,
-                "n_train": int(train_idx.size),
-                "n_test": int(test_idx.size),
+                **layer_context,
                 "num_targets": int(scores.size),
                 "mean_score": float(np.mean(scores)),
                 "median_score": float(np.median(scores)),
                 "std_score": float(np.std(scores, ddof=1)) if scores.size > 1 else 0.0,
+                "mean_r2_score_from_r": float(
+                    np.mean([float(row["r2_score_from_r"]) for row in layer_target_rows])
+                ),
+                "metric_scope": metric_scope,
             }
         )
-    return rows
+    return rows, target_rows
+
+
+def _select_ridge_alpha(
+    features: np.ndarray,
+    responses: np.ndarray,
+    *,
+    train_idx: np.ndarray,
+    alpha: float,
+    ridge_alphas: list[float] | None,
+    validation_fraction: float,
+    rng: np.random.Generator,
+) -> dict[str, Any]:
+    if not ridge_alphas:
+        return {"selected_alpha": float(alpha), "mode": "fixed"}
+    if train_idx.size < 3:
+        return {"selected_alpha": float(alpha), "mode": "fixed_insufficient_train"}
+
+    n_val = int(round(train_idx.size * validation_fraction))
+    n_val = min(max(1, n_val), train_idx.size - 1)
+    if n_val < 1 or train_idx.size - n_val < 1:
+        return {"selected_alpha": float(alpha), "mode": "fixed_insufficient_train"}
+
+    inner_order = train_idx[rng.permutation(train_idx.size)]
+    val_idx = inner_order[:n_val]
+    inner_train_idx = inner_order[n_val:]
+    best_alpha = float(ridge_alphas[0])
+    best_score = -np.inf
+    for candidate_alpha in ridge_alphas:
+        model = fit_ridge_encoding(
+            features[inner_train_idx],
+            responses[inner_train_idx],
+            alpha=float(candidate_alpha),
+        )
+        predictions = predict_ridge_encoding(model, features[val_idx])
+        scores = evaluate_encoding(predictions, responses[val_idx], metric="correlation")
+        score = float(np.mean(scores))
+        if score > best_score + 1e-6 or (
+            abs(score - best_score) <= 1e-6 and float(candidate_alpha) < best_alpha
+        ):
+            best_score = score
+            best_alpha = float(candidate_alpha)
+    return {"selected_alpha": best_alpha, "mode": "cv_inner_validation"}
 
 
 def _compute_rsa_rows(
@@ -233,6 +335,21 @@ def _compute_rsa_rows(
             }
         )
     return rows
+
+
+def _optional_float_list(values: Any) -> list[float] | None:
+    if values is None:
+        return None
+    if not isinstance(values, (list, tuple)):
+        raise ValueError("neural.ridge_alphas must be a list of numbers")
+    parsed = [float(value) for value in values]
+    return parsed or None
+
+
+def _metric_scope_from_target_rows(rows: list[dict[str, Any]]) -> str:
+    if rows and all(row.get("metric_scope") == "benchmark_style_noise_normalized" for row in rows):
+        return "benchmark_style_noise_normalized"
+    return "benchmark_style_non_noise_normalized"
 
 
 def _response_for_item(item: dict[str, Any], response_key: str) -> Any:
@@ -324,12 +441,48 @@ def _write_score_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "roi",
         "layer",
         "metric",
+        "metric_scope",
         "n_train",
         "n_test",
         "num_targets",
         "mean_score",
         "median_score",
         "std_score",
+        "mean_r2_score_from_r",
+        "selected_ridge_alpha",
+        "alpha_selection_mode",
+        "split_seed",
+        "feature_reduction",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_target_score_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    fieldnames = [
+        "dataset",
+        "model",
+        "subject_id",
+        "roi",
+        "layer",
+        "metric",
+        "metric_scope",
+        "target_index",
+        "pearson_r",
+        "r2_score_from_r",
+        "prediction_r2",
+        "noise_ceiling",
+        "noise_normalized_score",
+        "valid_prediction_variance",
+        "valid_target_variance",
+        "n_train",
+        "n_test",
+        "selected_ridge_alpha",
+        "alpha_selection_mode",
+        "split_seed",
+        "feature_reduction",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)

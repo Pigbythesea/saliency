@@ -1,3 +1,4 @@
+import csv
 import json
 
 import numpy as np
@@ -5,6 +6,7 @@ import pytest
 
 from hma.experiments.neural_alignment import run_neural_alignment
 from hma.neural import (
+    benchmark_encoding_target_scores,
     compare_rdms,
     compute_rdm,
     evaluate_encoding,
@@ -12,6 +14,11 @@ from hma.neural import (
     predict_ridge_encoding,
     save_activations,
 )
+
+
+def _read_csv(path):
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
 
 
 def test_ridge_encoding_recovers_signal_better_than_shuffled_target():
@@ -40,6 +47,48 @@ def test_ridge_encoding_r2_shape_and_finite_values():
 
     assert scores.shape == (2,)
     assert np.isfinite(scores).all()
+
+
+def test_benchmark_encoding_target_scores_reports_squared_r_and_r2():
+    target = np.array([[0.0, 1.0], [1.0, 3.0], [2.0, 5.0], [3.0, 7.0]])
+    predictions = target.copy()
+
+    rows = benchmark_encoding_target_scores(predictions, target)
+
+    assert len(rows) == 2
+    assert rows[0]["pearson_r"] == pytest.approx(1.0)
+    assert rows[0]["r2_score_from_r"] == pytest.approx(1.0)
+    assert rows[0]["prediction_r2"] == pytest.approx(1.0)
+    assert rows[0]["noise_normalized_score"] == ""
+    assert rows[0]["metric_scope"] == "benchmark_style_non_noise_normalized"
+
+
+def test_benchmark_encoding_target_scores_marks_zero_variance():
+    target = np.array([[1.0], [1.0], [1.0]])
+    predictions = np.array([[0.1], [0.2], [0.3]])
+
+    row = benchmark_encoding_target_scores(predictions, target)[0]
+
+    assert row["pearson_r"] == 0.0
+    assert row["r2_score_from_r"] == 0.0
+    assert row["prediction_r2"] == 0.0
+    assert row["valid_prediction_variance"] == "true"
+    assert row["valid_target_variance"] == "false"
+
+
+def test_benchmark_encoding_target_scores_noise_normalizes_when_ceiling_exists():
+    target = np.array([[0.0], [1.0], [2.0], [3.0]])
+    predictions = target.copy()
+
+    row = benchmark_encoding_target_scores(
+        predictions,
+        target,
+        noise_ceiling=np.array([0.5]),
+    )[0]
+
+    assert row["noise_ceiling"] == pytest.approx(0.5)
+    assert row["noise_normalized_score"] == pytest.approx(2.0)
+    assert row["metric_scope"] == "benchmark_style_noise_normalized"
 
 
 def test_rdm_shape_symmetry_and_comparison():
@@ -155,6 +204,7 @@ def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
 
     assert (output_dir / "activations.npz").is_file()
     assert (output_dir / "encoding_scores.csv").is_file()
+    assert (output_dir / "encoding_target_scores.csv").is_file()
     assert (output_dir / "rsa_scores.csv").is_file()
     assert (output_dir / "metadata.json").is_file()
     assert result["num_items"] == 8
@@ -162,6 +212,9 @@ def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
     assert result["model_backend"] == "timm"
     assert result["model_pretrained"] is False
     assert result["score_rows"][0]["layer"] == "embedding"
+    assert result["score_rows"][0]["alpha_selection_mode"] == "fixed"
+    assert result["score_rows"][0]["metric_scope"] == "benchmark_style_non_noise_normalized"
+    assert result["target_score_rows"]
     assert result["score_rows"][0]["dataset"] == "dummy_neural"
     assert result["score_rows"][0]["roi"] == "dummy_roi"
     assert result["rsa_rows"][0]["layer"] == "embedding"
@@ -170,6 +223,89 @@ def test_run_neural_alignment_smoke_writes_outputs(tmp_path):
     assert metadata["model_name"] == "dummy_vision_encoder"
     assert metadata["model_backend"] == "timm"
     assert metadata["model_pretrained"] is False
+    assert metadata["metric_scope"] == "benchmark_style_non_noise_normalized"
+    assert metadata["alpha_selection_modes"] == ["fixed"]
+    target_rows = _read_csv(output_dir / "encoding_target_scores.csv")
+    assert {row["metric_scope"] for row in target_rows} == {
+        "benchmark_style_non_noise_normalized"
+    }
+
+
+def test_run_neural_alignment_selects_cv_ridge_alpha(monkeypatch, tmp_path):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 30
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index) / 100.0
+            image = np.full((3, 4, 4), feature, dtype=np.float32)
+            return {
+                "image": image,
+                "image_id": f"item_{index:04d}",
+                "metadata": {
+                    "roi": "synthetic_roi",
+                    "subject_id": "subj_test",
+                    "roi_responses": np.array(
+                        [2.0 * feature + 0.1, -feature + 0.2],
+                        dtype=np.float32,
+                    ),
+                },
+            }
+
+    class SyntheticModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            try:
+                import torch
+            except ImportError:
+                torch = None
+            if torch is not None and isinstance(images, torch.Tensor):
+                feature = images.mean().detach().cpu().numpy()
+            else:
+                feature = np.asarray(images).mean()
+            array = np.array([[feature, feature * feature]], dtype=np.float32)
+            return {layer: array for layer in (layers or ["embedding"])}
+
+    config_path = tmp_path / "neural_cv.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "seed": 0,
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {
+                "layers": ["embedding"],
+                "response_key": "roi_responses",
+                "train_fraction": 0.8,
+                "ridge_alpha": 1.0,
+                "ridge_alphas": [1000000.0, 0.001],
+                "validation_fraction": 0.25,
+            },
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: SyntheticModel())
+
+    result = run_neural_alignment(config_path)
+
+    row = result["score_rows"][0]
+    assert row["alpha_selection_mode"] == "cv_inner_validation"
+    assert row["selected_ridge_alpha"] == pytest.approx(0.001)
+    metadata = json.loads((output_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["selected_ridge_alphas"]["embedding"] == pytest.approx(0.001)
 
 
 def test_run_neural_alignment_missing_roi_response_fails(tmp_path):
