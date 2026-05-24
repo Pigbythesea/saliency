@@ -584,7 +584,7 @@ def _write_readme(
         "",
         "- Behavioral free-viewing: current local DeepGaze IIE reference rows are below or near published benchmark ranges, but preserve the expected ordering over center bias. The local CAT2000 DeepGaze IIE NSS is 1.838 versus MIT/Tuebingen CAT2000 DeepGaze IIE NSS 2.5265, and the local SALICON DeepGaze IIE NSS is 1.743 versus the DeepGaze IIE SALICON test NSS 1.996 reported in the ICCV 2021 supplement.",
         "- Behavioral task-driven search: COCO-Search18 rows are not directly comparable to free-viewing saliency SOTA. A COCO-Search18 task-trained CNN report gives NSS 4.64, AUC-Judd 0.95, sAUC 0.84, and CC 0.72; the local DeepGaze IIE row is a free-viewing reference applied to a task-search dataset, not a task-trained SOTA model.",
-        "- Neural Algonauts/NSD: the current neural pack is still one-subject ROI500 and internal-split. The official Algonauts 2023 leaderboard uses mean noise-normalized encoding accuracy across held-out test vertices, subjects, and hemispheres, so the local raw mean correlations and ROI500 summaries are method diagnostics rather than leaderboard-comparable scores.",
+        "- Neural Algonauts/NSD: the current neural pack is one-subject and internal-split. It now combines ROI500 diagnostic rows with full-image-count PRF visual ROI `flatten_pca` rows for `subj01`; the official Algonauts 2023 leaderboard still uses mean noise-normalized encoding accuracy across held-out test vertices, subjects, and hemispheres, so local ROI summaries are not leaderboard-comparable scores.",
         "- References: https://saliency.tuebingen.ai/results.html ; https://openaccess.thecvf.com/content/ICCV2021/supplemental/Linardos_DeepGaze_IIE_Calibrated_ICCV_2021_supplemental.pdf ; https://arxiv.org/abs/2210.15093 ; https://algonautsproject.com/2023/challenge.html",
         "",
         "## Behavioral Metric Boundary",
@@ -594,7 +594,7 @@ def _write_readme(
         "",
         "## Interpretation Boundary",
         "",
-        "Treat this pack as a paper-style inspection layer, not final evidence. The neural side is one subject and ROI500; the bridge is descriptive and should not be interpreted as causal or as a definitive cross-model correlation.",
+        "Treat this pack as a paper-style inspection layer, not final evidence. The neural side is one subject with mixed ROI500 diagnostics and full-image-count PRF ROI baselines; the bridge is descriptive and should not be interpreted as causal or as a definitive cross-model correlation.",
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")

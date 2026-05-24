@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-05-23
+Updated: 2026-05-24
 
 ## Purpose
 
@@ -31,8 +31,8 @@ Current steering documents under `docs/`:
 The repository now implements three active layers:
 
 - Behavioral saliency / fixation benchmarking on SALICON, CAT2000, and COCO-Search18.
-- Neural ROI500 encoding and RSA diagnostics on local Algonauts / NSD `subj01` visual ROIs.
-- Paper-style inspection tables and figures that join corrected behavioral summaries with the current neural diagnostic summaries.
+- Neural encoding/RSA diagnostics on local Algonauts / NSD `subj01` visual ROIs, including ROI500 spatial-mean diagnostics and full-image-count `flatten_pca` PRF ROI baselines.
+- Paper-style inspection tables and figures that join corrected behavioral summaries with the current mixed-scope neural summaries.
 
 Main package: `src/hma/`.
 
@@ -43,8 +43,8 @@ Current generated outputs:
 - Corrected core behavioral aggregate: `outputs/real_matrix_v2/aggregated/results.csv`.
 - Corrected behavioral aggregate merged with SSL/VLM rows: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`.
 - Corrected SSL/VLM behavioral aggregate: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`.
-- Neural ROI summary: `outputs/neural_roi_summary/`.
-- Paper inspection pack: `outputs/paper_inspection_v1/README.md`.
+- Neural ROI summary with full `flatten_pca` rows included: `outputs/neural_roi_summary/`.
+- Paper inspection pack regenerated from the refreshed neural summary: `outputs/paper_inspection_v1/README.md`.
 
 ## Scientific Boundary
 
@@ -55,11 +55,11 @@ The corrected behavioral layer is now usable for diagnostic paper-style analysis
 - DeepGaze and center bias are reference controls. Grad-CAM, gradients, rollout, and similar rows are explanation-map-to-fixation comparisons, not dedicated SOTA fixation-prediction models.
 - COCO-Search18 is task-driven search and should not be pooled with free-viewing SALICON/CAT2000 as if all three datasets measure the same behavior.
 
-The neural layer remains diagnostic:
+The neural layer is now a stronger local baseline, but still not a leaderboard result:
 
-- Current neural outputs are one-subject, ROI500, internal split, with raw-correlation encoding/RSA summaries plus per-target NSD-derived noise-normalized encoding rows where the target noise ceiling is positive.
-- They are not Algonauts leaderboard-equivalent scores.
-- They should not be compared numerically with Brain-Score, Algonauts, or NSD SOTA values until layer/model aggregates are computed from valid noise-normalized targets and the scope expands beyond one-subject ROI500.
+- Current neural outputs are one-subject, internal-split `subj01` results. They combine older ROI500 spatial-mean diagnostic rows with full-image-count PRF visual ROI `flatten_pca` rows for `V1`, `V2`, `V3`, and `hV4`.
+- They are not Algonauts leaderboard-equivalent scores because the official challenge averages held-out visual-cortex vertices across subjects and hemispheres.
+- The full `flatten_pca` rows can be used to evaluate the local strong-ridge baseline and compare methods inside this repo, but should only be compared with Algonauts/SOTA ranges as context, not as equivalent evaluation.
 - The bridge tables are descriptive joins, not causal tests or robust cross-model correlations.
 
 ## Current Behavioral Status
@@ -90,28 +90,40 @@ Current interpretation:
 Current neural summary:
 
 - Path: `outputs/neural_roi_summary/`
-- Input neural directories: `20`
-- Encoding rows: `92`
-- Encoding target rows: `222134`
+- Input neural directories: `24`
+- Encoding rows: `96`
+- Encoding target rows: `231792`
 - RSA rows: `92`
 - Behavioral bridge CSV: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
 - Efficiency CSV: not provided in the latest summary.
-- Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `222042` rows are `benchmark_style_noise_normalized` and `92` rows are intentionally left `benchmark_style_non_noise_normalized`.
+- Feature-reduction rows: `92` spatial-mean diagnostic rows and `4` full-image-count `flatten_pca` rows.
+- Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `231696` rows are `benchmark_style_noise_normalized` and `96` rows are intentionally left `benchmark_style_non_noise_normalized`.
 
 Current noise-normalized neural ranking:
 
-- Mean valid-target noise-normalized encoding leader: `deit_small_patch16_224`, mean `0.173` (`17.25` on x100 scale).
+- Mean valid-target noise-normalized encoding leader: `deit_small_patch16_224`, mean `0.556` (`55.57` on x100 scale).
 - `vit_small_patch14_dinov2` ranks second by mean valid-target noise-normalized encoding, mean `0.161` (`16.08` x100).
 - The current noise-normalized encoding leader is the same model as the raw Pearson leader.
 - Each model ranking row aggregates `9654` valid positive-ceiling targets and excludes `4` zero-ceiling hV4 targets from noise-normalized aggregates.
+- The `deit_small_patch16_224` ranking is driven by full-image-count `blocks.3` `flatten_pca` runs, while the other current model families remain ROI500 spatial-mean diagnostics.
 
 Current raw neural ranking:
 
-- Mean encoding leader: `deit_small_patch16_224`, mean raw correlation `0.259`.
+- Mean encoding leader: `deit_small_patch16_224`, mean raw correlation `0.524`.
 - Mean RSA leader: `vit_base_patch16_224`, mean Spearman RSA `0.088`.
 - `vit_small_patch14_dinov2` ranks second for both raw encoding and noise-normalized encoding; it ranks second by RSA.
 - `resnet50` is now included in the regenerated summary and ranks fifth by mean raw encoding, fourth by mean RSA.
 - Current ROI set: `V1`, `V2`, `V3`, `hV4` for `subj01`.
+- Full-image-count `flatten_pca` runs intentionally have RSA disabled to avoid allocating full `9841 x 9841` RDMs; current RSA rankings still come from ROI500-scale outputs.
+
+Full-image-count `flatten_pca` `deit_small_patch16_224 blocks.3` results:
+
+- V1: `2973` valid targets, mean raw Pearson `0.570`, mean valid-target noise-normalized score `0.592` (`59.15` x100), median noise-normalized score `0.623`.
+- V2: `2936` valid targets, mean raw Pearson `0.554`, mean valid-target noise-normalized score `0.584` (`58.43` x100), median noise-normalized score `0.625`.
+- V3: `2453` valid targets, mean raw Pearson `0.530`, mean valid-target noise-normalized score `0.560` (`55.97` x100), median noise-normalized score `0.567`.
+- hV4: `1292` valid positive-ceiling targets plus `4` zero-ceiling targets, mean raw Pearson `0.444`, mean valid-target noise-normalized score `0.487` (`48.74` x100), median noise-normalized score `0.482`.
+- All four extended-alpha runs selected `ridge_alpha=100000.0`, below the maximum tested `10000000.0`; no additional high-alpha pass is currently needed.
+- PCA metadata for all four runs records `train_only_fit=true`, `n_train_fit=7873`, `effective_components=512`, and `pca_solver=randomized`.
 
 Current bridge readout:
 
@@ -121,17 +133,18 @@ Current bridge readout:
 
 Interpretation:
 
-- These rows are useful for checking data loading, activation extraction, ROI response alignment, rough layer ranking, and basic behavior-neural table generation.
-- They are not yet strong enough for claims about model-brain SOTA, architecture superiority, or Algonauts-equivalent prediction quality.
-- Current best valid-target noise-normalized all-ROI model score is approximately `0.173` (`17.25` on an Algonauts-style x100 scale), far below the Algonauts 2023 organizer baseline `40.42` and top ensemble `70.85`. This gap should be treated as a methods gap, not just a dataset-size caveat.
+- The project has moved from a weak ROI500 spatial-mean neural diagnostic to a strong local full-image-count ridge baseline for one model family.
+- The `deit_small_patch16_224` `flatten_pca` baseline now clears the Algonauts organizer baseline scale numerically in these local PRF ROI summaries, but this is not leaderboard-equivalent because subject, cortex, split, and target scope differ.
+- The strongest current claim is methodological: full image count plus train-only PCA over flattened token features dramatically improves local neural encoding relative to ROI500 spatial-mean probes.
+- The next scientific risk is test-set feedback: `blocks.3` was selected from smoke/test observations. Future layer and pooling choices should be made by validation-only selection before launching more model families.
 
 Current methodological gap to SOTA:
 
-- The current configs use `feature_reduction: spatial_mean`, which collapses spatial feature maps before encoding. This discards retinotopic information that is essential for V1/V2/V3/hV4 and diverges from SOTA methods that use learned spatial pooling, voxel-specific feature sampling, or full feature tensors.
-- Current ROI500 runs train on `400` images and test on `100`; Algonauts-style methods use thousands of NSD training images per subject.
-- Current configs use fixed `ridge_alpha: 1.0` unless manually overridden; competitive ridge baselines cross-validate regularization and often choose layer/pooling settings per target or ROI.
-- Current scoring evaluates individual layers independently. SOTA methods use multi-layer fusion, learned layer selection, voxel-specific readouts, subject-specific heads, and ensembles.
-- Current scope is `subj01` and PRF visual ROI500 only. SOTA scores use much broader visual-cortex vertex sets across subjects and hemispheres.
+- The current strong baseline uses `flatten_pca`, not learned spatial pooling or voxel-specific readouts. It preserves more feature information than spatial mean, but still falls short of SOTA-style spatial heads.
+- Current full-image-count runs cover `subj01` PRF visual ROIs only. SOTA scores use broader visual-cortex vertex sets across subjects and hemispheres.
+- Current ridge alpha selection is per-layer/ROI, not per-target. Per-target alpha or voxel-specific readouts may improve later but should wait until validation selection is clean.
+- Current reporting mixes full `flatten_pca` rows for `deit_small_patch16_224` with ROI500 spatial-mean rows for other models. Cross-model rankings are useful for handoff, but model-family claims should wait until the same full protocol is run for more backbones.
+- Current scoring evaluates single layers independently. SOTA methods use validation-selected layers, multi-layer fusion, learned layer selection, subject-specific heads, and ensembles.
 
 Relevant SOTA references:
 
@@ -153,7 +166,7 @@ SSL/multimodal candidate inventory:
 - Complete pretrained debug candidates: `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, `resnet50_clip`
 - Not yet run pretrained debug candidates: `vit_base_patch14_dinov2`, `vit_small_patch16_dinov3`, `vit_base_patch16_dinov3`, `vit_base_patch16_siglip_224`, `eva02_base_patch16_clip_224`
 
-Do not expand this list before the neural evaluation metric is upgraded. More models will make the bridge look broader but will not fix the current scientific limitation.
+Do not expand this list again until validation-only layer/pooling selection is implemented for the full `flatten_pca` protocol. More models are useful only after the strong baseline can choose layers without test-set feedback.
 
 ## What Is Already Built
 
@@ -170,14 +183,17 @@ Neural infrastructure:
 
 - `timm` wrappers with named-layer activation extraction.
 - Ridge encoding over ROI response vectors.
+- Train-only `flatten_pca` feature reduction for full flattened activation tensors.
+- Cross-validated ridge alpha selection on an inner split of training images.
 - RSA over model and neural response RDMs.
-- ROI500 summaries, model rankings, ROI winners, and descriptive behavior-neural bridge tables.
+- ROI500 summaries, full-image-count PRF ROI summaries, model rankings, ROI winners, and descriptive behavior-neural bridge tables.
 
 Reporting infrastructure:
 
 - Corrected behavioral aggregate and merged SSL/VLM aggregate.
 - Neural ROI summary tables.
 - Paper inspection pack with behavior, neural, bridge, SSL/VLM candidate, benchmark sanity tables, and an academic SOTA context section comparing the current figures against MIT/Tuebingen saliency, DeepGaze IIE SALICON, COCO-Search18 task-search, and Algonauts 2023 evaluation references.
+- Paper inspection README now explicitly distinguishes ROI500 diagnostics from full-image-count PRF ROI `flatten_pca` baselines.
 
 ## Superseded Or Historical Outputs
 
@@ -195,7 +211,7 @@ Current corrected outputs have replaced those rows.
 
 ## Current Implementation Progress
 
-Updated: 2026-05-23
+Updated: 2026-05-24
 
 Neural Benchmark-Equivalent Evaluation V1 is implemented for the current one-subject ROI500 diagnostic scope.
 
@@ -203,7 +219,9 @@ Neural Reliability / Noise-Ceiling Metadata V1 is implemented for `subj01` PRF v
 
 Neural Scoring Foundation V1 is implemented for the current ROI500 summary and paper inspection outputs. Neural encoding model rankings now use valid-target mean `noise_normalized_score` as the primary encoding rank when positive noise ceilings are available, while raw Pearson encoding and RSA ranks remain separate diagnostics.
 
-Large NSD/Algonauts Manifest And Run Configs V1 is implemented for `subj01` PRF visual ROIs. The project now has full-image-count manifest plumbing and a validated large-manifest smoke run while keeping the current spatial-mean ridge method unchanged.
+Large NSD/Algonauts Manifest And Run Configs V1 is implemented for `subj01` PRF visual ROIs. The project now has full-image-count manifest plumbing and full-image-count production configs for `V1`, `V2`, `V3`, and `hV4`.
+
+Feature Representation Upgrade V1 is implemented in code, configs, full four-ROI outputs, neural summary, and paper inspection pack. The neural runner now supports train-only `flatten_pca` feature reduction for flattened activation tensors, writes per-layer feature-reduction metadata, and saves reduced activations for PCA runs instead of full raw tensors. The `deit_small_patch16_224` `blocks.3` full `V1`/`V2`/`V3`/`hV4` runs completed successfully and are included in `outputs/neural_roi_summary/`.
 
 Benchmark-equivalent implementation:
 
@@ -214,28 +232,28 @@ Benchmark-equivalent implementation:
 - Optional `neural.ridge_alphas` now enables deterministic inner-validation ridge-alpha selection per layer; configs without `ridge_alphas` keep fixed `neural.ridge_alpha`.
 - `summarize_neural_roi_results` now loads optional `encoding_target_scores.csv`, writes `combined_encoding_target_scores.csv` when available, derives noise-normalized layer/model aggregates from target rows, and keeps old neural output directories compatible.
 
-Verification run:
+Focused verification run:
 
 ```cmd
 .\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py
 ```
 
-Result: `38 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+Latest result after Feature Representation Upgrade V1: `43 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
 
 Full regeneration status:
 
-- Full ROI500 outputs were regenerated for `outputs/neural_roi500/` and `outputs/neural_roi500_ssl/`.
-- Checked neural output directories: `20`.
+- Full ROI500 outputs were regenerated for `outputs/neural_roi500/` and `outputs/neural_roi500_ssl/`; the refreshed summary also includes the four full-image-count `flatten_pca` PRF ROI runs.
+- Checked neural output directories: `24`.
 - Missing `encoding_target_scores.csv`: none.
 - Missing `metadata.json`: none.
-- Missing `rsa_scores.csv`: none.
-- Combined per-target benchmark rows: `222134`.
-- Per-target metric scopes: `222042` rows with `benchmark_style_noise_normalized`, `92` rows with `benchmark_style_non_noise_normalized`.
-- The `92` non-normalized rows are all hV4 targets with `noise_ceiling=0.0`; this corresponds to `4` zero-ceiling hV4 targets repeated across `23` evaluated layers. These rows are intentionally not divided by zero.
+- Missing `rsa_scores.csv`: four expected missing files from full-image-count `flatten_pca` runs where RSA is intentionally disabled.
+- Combined per-target benchmark rows: `231792`.
+- Per-target metric scopes: `231696` rows with `benchmark_style_noise_normalized`, `96` rows with `benchmark_style_non_noise_normalized`.
+- The `96` non-normalized rows are hV4 targets with `noise_ceiling=0.0`; these rows are intentionally not divided by zero.
 - Per-target variance flags: all `valid_prediction_variance=true` and `valid_target_variance=true`.
 - `outputs/neural_roi_summary/` and `outputs/paper_inspection_v1/` were regenerated from the corrected behavioral aggregate and refreshed neural outputs.
-- `outputs/neural_roi_summary/neural_model_rankings.csv` now includes `mean_noise_normalized_score`, `mean_noise_normalized_score_x100`, `rank_mean_noise_normalized`, and valid/zero/invalid ceiling target counts.
-- `outputs/paper_inspection_v1/README.md` now reports the noise-normalized encoding leader as the paper-facing neural headline.
+- `outputs/neural_roi_summary/neural_model_rankings.csv` ranks `deit_small_patch16_224` first by mean valid-target noise-normalized score after adding full-image-count `flatten_pca` rows: mean `0.556` (`55.57` x100).
+- `outputs/paper_inspection_v1/README.md` now reports the mixed neural scope correctly: one-subject ROI500 diagnostics plus full-image-count PRF visual ROI `flatten_pca` baselines.
 
 Large/full manifest and config status:
 
@@ -245,11 +263,21 @@ Large/full manifest and config status:
 - Full manifest columns include `noise_ceiling_path`, `noise_ceiling_values`, and `noise_ceiling_source`.
 - Attached noise-ceiling source: `nsd_ncsnr_mgh_n_trials_3`.
 - Large smoke config: `configs/experiments/neural_large_smoke/deit_small_patch16_224_v1_smoke.yaml`.
-- First full-run config: `configs/experiments/neural_subj01_full/deit_small_patch16_224_v1_full.yaml`.
+- Historical first full-run config: `configs/experiments/neural_subj01_full/deit_small_patch16_224_v1_full.yaml`; do not use it as the preferred production baseline because it keeps `spatial_mean` and RSA enabled.
+- Preferred full-image-count `flatten_pca` production configs:
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_blocks3_alpha1e7_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v2_flatten_pca_blocks3_alpha1e7_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v3_flatten_pca_blocks3_alpha1e7_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_hv4_flatten_pca_blocks3_alpha1e7_full.yaml`
 - Large smoke output: `outputs/neural_large_smoke/deit_small_patch16_224_v1_smoke/`.
 - Large smoke result: `64` images, `51` train / `13` test, `2973` V1 targets, `noise_ceiling_available=true`, all target rows `benchmark_style_noise_normalized`.
+- Full `flatten_pca` outputs:
+  - `outputs/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_blocks3_alpha1e7_full/`
+  - `outputs/neural_subj01_full/deit_small_patch16_224_v2_flatten_pca_blocks3_alpha1e7_full/`
+  - `outputs/neural_subj01_full/deit_small_patch16_224_v3_flatten_pca_blocks3_alpha1e7_full/`
+  - `outputs/neural_subj01_full/deit_small_patch16_224_hv4_flatten_pca_blocks3_alpha1e7_full/`
 - Large manifest focused verification: `25 passed` for `tests/test_create_algonauts_manifest.py`, `tests/test_nsd_algonauts_dataset.py`, and `tests/test_neural_roi_summary.py`.
-- Full production config was written but not run in this session because RSA is still enabled and would allocate full `9841 x 9841` RDMs; run it only after deciding whether to disable/approximate RSA for production or after sufficient memory planning.
+- Full production `flatten_pca` configs intentionally disable RSA to avoid full `9841 x 9841` RDM allocation.
 
 Neural reliability / noise-ceiling implementation:
 
@@ -274,19 +302,21 @@ Full verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Result: `173 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+Latest result: `177 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
 
 ## Next Concrete Milestone
 
-Priority: **Neural SOTA Alignment V1: Valid Noise-Normalized Aggregates + Strong Ridge Baseline**.
+Priority: **Validation-Only Layer/Pooling Selection V1**.
 
-Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, CKA, adaptive token pruning, foveation, scanpaths, or video. The current neural results are too far below academic SOTA to justify broadening the model zoo first. The immediate objective is to replace the diagnostic ROI500 spatial-mean ridge probe with a strong, auditable Algonauts-style baseline.
+Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, CKA, adaptive token pruning, foveation, scanpaths, video, or a broad model zoo. The project now has a strong full-image-count `flatten_pca` ridge baseline, but the next methodological weakness is that `blocks.3` was chosen after smoke/test observations. Future layer and pooling choices need a validation-only selection path before running more backbones.
 
 Acceptance target:
 
-- Produce a new neural summary that ranks models by valid-target mean `noise_normalized_score`, not raw Pearson `r`.
-- Produce at least one strong baseline run using substantially more NSD images than ROI500, cross-validated ridge regularization, and a non-spatial-mean feature representation.
-- Show whether the strong baseline moves toward the Algonauts organizer baseline range (`40.42` x100). If it remains far below, the failure is actionable evidence that learned spatial readouts or SOTA-style heads are required.
+- Add a validation-selection mode that evaluates candidate layers and feature reductions on an inner validation split from the training images only.
+- Write a selection artifact recording candidate layer, feature mode, PCA components, selected alpha, validation score, and final selected configuration.
+- Keep final test scores honest: the test split should be used only after the layer/pooling setting is selected.
+- Run a small validation-selection smoke before launching any more full-image-count model-family runs.
+- Regenerate summary outputs only after final test rows are produced from validation-selected settings.
 
 Step 1: scoring policy and reporting foundation. **Status: implemented.**
 
@@ -307,30 +337,49 @@ This is implemented for `subj01` full PRF visual ROIs.
 - Preserve deterministic image splits and record exact train/test image IDs in metadata.
 - Add smoke configs that run on a small image count, then production configs that use the largest local `subj01` image count available.
 
-Step 3: feature representation upgrade.
-
-This is the next concrete implementation step.
+Step 3: feature representation upgrade. **Status: implemented.**
 
 - Stop using `feature_reduction: spatial_mean` for competitive neural runs.
 - Add a training-only dimensionality-reduction path for flattened feature tensors: PCA or randomized SVD fit on train images only, then applied to validation/test images.
 - Store the fitted reduction metadata: number of components, explained variance, input feature shape, layer name, train-only fit flag, and random seed.
 - Add configurable feature modes: `spatial_mean` for smoke/debug only, `flatten_pca` for strong ridge baseline, and later `learned_spatial_pooling`.
 - Verify no train/test leakage in PCA/SVD fitting.
+- Smoke config: `configs/experiments/neural_large_smoke/deit_small_patch16_224_v1_flatten_pca_smoke.yaml`.
+- Full config: `configs/experiments/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_full.yaml`.
+- Preferred first full config after smoke inspection: `configs/experiments/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_blocks3_full.yaml`, because `blocks.3` was the smoke winner by mean valid-target noise-normalized encoding and RSA.
+- PCA metadata output: `feature_reduction_metadata.json`.
+- Completed preferred V1 full output: `outputs/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_blocks3_full/`.
+- Full V1 `blocks.3` result: `9841` images, `7873` train / `1968` test, `2973` valid V1 targets, mean raw Pearson `0.576`, mean valid-target noise-normalized score `0.602` (`60.23` x100), median noise-normalized score `0.643`, selected ridge alpha `10000.0`.
+- Extended-alpha full configs are available for four PRF visual ROIs:
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_blocks3_alpha1e7_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v2_flatten_pca_blocks3_alpha1e7_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v3_flatten_pca_blocks3_alpha1e7_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_hv4_flatten_pca_blocks3_alpha1e7_full.yaml`
+- Boundary: this is a strong local V1 PRF-ROI result, not an Algonauts leaderboard-equivalent score because it covers one subject and one ROI rather than all held-out visual-cortex vertices across subjects/hemispheres.
+- Extended-alpha four-ROI full runs completed successfully. All selected ridge alpha `100000.0`, below the maximum tested `10000000.0`, so no further high-alpha pass is needed before summary regeneration.
+- Extended-alpha full results:
+  - V1: `2973` valid targets, mean raw Pearson `0.570`, mean valid-target noise-normalized score `0.592` (`59.15` x100), median noise-normalized score `0.623`.
+  - V2: `2936` valid targets, mean raw Pearson `0.554`, mean valid-target noise-normalized score `0.584` (`58.43` x100), median noise-normalized score `0.625`.
+  - V3: `2453` valid targets, mean raw Pearson `0.530`, mean valid-target noise-normalized score `0.560` (`55.97` x100), median noise-normalized score `0.567`.
+  - hV4: `1292` valid positive-ceiling targets plus `4` zero-ceiling targets, mean raw Pearson `0.444`, mean valid-target noise-normalized score `0.487` (`48.74` x100), median noise-normalized score `0.482`.
 
-Step 4: cross-validated ridge baseline.
+Step 4: cross-validated ridge baseline. **Status: implemented for per-layer/ROI alpha selection.**
 
 - Use `neural.ridge_alphas` by default for strong neural runs, spanning several orders of magnitude.
 - Select alpha on an inner validation split from the training images only.
-- Consider per-layer and per-ROI alpha first; add per-target alpha only if runtime remains manageable.
+- Current full `flatten_pca` runs select alpha per layer/ROI and record the chosen value.
+- Consider per-target alpha only if runtime remains manageable and after validation-only layer selection is stable.
 - Record selected alpha, validation score, validation split size, and selection mode in outputs.
-- Add tests proving selected alpha changes with data and that test rows are not used during alpha selection.
+- Existing tests prove selected alpha changes with data; next tests should cover layer/pooling selection without test leakage.
 
-Step 5: layer and pooling selection.
+Step 5: layer and pooling selection. **Status: next concrete implementation step.**
 
-- Evaluate multiple layers per model with the same train/test split.
-- Add a validation-only layer selection summary before reporting final test scores.
+- Evaluate multiple layers and feature-reduction settings with the same train/test split.
+- Add a validation-only layer/pooling selection summary before reporting final test scores.
 - Keep final test reporting honest: the selected layer/pooling setting must be chosen without using the test set.
 - Add optional multi-layer concatenation after single-layer `flatten_pca` is stable.
+- Start with `deit_small_patch16_224` and candidate layers from the existing smoke set: `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, and `blocks.11`.
+- Keep the first selection smoke on `V1` with a small image count, then run full four-ROI selection only after the smoke artifact is correct.
 
 Step 6: stronger model backbones.
 
@@ -368,15 +417,14 @@ Step 10: uncertainty and robustness.
 
 Implementation order for the next Codex sessions:
 
-1. Implement Step 3 train-only `flatten_pca`.
-2. Add a production-safe RSA policy for full-image-count runs, such as disabled RSA by default or sampled/validation-only RSA.
-3. Implement Step 4 cross-validated ridge defaults and production configs.
-4. Run the strongest `subj01` ROI pipeline and compare directly to the organizer-baseline scale.
-5. Only then decide whether to implement learned spatial readouts or broaden model count.
+1. Add validation-only layer/pooling selection for full-image-count `flatten_pca` runs so future layer/pooling choices are made without test-set feedback.
+2. Run a small validation-selection smoke over candidate layers/pooling settings before launching more full runs.
+3. If validation selection confirms `blocks.3`, broaden carefully to one stronger model family, likely DINOv2, using the same full-image-count `flatten_pca` protocol.
+4. Only then decide whether to implement learned spatial readouts.
 
 ## Later Milestones
 
-After Neural SOTA Alignment V1:
+After validation-selected strong ridge baseline:
 
 1. Add learned spatial pooling / target-specific encoding heads.
 2. Expand beyond `subj01`.
@@ -472,13 +520,13 @@ Smoke verification command:
 
 Latest smoke result: `outputs/neural_roi500_noise_ceiling_smoke/encoding_target_scores.csv` contains `2973` rows with `metric_scope=benchmark_style_noise_normalized`.
 
-Full ROI500 regeneration verification:
+Current neural summary target-scope verification:
 
 ```cmd
 .\.venv\Scripts\python.exe -c "import csv,collections; rows=list(csv.DictReader(open('outputs/neural_roi_summary/combined_encoding_target_scores.csv', newline='', encoding='utf-8'))); print(len(rows)); print(dict(collections.Counter(r['metric_scope'] for r in rows)))"
 ```
 
-Latest regenerated target scope: `222134` rows total; `222042` `benchmark_style_noise_normalized`; `92` `benchmark_style_non_noise_normalized` due to hV4 zero-ceiling targets.
+Latest regenerated target scope: `231792` rows total; `231696` `benchmark_style_noise_normalized`; `96` `benchmark_style_non_noise_normalized` due to hV4 zero-ceiling targets across ROI500 and full `flatten_pca` rows.
 
 For the next neural method implementation, run:
 
@@ -492,4 +540,26 @@ For broader confidence after code changes:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Latest full result: `173 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+Latest full result: `177 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+
+After Feature Representation Upgrade V1:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py
+```
+
+Latest focused result: `43 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Latest full result: `177 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+
+After full `flatten_pca` four-ROI summary regeneration:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_paper_inspection_pack.py tests\test_neural_roi_summary.py
+```
+
+Latest focused result: `23 passed`; Windows `.pytest_cache` permission warning remains non-blocking.

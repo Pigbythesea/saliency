@@ -575,6 +575,220 @@ def test_run_neural_alignment_selects_cv_ridge_alpha(monkeypatch, tmp_path):
     assert metadata["selected_ridge_alphas"]["embedding"] == pytest.approx(0.001)
 
 
+def test_flatten_pca_fits_on_train_rows_only():
+    from hma.experiments import neural_alignment
+
+    train_idx = np.array([0, 1, 2, 3])
+    features = np.array(
+        [
+            [0.0, 0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            [1.0, 0.0, 1.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
+    altered_test_features = features.copy()
+    altered_test_features[4:] = np.array(
+        [[100.0, -50.0, 25.0, 1.0], [-100.0, 75.0, -25.0, 1.0]],
+        dtype=np.float32,
+    )
+
+    reduced, metadata = neural_alignment._fit_transform_flatten_pca(
+        features,
+        layer="embedding",
+        input_shape=[2, 2],
+        train_idx=train_idx,
+        pca_components=2,
+        pca_solver="full",
+        pca_whiten=False,
+        random_seed=0,
+    )
+    altered_reduced, altered_metadata = neural_alignment._fit_transform_flatten_pca(
+        altered_test_features,
+        layer="embedding",
+        input_shape=[2, 2],
+        train_idx=train_idx,
+        pca_components=2,
+        pca_solver="full",
+        pca_whiten=False,
+        random_seed=0,
+    )
+
+    assert np.allclose(reduced[train_idx], altered_reduced[train_idx])
+    assert metadata["train_only_fit"] is True
+    assert metadata["effective_components"] == 2
+    assert altered_metadata["n_train_fit"] == len(train_idx)
+
+
+def test_run_neural_alignment_flatten_pca_smoke_writes_reduced_outputs(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 10
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index)
+            return {
+                "image": np.full((3, 4, 4), feature, dtype=np.float32),
+                "image_id": f"item_{index:04d}",
+                "metadata": {
+                    "roi": "synthetic_roi",
+                    "subject_id": "subj_test",
+                    "roi_responses": np.array(
+                        [feature, feature * 0.5 + 1.0],
+                        dtype=np.float32,
+                    ),
+                },
+            }
+
+    class SpatialFeatureModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            value = float(images.mean().detach().cpu().numpy())
+            base = np.array(
+                [[[value, value + 1.0, value + 2.0], [value * 2.0, 1.0, -value]]],
+                dtype=np.float32,
+            )
+            return {layer: base for layer in layers}
+
+    config_path = tmp_path / "neural_flatten_pca.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "seed": 0,
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {
+                "layers": ["embedding"],
+                "response_key": "roi_responses",
+                "feature_reduction": "flatten_pca",
+                "pca_components": 3,
+                "pca_solver": "full",
+                "train_fraction": 0.6,
+                "ridge_alpha": 1.0,
+            },
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: SpatialFeatureModel())
+
+    result = run_neural_alignment(config_path)
+
+    assert (output_dir / "activations.npz").is_file()
+    assert (output_dir / "encoding_scores.csv").is_file()
+    assert (output_dir / "encoding_target_scores.csv").is_file()
+    metadata_path = output_dir / "feature_reduction_metadata.json"
+    assert metadata_path.is_file()
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    layer_metadata = metadata["layers"][0]
+    assert layer_metadata["method"] == "flatten_pca"
+    assert layer_metadata["input_feature_shape"] == [2, 3]
+    assert layer_metadata["effective_components"] == 3
+    assert layer_metadata["train_only_fit"] is True
+    loaded = np.load(output_dir / "activations.npz", allow_pickle=True)
+    assert loaded["embedding"].shape == (10, 3)
+    assert result["feature_reduction_metadata"] == str(metadata_path)
+
+
+def test_run_neural_alignment_flatten_pca_requires_components(tmp_path):
+    from hma.utils.config import save_yaml
+
+    config_path = tmp_path / "missing_pca_components.yaml"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "neural": {"feature_reduction": "flatten_pca"},
+            "output": {"dir": str(tmp_path / "outputs")},
+        },
+        config_path,
+    )
+
+    with pytest.raises(ValueError, match="pca_components is required"):
+        run_neural_alignment(config_path)
+
+
+def test_run_neural_alignment_flatten_pca_rejects_too_many_components(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 6
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index)
+            return {
+                "image": np.full((3, 4, 4), feature, dtype=np.float32),
+                "metadata": {
+                    "roi_responses": np.array([feature, feature + 1.0], dtype=np.float32),
+                },
+            }
+
+    class FourFeatureModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            value = float(images.mean().detach().cpu().numpy())
+            return {
+                layer: np.array([[value, value + 1.0, value + 2.0, value + 3.0]], dtype=np.float32)
+                for layer in layers
+            }
+
+    config_path = tmp_path / "too_many_pca_components.yaml"
+    save_yaml(
+        {
+            "seed": 0,
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {
+                "layers": ["embedding"],
+                "response_key": "roi_responses",
+                "feature_reduction": "flatten_pca",
+                "pca_components": 4,
+                "pca_solver": "full",
+                "train_fraction": 0.5,
+            },
+            "output": {"dir": str(tmp_path / "outputs")},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: FourFeatureModel())
+
+    with pytest.raises(ValueError, match="pca_components must be <= min"):
+        run_neural_alignment(config_path)
+
+
 def test_run_neural_alignment_missing_roi_response_fails(tmp_path):
     from hma.utils.config import save_yaml
 

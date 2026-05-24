@@ -41,6 +41,11 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     metric = str(neural_config.get("metric", "correlation"))
     seed = int(neural_config.get("seed", config.get("seed", 0)))
     feature_reduction = str(neural_config.get("feature_reduction", "flatten"))
+    feature_reduction_config = _feature_reduction_config(
+        neural_config,
+        feature_reduction=feature_reduction,
+        default_seed=seed,
+    )
     rsa_config = dict(neural_config.get("rsa", {}))
 
     dataset = build_dataset(config)
@@ -58,18 +63,20 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         device=device,
         feature_reduction=feature_reduction,
     )
-    image_ids, responses, features_by_layer, item_metadata, noise_ceiling = collection
+    image_ids, responses, features_by_layer, feature_shapes, item_metadata, noise_ceiling = collection
     if len(image_ids) < 2:
         raise ValueError("Neural alignment requires at least two response-bearing items")
 
-    activation_path = save_activations(
-        {"image_ids": np.asarray(image_ids, dtype=object), **features_by_layer},
-        output_dir / "activations.npz",
-    )
-    score_rows, target_score_rows = _fit_and_score_layers(
+    (
+        score_rows,
+        target_score_rows,
+        reduced_features_by_layer,
+        feature_reduction_metadata,
+    ) = _fit_and_score_layers(
         features_by_layer,
         responses,
         layers=layers,
+        feature_shapes=feature_shapes,
         train_fraction=train_fraction,
         alpha=alpha,
         ridge_alphas=ridge_alphas,
@@ -77,8 +84,18 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         metric=metric,
         seed=seed,
         feature_reduction=feature_reduction,
+        feature_reduction_config=feature_reduction_config,
         row_context=_score_row_context(config, item_metadata),
         noise_ceiling=noise_ceiling,
+    )
+    activation_path = save_activations(
+        {"image_ids": np.asarray(image_ids, dtype=object), **reduced_features_by_layer},
+        output_dir / "activations.npz",
+    )
+    feature_reduction_metadata_path = output_dir / "feature_reduction_metadata.json"
+    feature_reduction_metadata_path.write_text(
+        json.dumps(feature_reduction_metadata, indent=2),
+        encoding="utf-8",
     )
     scores_path = output_dir / "encoding_scores.csv"
     _write_score_rows(scores_path, score_rows)
@@ -115,6 +132,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
             _unique_metadata_values(item_metadata, "noise_ceiling_source")
         ),
         "feature_reduction": feature_reduction,
+        "feature_reduction_metadata": str(feature_reduction_metadata_path),
         "ridge_alpha": alpha,
         "ridge_alphas": ridge_alphas,
         "validation_fraction": validation_fraction,
@@ -166,6 +184,7 @@ def _collect_features_and_responses(
     list[str],
     np.ndarray,
     dict[str, np.ndarray],
+    dict[str, list[int]],
     list[dict[str, Any]],
     np.ndarray | None,
 ]:
@@ -174,6 +193,7 @@ def _collect_features_and_responses(
     noise_ceilings: list[np.ndarray | None] = []
     item_metadata: list[dict[str, Any]] = []
     collected: dict[str, list[np.ndarray]] = {layer: [] for layer in layers}
+    feature_shapes: dict[str, list[int]] = {}
 
     for index, item in enumerate(dataset):
         response = _response_for_item(item, response_key)
@@ -196,9 +216,14 @@ def _collect_features_and_responses(
             else np.asarray(noise_ceiling, dtype=np.float32).ravel()
         )
         for layer in layers:
-            collected[layer].append(
-                _reduce_feature(feature_dict[layer], method=feature_reduction)
-            )
+            feature_array = _feature_array(feature_dict[layer])
+            feature_shapes.setdefault(layer, [int(dim) for dim in feature_array.shape])
+            if feature_reduction == "flatten_pca":
+                collected[layer].append(feature_array.reshape(-1))
+            else:
+                collected[layer].append(
+                    _reduce_feature_array(feature_array, method=feature_reduction)
+                )
 
     response_matrix = _stack_consistent(responses, "ROI responses")
     feature_matrix = {
@@ -210,7 +235,14 @@ def _collect_features_and_responses(
         num_targets=response_matrix.shape[1],
         key=noise_ceiling_key,
     )
-    return image_ids, response_matrix, feature_matrix, item_metadata, noise_ceiling_array
+    return (
+        image_ids,
+        response_matrix,
+        feature_matrix,
+        feature_shapes,
+        item_metadata,
+        noise_ceiling_array,
+    )
 
 
 def _fit_and_score_layers(
@@ -218,6 +250,7 @@ def _fit_and_score_layers(
     responses: np.ndarray,
     *,
     layers: list[str],
+    feature_shapes: dict[str, list[int]],
     train_fraction: float,
     alpha: float,
     ridge_alphas: list[float] | None,
@@ -225,9 +258,15 @@ def _fit_and_score_layers(
     metric: str,
     seed: int,
     feature_reduction: str,
+    feature_reduction_config: dict[str, Any],
     row_context: dict[str, Any],
     noise_ceiling: np.ndarray | None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, np.ndarray],
+    dict[str, Any],
+]:
     n_items = responses.shape[0]
     n_train = min(max(1, int(round(n_items * train_fraction))), n_items - 1)
     rng = np.random.default_rng(seed)
@@ -237,8 +276,20 @@ def _fit_and_score_layers(
 
     rows: list[dict[str, Any]] = []
     target_rows: list[dict[str, Any]] = []
+    reduced_features_by_layer: dict[str, np.ndarray] = {}
+    feature_metadata_rows: list[dict[str, Any]] = []
     for layer in layers:
-        features = features_by_layer[layer]
+        raw_features = features_by_layer[layer]
+        features, feature_metadata = _prepare_layer_features(
+            raw_features,
+            layer=layer,
+            input_shape=feature_shapes.get(layer, list(raw_features.shape[1:])),
+            train_idx=train_idx,
+            feature_reduction=feature_reduction,
+            feature_reduction_config=feature_reduction_config,
+        )
+        reduced_features_by_layer[layer] = features
+        feature_metadata_rows.append(feature_metadata)
         alpha_result = _select_ridge_alpha(
             features,
             responses,
@@ -295,7 +346,128 @@ def _fit_and_score_layers(
                 "metric_scope": metric_scope,
             }
         )
-    return rows, target_rows
+    return rows, target_rows, reduced_features_by_layer, {
+        "feature_reduction": feature_reduction,
+        "layers": feature_metadata_rows,
+    }
+
+
+def _feature_reduction_config(
+    neural_config: dict[str, Any],
+    *,
+    feature_reduction: str,
+    default_seed: int,
+) -> dict[str, Any]:
+    if feature_reduction != "flatten_pca":
+        return {}
+    if "pca_components" not in neural_config:
+        raise ValueError(
+            "neural.pca_components is required when feature_reduction is 'flatten_pca'"
+        )
+    components = int(neural_config["pca_components"])
+    if components <= 0:
+        raise ValueError("neural.pca_components must be a positive integer")
+    return {
+        "pca_components": components,
+        "pca_solver": str(neural_config.get("pca_solver", "randomized")),
+        "pca_whiten": bool(neural_config.get("pca_whiten", False)),
+        "feature_reduction_seed": int(
+            neural_config.get("feature_reduction_seed", default_seed)
+        ),
+    }
+
+
+def _prepare_layer_features(
+    features: np.ndarray,
+    *,
+    layer: str,
+    input_shape: list[int],
+    train_idx: np.ndarray,
+    feature_reduction: str,
+    feature_reduction_config: dict[str, Any],
+) -> tuple[np.ndarray, dict[str, Any]]:
+    if feature_reduction == "flatten_pca":
+        return _fit_transform_flatten_pca(
+            features,
+            layer=layer,
+            input_shape=input_shape,
+            train_idx=train_idx,
+            pca_components=int(feature_reduction_config["pca_components"]),
+            pca_solver=str(feature_reduction_config["pca_solver"]),
+            pca_whiten=bool(feature_reduction_config["pca_whiten"]),
+            random_seed=int(feature_reduction_config["feature_reduction_seed"]),
+        )
+
+    reduced = np.asarray(features, dtype=np.float32)
+    metadata = {
+        "layer": layer,
+        "method": feature_reduction,
+        "input_feature_shape": [int(dim) for dim in input_shape],
+        "output_feature_shape": [int(dim) for dim in reduced.shape[1:]],
+        "requested_components": "",
+        "effective_components": int(reduced.shape[1]) if reduced.ndim == 2 else "",
+        "explained_variance_ratio_sum": "",
+        "train_only_fit": False,
+        "n_train_fit": 0,
+        "random_seed": "",
+        "pca_solver": "",
+        "pca_whiten": "",
+    }
+    return reduced, metadata
+
+
+def _fit_transform_flatten_pca(
+    features: np.ndarray,
+    *,
+    layer: str,
+    input_shape: list[int],
+    train_idx: np.ndarray,
+    pca_components: int,
+    pca_solver: str,
+    pca_whiten: bool,
+    random_seed: int,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    try:
+        from sklearn.decomposition import PCA
+    except ImportError as exc:  # pragma: no cover - depends on optional install
+        raise ImportError(
+            "feature_reduction='flatten_pca' requires scikit-learn; "
+            "install the project with the neural extra"
+        ) from exc
+
+    matrix = np.asarray(features, dtype=np.float32)
+    if matrix.ndim != 2:
+        raise ValueError("flatten_pca expects a 2D flattened feature matrix")
+    max_components = min(int(train_idx.size), int(matrix.shape[1]))
+    if pca_components > max_components:
+        raise ValueError(
+            "neural.pca_components must be <= min(n_train, n_features): "
+            f"{pca_components} > {max_components}"
+        )
+
+    pca = PCA(
+        n_components=pca_components,
+        svd_solver=pca_solver,
+        whiten=pca_whiten,
+        random_state=random_seed,
+    )
+    pca.fit(matrix[train_idx])
+    reduced = pca.transform(matrix).astype(np.float32, copy=False)
+    metadata = {
+        "layer": layer,
+        "method": "flatten_pca",
+        "input_feature_shape": [int(dim) for dim in input_shape],
+        "output_feature_shape": [int(reduced.shape[1])],
+        "requested_components": int(pca_components),
+        "effective_components": int(reduced.shape[1]),
+        "explained_variance_ratio_sum": float(np.sum(pca.explained_variance_ratio_)),
+        "train_only_fit": True,
+        "n_train_fit": int(train_idx.size),
+        "random_seed": int(random_seed),
+        "pca_solver": pca_solver,
+        "pca_whiten": bool(pca_whiten),
+    }
+    return reduced, metadata
 
 
 def _noise_normalized_layer_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -470,6 +642,10 @@ def _normalize_feature_output(features: Any, layers: list[str]) -> dict[str, Any
 
 
 def _reduce_feature(values: Any, method: str = "flatten") -> np.ndarray:
+    return _reduce_feature_array(_feature_array(values), method=method)
+
+
+def _feature_array(values: Any) -> np.ndarray:
     detach = getattr(values, "detach", None)
     if callable(detach):
         values = values.detach().cpu().numpy()
@@ -478,6 +654,10 @@ def _reduce_feature(values: Any, method: str = "flatten") -> np.ndarray:
         return array.reshape(1)
     if array.shape[0] == 1 and array.ndim > 1:
         array = array[0]
+    return array
+
+
+def _reduce_feature_array(array: np.ndarray, method: str = "flatten") -> np.ndarray:
     if method == "flatten":
         return array.reshape(-1)
     if method == "spatial_mean":
@@ -486,7 +666,7 @@ def _reduce_feature(values: Any, method: str = "flatten") -> np.ndarray:
         if array.ndim == 2:
             return array.mean(axis=0)
         return array.mean(axis=tuple(range(1, array.ndim)))
-    raise ValueError("feature_reduction must be 'flatten' or 'spatial_mean'")
+    raise ValueError("feature_reduction must be 'flatten', 'spatial_mean', or 'flatten_pca'")
 
 
 def _score_row_context(
