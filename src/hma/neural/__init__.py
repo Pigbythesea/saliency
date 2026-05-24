@@ -7,6 +7,12 @@ from hma.neural.encoding import (
     fit_ridge_encoding,
     predict_ridge_encoding,
 )
+from hma.neural.learned_readout import (
+    SpatialReadoutConfig,
+    fit_spatial_readout,
+    normalize_spatial_features,
+    predict_spatial_readout,
+)
 from hma.neural.rsa import compare_rdms, compute_rdm
 
 __all__ = [
@@ -16,6 +22,10 @@ __all__ = [
     "evaluate_encoding",
     "extract_activations",
     "fit_ridge_encoding",
+    "fit_spatial_readout",
+    "normalize_spatial_features",
     "predict_ridge_encoding",
+    "predict_spatial_readout",
     "save_activations",
+    "SpatialReadoutConfig",
 ]

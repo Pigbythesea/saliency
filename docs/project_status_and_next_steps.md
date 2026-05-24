@@ -90,61 +90,69 @@ Current interpretation:
 Current neural summary:
 
 - Path: `outputs/neural_roi_summary/`
-- Input neural directories: `24`
-- Encoding rows: `96`
-- Encoding target rows: `231792`
+- Input neural directories: `28`
+- Encoding rows: `100`
+- Encoding target rows: `241450`
 - RSA rows: `92`
 - Behavioral bridge CSV: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
 - Efficiency CSV: not provided in the latest summary.
-- Feature-reduction rows: `92` spatial-mean diagnostic rows and `4` full-image-count `flatten_pca` rows.
-- Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `231696` rows are `benchmark_style_noise_normalized` and `96` rows are intentionally left `benchmark_style_non_noise_normalized`.
+- Feature-reduction rows: `92` spatial-mean diagnostic rows and `8` validation-selected full-image-count `flatten_pca` rows.
+- Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `241350` rows are `benchmark_style_noise_normalized` and `100` rows are intentionally left `benchmark_style_non_noise_normalized`.
 
 Current noise-normalized neural ranking:
 
-- Mean valid-target noise-normalized encoding leader: `deit_small_patch16_224`, mean `0.556` (`55.57` on x100 scale).
-- `vit_small_patch14_dinov2` ranks second by mean valid-target noise-normalized encoding, mean `0.161` (`16.08` x100).
+- Mean valid-target noise-normalized encoding leader: `vit_small_patch14_dinov2`, mean `0.591` (`59.11` on x100 scale).
+- `deit_small_patch16_224` ranks second by mean valid-target noise-normalized encoding, mean `0.562` (`56.17` x100).
 - The current noise-normalized encoding leader is the same model as the raw Pearson leader.
 - Each model ranking row aggregates `9654` valid positive-ceiling targets and excludes `4` zero-ceiling hV4 targets from noise-normalized aggregates.
-- The `deit_small_patch16_224` ranking is driven by full-image-count `blocks.3` `flatten_pca` runs, while the other current model families remain ROI500 spatial-mean diagnostics.
+- The `vit_small_patch14_dinov2` and `deit_small_patch16_224` rankings are now driven by validation-selected full-image-count `flatten_pca` runs, while the other current model families remain ROI500 spatial-mean diagnostics.
 
 Current raw neural ranking:
 
-- Mean encoding leader: `deit_small_patch16_224`, mean raw correlation `0.524`.
+- Mean encoding leader: `vit_small_patch14_dinov2`, mean raw correlation `0.541`.
 - Mean RSA leader: `vit_base_patch16_224`, mean Spearman RSA `0.088`.
-- `vit_small_patch14_dinov2` ranks second for both raw encoding and noise-normalized encoding; it ranks second by RSA.
+- `deit_small_patch16_224` ranks second for both raw encoding and noise-normalized encoding; `vit_small_patch14_dinov2` remains second by ROI500-scale RSA.
 - `resnet50` is now included in the regenerated summary and ranks fifth by mean raw encoding, fourth by mean RSA.
 - Current ROI set: `V1`, `V2`, `V3`, `hV4` for `subj01`.
 - Full-image-count `flatten_pca` runs intentionally have RSA disabled to avoid allocating full `9841 x 9841` RDMs; current RSA rankings still come from ROI500-scale outputs.
 
-Full-image-count `flatten_pca` `deit_small_patch16_224 blocks.3` results:
+Validation-selected full-image-count `flatten_pca` `deit_small_patch16_224` results:
 
-- V1: `2973` valid targets, mean raw Pearson `0.570`, mean valid-target noise-normalized score `0.592` (`59.15` x100), median noise-normalized score `0.623`.
-- V2: `2936` valid targets, mean raw Pearson `0.554`, mean valid-target noise-normalized score `0.584` (`58.43` x100), median noise-normalized score `0.625`.
-- V3: `2453` valid targets, mean raw Pearson `0.530`, mean valid-target noise-normalized score `0.560` (`55.97` x100), median noise-normalized score `0.567`.
-- hV4: `1292` valid positive-ceiling targets plus `4` zero-ceiling targets, mean raw Pearson `0.444`, mean valid-target noise-normalized score `0.487` (`48.74` x100), median noise-normalized score `0.482`.
-- All four extended-alpha runs selected `ridge_alpha=100000.0`, below the maximum tested `10000000.0`; no additional high-alpha pass is currently needed.
+- V1 selected `blocks.0`: `2973` valid targets, mean raw Pearson `0.581`, mean valid-target noise-normalized score `0.611` (`61.14` x100).
+- V2 selected `blocks.3`: `2936` valid targets, mean raw Pearson `0.556`, mean valid-target noise-normalized score `0.588` (`58.79` x100).
+- V3 selected `blocks.3`: `2453` valid targets, mean raw Pearson `0.531`, mean valid-target noise-normalized score `0.560` (`56.01` x100).
+- hV4 selected `blocks.3`: `1292` valid positive-ceiling targets plus `4` zero-ceiling targets, mean raw Pearson `0.444`, mean valid-target noise-normalized score `0.487` (`48.74` x100).
+- V1/V2/V3 selected `ridge_alpha=10000.0`; hV4 selected `ridge_alpha=100000.0`, below the maximum tested `10000000.0`; no additional high-alpha pass is currently needed.
 - PCA metadata for all four runs records `train_only_fit=true`, `n_train_fit=7873`, `effective_components=512`, and `pca_solver=randomized`.
+
+Validation-selected full-image-count `flatten_pca` `vit_small_patch14_dinov2` results:
+
+- V1 selected `blocks.3`: `2973` valid targets, mean raw Pearson `0.595`, mean valid-target noise-normalized score `0.642` (`64.23` x100), selected `ridge_alpha=10.0`.
+- V2 selected `blocks.6`: `2936` valid targets, mean raw Pearson `0.569`, mean valid-target noise-normalized score `0.614` (`61.44` x100), selected `ridge_alpha=1000.0`.
+- V3 selected `blocks.6`: `2453` valid targets, mean raw Pearson `0.545`, mean valid-target noise-normalized score `0.591` (`59.06` x100), selected `ridge_alpha=1000.0`.
+- hV4 selected `blocks.6`: `1292` valid positive-ceiling targets plus `4` zero-ceiling targets, mean raw Pearson `0.457`, mean valid-target noise-normalized score `0.517` (`51.70` x100), selected `ridge_alpha=1000.0`.
+- PCA metadata for all four runs records `train_only_fit=true`, `n_train_fit=7873`, `effective_components=512`, `input_feature_shape=[1370, 384]`, and `pca_solver=randomized`.
 
 Current bridge readout:
 
-- Overall behavior-to-encoding leader match rate: `0.079`.
+- Overall behavior-to-encoding leader match rate: `0.587`.
 - Overall behavior-to-RSA leader match rate: `0.000`.
 - Internal-routing rows account for the observed encoding leader matches; class-localization and evidence-sensitivity rows do not match the encoding or RSA leader in the current descriptive table.
 
 Interpretation:
 
 - The project has moved from a weak ROI500 spatial-mean neural diagnostic to a strong local full-image-count ridge baseline for one model family.
-- The `deit_small_patch16_224` `flatten_pca` baseline now clears the Algonauts organizer baseline scale numerically in these local PRF ROI summaries, but this is not leaderboard-equivalent because subject, cortex, split, and target scope differ.
+- The `vit_small_patch14_dinov2` and `deit_small_patch16_224` `flatten_pca` baselines now clear the Algonauts organizer baseline scale numerically in these local PRF ROI summaries, but this is not leaderboard-equivalent because subject, cortex, split, and target scope differ.
 - The strongest current claim is methodological: full image count plus train-only PCA over flattened token features dramatically improves local neural encoding relative to ROI500 spatial-mean probes.
-- The next scientific risk is test-set feedback: `blocks.3` was selected from smoke/test observations. Future layer and pooling choices should be made by validation-only selection before launching more model families.
+- The previous test-set feedback risk for layer choice has been addressed for the current one-subject PRF visual ROI baselines by validation-only layer selection.
 
 Current methodological gap to SOTA:
 
 - The current strong baseline uses `flatten_pca`, not learned spatial pooling or voxel-specific readouts. It preserves more feature information than spatial mean, but still falls short of SOTA-style spatial heads.
 - Current full-image-count runs cover `subj01` PRF visual ROIs only. SOTA scores use broader visual-cortex vertex sets across subjects and hemispheres.
-- Current ridge alpha selection is per-layer/ROI, not per-target. Per-target alpha or voxel-specific readouts may improve later but should wait until validation selection is clean.
-- Current reporting mixes full `flatten_pca` rows for `deit_small_patch16_224` with ROI500 spatial-mean rows for other models. Cross-model rankings are useful for handoff, but model-family claims should wait until the same full protocol is run for more backbones.
-- Current scoring evaluates single layers independently. SOTA methods use validation-selected layers, multi-layer fusion, learned layer selection, subject-specific heads, and ensembles.
+- Current ridge alpha selection is per-layer/ROI, not per-target. Per-target alpha or voxel-specific readouts may improve later, after the matched validation-selected backbone comparison is complete.
+- Current reporting mixes full `flatten_pca` rows for `vit_small_patch14_dinov2` and `deit_small_patch16_224` with ROI500 spatial-mean rows for other models. Cross-model rankings are useful for handoff, but model-family claims outside these two backbones should wait until the same full protocol is run.
+- Current scoring now supports validation-selected single-layer `flatten_pca`. SOTA methods go further with multi-layer fusion, learned layer selection, subject-specific heads, voxel-specific spatial readouts, and ensembles.
 
 Relevant SOTA references:
 
@@ -166,7 +174,7 @@ SSL/multimodal candidate inventory:
 - Complete pretrained debug candidates: `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, `resnet50_clip`
 - Not yet run pretrained debug candidates: `vit_base_patch14_dinov2`, `vit_small_patch16_dinov3`, `vit_base_patch16_dinov3`, `vit_base_patch16_siglip_224`, `eva02_base_patch16_clip_224`
 
-Do not expand this list again until validation-only layer/pooling selection is implemented for the full `flatten_pca` protocol. More models are useful only after the strong baseline can choose layers without test-set feedback.
+Do not expand this list again before applying the validation-selected full `flatten_pca` protocol to one stronger candidate backbone. The next model-family comparison should be narrow and methodologically matched, not a broad model zoo.
 
 ## What Is Already Built
 
@@ -221,7 +229,9 @@ Neural Scoring Foundation V1 is implemented for the current ROI500 summary and p
 
 Large NSD/Algonauts Manifest And Run Configs V1 is implemented for `subj01` PRF visual ROIs. The project now has full-image-count manifest plumbing and full-image-count production configs for `V1`, `V2`, `V3`, and `hV4`.
 
-Feature Representation Upgrade V1 is implemented in code, configs, full four-ROI outputs, neural summary, and paper inspection pack. The neural runner now supports train-only `flatten_pca` feature reduction for flattened activation tensors, writes per-layer feature-reduction metadata, and saves reduced activations for PCA runs instead of full raw tensors. The `deit_small_patch16_224` `blocks.3` full `V1`/`V2`/`V3`/`hV4` runs completed successfully and are included in `outputs/neural_roi_summary/`.
+Feature Representation Upgrade V1 is implemented in code, configs, full four-ROI outputs, neural summary, and paper inspection pack. The neural runner now supports train-only `flatten_pca` feature reduction for flattened activation tensors, writes per-layer feature-reduction metadata, and saves reduced activations for PCA runs instead of full raw tensors. The earlier fixed-layer `deit_small_patch16_224 blocks.3` full runs completed successfully, but the current summary now uses validation-selected full runs instead.
+
+Validation-Only Layer/Pooling Selection V1 is implemented in code, configs, tests, V1 smoke, full four-ROI outputs, neural summary, and paper inspection pack. The neural runner now supports `neural.selection.enabled`, validation-only candidate scoring over layer/feature-reduction settings, selection artifacts, and final held-out test scoring for only the selected candidate. Full selection mode stores raw candidate activations in a temporary disk-backed `feature_cache` instead of stacking multi-GB raw layer tensors in RAM, then removes that cache after final selected outputs are written.
 
 Benchmark-equivalent implementation:
 
@@ -242,18 +252,18 @@ Latest result after Feature Representation Upgrade V1: `43 passed`; Windows `.py
 
 Full regeneration status:
 
-- Full ROI500 outputs were regenerated for `outputs/neural_roi500/` and `outputs/neural_roi500_ssl/`; the refreshed summary also includes the four full-image-count `flatten_pca` PRF ROI runs.
-- Checked neural output directories: `24`.
+- Full ROI500 outputs were regenerated for `outputs/neural_roi500/` and `outputs/neural_roi500_ssl/`; the refreshed summary now includes eight validation-selected full-image-count `flatten_pca` PRF ROI runs: four `deit_small_patch16_224` rows and four `vit_small_patch14_dinov2` rows.
+- Checked neural output directories: `28`.
 - Missing `encoding_target_scores.csv`: none.
 - Missing `metadata.json`: none.
-- Missing `rsa_scores.csv`: four expected missing files from full-image-count `flatten_pca` runs where RSA is intentionally disabled.
-- Combined per-target benchmark rows: `231792`.
-- Per-target metric scopes: `231696` rows with `benchmark_style_noise_normalized`, `96` rows with `benchmark_style_non_noise_normalized`.
-- The `96` non-normalized rows are hV4 targets with `noise_ceiling=0.0`; these rows are intentionally not divided by zero.
+- Missing `rsa_scores.csv`: eight expected missing files from full-image-count `flatten_pca` runs where RSA is intentionally disabled.
+- Combined per-target benchmark rows: `241450`.
+- Per-target metric scopes: `241350` rows with `benchmark_style_noise_normalized`, `100` rows with `benchmark_style_non_noise_normalized`.
+- The `100` non-normalized rows are hV4 targets with `noise_ceiling=0.0`; these rows are intentionally not divided by zero.
 - Per-target variance flags: all `valid_prediction_variance=true` and `valid_target_variance=true`.
 - `outputs/neural_roi_summary/` and `outputs/paper_inspection_v1/` were regenerated from the corrected behavioral aggregate and refreshed neural outputs.
-- `outputs/neural_roi_summary/neural_model_rankings.csv` ranks `deit_small_patch16_224` first by mean valid-target noise-normalized score after adding full-image-count `flatten_pca` rows: mean `0.556` (`55.57` x100).
-- `outputs/paper_inspection_v1/README.md` now reports the mixed neural scope correctly: one-subject ROI500 diagnostics plus full-image-count PRF visual ROI `flatten_pca` baselines.
+- `outputs/neural_roi_summary/neural_model_rankings.csv` ranks `vit_small_patch14_dinov2` first by mean valid-target noise-normalized score after adding validation-selected full-image-count `flatten_pca` rows: mean `0.591` (`59.11` x100).
+- `outputs/paper_inspection_v1/README.md` now reports the mixed neural scope correctly: one-subject ROI500 diagnostics plus validation-selected full-image-count PRF visual ROI `flatten_pca` baselines.
 
 Large/full manifest and config status:
 
@@ -269,13 +279,27 @@ Large/full manifest and config status:
   - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v2_flatten_pca_blocks3_alpha1e7_full.yaml`
   - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v3_flatten_pca_blocks3_alpha1e7_full.yaml`
   - `configs/experiments/neural_subj01_full/deit_small_patch16_224_hv4_flatten_pca_blocks3_alpha1e7_full.yaml`
+- Validation-selection smoke config: `configs/experiments/neural_large_smoke/deit_small_patch16_224_v1_flatten_pca_validation_selection_smoke.yaml`.
+- Validation-selection full production config templates:
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_validation_selection_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v2_flatten_pca_validation_selection_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_v3_flatten_pca_validation_selection_full.yaml`
+  - `configs/experiments/neural_subj01_full/deit_small_patch16_224_hv4_flatten_pca_validation_selection_full.yaml`
 - Large smoke output: `outputs/neural_large_smoke/deit_small_patch16_224_v1_smoke/`.
 - Large smoke result: `64` images, `51` train / `13` test, `2973` V1 targets, `noise_ceiling_available=true`, all target rows `benchmark_style_noise_normalized`.
+- Validation-selection smoke output: `outputs/neural_large_smoke/deit_small_patch16_224_v1_flatten_pca_validation_selection_smoke/`.
+- Validation-selection smoke result after disk-backed feature-cache fix: `64` images, `51` outer train / `13` held-out test, `41` selection-train / `10` validation, selected `blocks.3` by validation-only mean noise-normalized score `0.416`, final held-out test mean valid-target noise-normalized score `0.374`, wrote `selection_candidates.csv` plus `selection_artifact.json`, and removed temporary `feature_cache`.
+- Full validation-selected outputs:
+  - `outputs/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_validation_selection_full/`
+  - `outputs/neural_subj01_full/deit_small_patch16_224_v2_flatten_pca_validation_selection_full/`
+  - `outputs/neural_subj01_full/deit_small_patch16_224_v3_flatten_pca_validation_selection_full/`
+  - `outputs/neural_subj01_full/deit_small_patch16_224_hv4_flatten_pca_validation_selection_full/`
 - Full `flatten_pca` outputs:
   - `outputs/neural_subj01_full/deit_small_patch16_224_v1_flatten_pca_blocks3_alpha1e7_full/`
   - `outputs/neural_subj01_full/deit_small_patch16_224_v2_flatten_pca_blocks3_alpha1e7_full/`
   - `outputs/neural_subj01_full/deit_small_patch16_224_v3_flatten_pca_blocks3_alpha1e7_full/`
   - `outputs/neural_subj01_full/deit_small_patch16_224_hv4_flatten_pca_blocks3_alpha1e7_full/`
+- Full validation-selection result: V1 selected `blocks.0`; V2, V3, and hV4 selected `blocks.3`; all four outputs have selected-only `encoding_scores.csv` and `encoding_target_scores.csv`, selection artifacts, final PCA metadata, and no remaining `feature_cache`.
 - Large manifest focused verification: `25 passed` for `tests/test_create_algonauts_manifest.py`, `tests/test_nsd_algonauts_dataset.py`, and `tests/test_neural_roi_summary.py`.
 - Full production `flatten_pca` configs intentionally disable RSA to avoid full `9841 x 9841` RDM allocation.
 
@@ -302,21 +326,51 @@ Full verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Latest result: `177 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+Latest focused result after full validation-selected summary regeneration: `46 passed` for `tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py`; Windows `.pytest_cache` permission warning remains non-blocking.
 
 ## Next Concrete Milestone
 
-Priority: **Validation-Only Layer/Pooling Selection V1**.
+Priority: **Learned Spatial Readout Full V1 Run And Comparison**.
 
-Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, CKA, adaptive token pruning, foveation, scanpaths, video, or a broad model zoo. The project now has a strong full-image-count `flatten_pca` ridge baseline, but the next methodological weakness is that `blocks.3` was chosen after smoke/test observations. Future layer and pooling choices need a validation-only selection path before running more backbones.
+Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, CKA, adaptive token pruning, foveation, scanpaths, video, or a broad model zoo. The project now has two validation-selected full-image-count `flatten_pca` baselines (`vit_small_patch14_dinov2` and `deit_small_patch16_224`) over `subj01` PRF visual ROIs. The frozen-backbone learned spatial readout prototype is implemented and smoke-tested; the next methodological step is the full `subj01` `V1` run and direct comparison against the DINOv2 `flatten_pca` baseline.
 
-Acceptance target:
+Full-run acceptance target:
 
-- Add a validation-selection mode that evaluates candidate layers and feature reductions on an inner validation split from the training images only.
-- Write a selection artifact recording candidate layer, feature mode, PCA components, selected alpha, validation score, and final selected configuration.
-- Keep final test scores honest: the test split should be used only after the layer/pooling setting is selected.
-- Run a small validation-selection smoke before launching any more full-image-count model-family runs.
-- Regenerate summary outputs only after final test rows are produced from validation-selected settings.
+- Start with one subject, one ROI, and one backbone: `subj01`, `V1`, `vit_small_patch14_dinov2`, selected layer `blocks.3`.
+- Freeze the image backbone and learn a target-wise spatial pooling/readout head over the selected feature tensor rather than flattening all tokens through PCA.
+- Use the same outer train/test split policy and an inner validation split for early stopping and hyperparameter selection.
+- Keep output files compatible with the existing neural summary format so learned-readout rows can join `encoding_scores.csv`, `encoding_target_scores.csv`, and paper inspection outputs.
+- Do not replace the ridge baseline; report learned readout versus the current validation-selected DINOv2 `flatten_pca` baseline.
+- Compare against the current DINOv2 `flatten_pca` V1 baseline: mean raw Pearson `0.595`, mean valid-target noise-normalized score `0.642`.
+
+Completed learned spatial readout prototype status:
+
+- New module: `src/hma/neural/learned_readout.py`.
+- Runner support: `neural.encoding_method: learned_spatial_readout` in `scripts/run_neural_alignment.py` / `src/hma/experiments/neural_alignment.py`.
+- The prototype normalizes feature tensors to `[n_images, n_positions, n_channels]`, fits target-wise softmax spatial weights plus target-wise channel weights and bias, uses an inner validation split for early stopping, and reports final held-out test scores through the existing benchmark target scoring path.
+- Learned-readout training and prediction batch feature reads by image index from the existing disk-backed `feature_cache` path, avoiding materializing full train/test DINOv2 feature blocks in memory.
+- Learned-readout rows use `feature_reduction=learned_spatial_readout`, blank `selected_ridge_alpha`, and `alpha_selection_mode=early_stopping_validation`.
+- Output compatibility is implemented for `encoding_scores.csv`, `encoding_target_scores.csv`, `metadata.json`, `feature_reduction_metadata.json`, and `learned_readout_metadata.json`.
+- Smoke config: `configs/experiments/neural_large_smoke/vit_small_patch14_dinov2_v1_learned_spatial_readout_smoke.yaml`.
+- Full config: `configs/experiments/neural_subj01_full/vit_small_patch14_dinov2_v1_learned_spatial_readout_full.yaml`.
+- Smoke output: `outputs/neural_large_smoke/vit_small_patch14_dinov2_v1_learned_spatial_readout_smoke/`.
+- Smoke result on `64` images: `2973` valid V1 targets, mean raw Pearson `0.172`, mean valid-target noise-normalized score `0.250`, validation best epoch `35`, validation mean Pearson `0.221`, early-stopped after `45` epochs.
+- Smoke result is only a wiring and stability check; it should not be compared scientifically against the full `9841`-image `flatten_pca` baseline.
+- Verification after implementation: `185 passed` for `.\.venv\Scripts\python.exe -m pytest`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+
+Completed DINOv2 setup and run status:
+
+- Coding-agent config setup and all four DINOv2 full PRF visual ROI validation-selection runs are complete.
+- New smoke config: `configs/experiments/neural_large_smoke/vit_small_patch14_dinov2_v1_flatten_pca_validation_selection_smoke.yaml`.
+- Full configs:
+  - `configs/experiments/neural_subj01_full/vit_small_patch14_dinov2_v1_flatten_pca_validation_selection_full.yaml`
+  - `configs/experiments/neural_subj01_full/vit_small_patch14_dinov2_v2_flatten_pca_validation_selection_full.yaml`
+  - `configs/experiments/neural_subj01_full/vit_small_patch14_dinov2_v3_flatten_pca_validation_selection_full.yaml`
+  - `configs/experiments/neural_subj01_full/vit_small_patch14_dinov2_hv4_flatten_pca_validation_selection_full.yaml`
+- These configs use DINOv2's existing `518 x 518` preprocessing, candidate layers `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, and `blocks.11`, `flatten_pca`, validation-only layer selection, selected-only final scoring, and RSA disabled for full-image-count PCA runs.
+- The four full DINOv2 configs write to `C:/saliency_outputs/neural_subj01_full/...` instead of repo-local `outputs/` so the large temporary `feature_cache` is placed on a disk with enough free space. Summary regeneration must include these absolute C: output directories after the runs complete.
+- After the first DINOv2 V1 full attempt, sklearn PCA hit a RAM allocation failure during the final selected-layer full-train PCA fit. The `flatten_pca` implementation was updated to fit PCA without sklearn's extra training-copy and to transform activations in batches, preserving the same PCA method while reducing peak memory. If a run crashes before cleanup, remove the stale `feature_cache` under that run directory before retrying.
+- Full DINOv2 outputs passed artifact checks: required score/metadata/selection files exist for all four ROIs, no `feature_cache` remains, and `outputs/neural_roi_summary/` plus `outputs/paper_inspection_v1/` were regenerated with DINOv2 included.
 
 Step 1: scoring policy and reporting foundation. **Status: implemented.**
 
@@ -372,27 +426,28 @@ Step 4: cross-validated ridge baseline. **Status: implemented for per-layer/ROI 
 - Record selected alpha, validation score, validation split size, and selection mode in outputs.
 - Existing tests prove selected alpha changes with data; next tests should cover layer/pooling selection without test leakage.
 
-Step 5: layer and pooling selection. **Status: next concrete implementation step.**
+Step 5: layer and pooling selection. **Status: implemented for code path, tests, configs, smoke, full four-ROI production runs, neural summary, and paper inspection pack.**
 
-- Evaluate multiple layers and feature-reduction settings with the same train/test split.
-- Add a validation-only layer/pooling selection summary before reporting final test scores.
-- Keep final test reporting honest: the selected layer/pooling setting must be chosen without using the test set.
-- Add optional multi-layer concatenation after single-layer `flatten_pca` is stable.
-- Start with `deit_small_patch16_224` and candidate layers from the existing smoke set: `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, and `blocks.11`.
-- Keep the first selection smoke on `V1` with a small image count, then run full four-ROI selection only after the smoke artifact is correct.
+- `neural.selection.enabled` now evaluates candidate layers and feature-reduction settings on a validation split from the outer training images only.
+- Selection artifacts record candidate layer, feature mode, PCA settings, selected alpha, validation score, selected candidate, split image IDs, and final test config.
+- Final `encoding_scores.csv` and `encoding_target_scores.csv` contain only the selected candidate, so downstream summaries do not rank unselected test rows.
+- First V1 smoke selected `blocks.3` from `blocks.0`, `blocks.3`, `blocks.6`, `blocks.9`, and `blocks.11`.
+- Full four-ROI production selection selected `blocks.0` for V1 and `blocks.3` for V2, V3, and hV4.
 
-Step 6: stronger model backbones.
+Step 6: stronger model backbones. **Status: implemented for `vit_small_patch14_dinov2`.**
 
-- Prioritize the SOTA-aligned backbones from the literature: DINOv2, EVA02/CLIP-like vision backbones, ConvNeXt-L/XL if compute allows, and strong ViT variants.
-- Do not expand to many models until the strong baseline is methodologically sound.
-- Compare small versus large variants only after the feature and ridge pipeline is fixed.
+- Prioritize one SOTA-aligned backbone first: `vit_small_patch14_dinov2`.
+- The DINOv2 smoke and four full validation-selection runs are complete and summarized.
+- Do not expand to many more models until the learned spatial readout prototype clarifies whether feature-preserving spatial heads improve over full `flatten_pca`.
+- Compare small versus large variants only after the matched DINOv2 full protocol is stable.
 
-Step 7: learned spatial readout prototype.
+Step 7: learned spatial readout prototype. **Status: implemented for code path, tests, configs, and real smoke run; full V1 run pending.**
 
-- Add a PyTorch encoding-head path after the strong ridge baseline is validated.
-- Start with frozen image backbone features and a learned target-specific spatial pooling/readout head.
-- Use validation loss based on Pearson or noise-normalized objective, plus regularization and early stopping.
-- Keep the first learned-readout scope small: one subject, one ROI, one backbone, then scale.
+- Added a PyTorch encoding-head path after the strong ridge baseline.
+- Started with frozen `vit_small_patch14_dinov2` `blocks.3` features and a learned target-specific spatial pooling/readout head.
+- The first head uses target-wise softmax spatial weights, target-wise channel weights, and target-wise bias.
+- Uses an inner validation split from the outer training images for early stopping; final score rows are held-out outer test scores.
+- Keeps the first learned-readout scope small: one subject, one ROI, one backbone.
 - This is the local analogue of SOTA components such as RetinaMapper, learned spatial pooling, voxel-specific heads, and subject-specific heads.
 
 Step 8: subject and cortex expansion.
@@ -417,10 +472,11 @@ Step 10: uncertainty and robustness.
 
 Implementation order for the next Codex sessions:
 
-1. Add validation-only layer/pooling selection for full-image-count `flatten_pca` runs so future layer/pooling choices are made without test-set feedback.
-2. Run a small validation-selection smoke over candidate layers/pooling settings before launching more full runs.
-3. If validation selection confirms `blocks.3`, broaden carefully to one stronger model family, likely DINOv2, using the same full-image-count `flatten_pca` protocol.
-4. Only then decide whether to implement learned spatial readouts.
+1. Run the full learned spatial readout config for frozen DINOv2 features: `configs\experiments\neural_subj01_full\vit_small_patch14_dinov2_v1_learned_spatial_readout_full.yaml`.
+2. Inspect the full output artifacts under `C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_v1_learned_spatial_readout_full/`, including `encoding_scores.csv`, `encoding_target_scores.csv`, `metadata.json`, `feature_reduction_metadata.json`, and `learned_readout_metadata.json`.
+3. Compare learned readout against the current DINOv2 `flatten_pca` V1 baseline: mean raw Pearson `0.595`, mean valid-target noise-normalized score `0.642`.
+4. Regenerate `outputs/neural_roi_summary/` and `outputs/paper_inspection_v1/` with the new full learned-readout output included.
+5. Expand to the remaining ROIs only if the V1 full learned-readout result improves or clarifies a useful failure mode.
 
 ## Later Milestones
 
@@ -526,7 +582,7 @@ Current neural summary target-scope verification:
 .\.venv\Scripts\python.exe -c "import csv,collections; rows=list(csv.DictReader(open('outputs/neural_roi_summary/combined_encoding_target_scores.csv', newline='', encoding='utf-8'))); print(len(rows)); print(dict(collections.Counter(r['metric_scope'] for r in rows)))"
 ```
 
-Latest regenerated target scope: `231792` rows total; `231696` `benchmark_style_noise_normalized`; `96` `benchmark_style_non_noise_normalized` due to hV4 zero-ceiling targets across ROI500 and full `flatten_pca` rows.
+Latest regenerated target scope: `241450` rows total; `241350` `benchmark_style_noise_normalized`; `100` `benchmark_style_non_noise_normalized` due to hV4 zero-ceiling targets across ROI500 and validation-selected full `flatten_pca` rows.
 
 For the next neural method implementation, run:
 
@@ -540,7 +596,7 @@ For broader confidence after code changes:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Latest full result: `177 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+Latest full result after validation-selected summary regeneration: `180 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
 
 After Feature Representation Upgrade V1:
 

@@ -11,6 +11,7 @@ from hma.neural import (
     compute_rdm,
     evaluate_encoding,
     fit_ridge_encoding,
+    normalize_spatial_features,
     predict_ridge_encoding,
     save_activations,
 )
@@ -90,6 +91,21 @@ def test_benchmark_encoding_target_scores_noise_normalizes_when_ceiling_exists()
     assert row["noise_normalized_score"] == pytest.approx(2.0)
     assert row["valid_noise_ceiling"] == "true"
     assert row["metric_scope"] == "benchmark_style_noise_normalized"
+
+
+def test_normalize_spatial_features_accepts_token_and_spatial_layouts():
+    token_features = np.zeros((2, 5, 3), dtype=np.float32)
+    channels_last = np.zeros((2, 4, 5, 3), dtype=np.float32)
+    channels_first = np.zeros((2, 3, 4, 5), dtype=np.float32)
+
+    assert normalize_spatial_features(token_features).shape == (2, 5, 3)
+    assert normalize_spatial_features(channels_last, layout="channels_last").shape == (2, 20, 3)
+    assert normalize_spatial_features(channels_first, layout="channels_first").shape == (2, 20, 3)
+
+
+def test_normalize_spatial_features_rejects_non_spatial_matrix():
+    with pytest.raises(ValueError, match="learned_spatial_readout expects"):
+        normalize_spatial_features(np.zeros((4, 8), dtype=np.float32))
 
 
 def test_benchmark_encoding_target_scores_excludes_zero_and_invalid_ceilings():
@@ -575,6 +591,196 @@ def test_run_neural_alignment_selects_cv_ridge_alpha(monkeypatch, tmp_path):
     assert metadata["selected_ridge_alphas"]["embedding"] == pytest.approx(0.001)
 
 
+def _run_synthetic_selection(
+    monkeypatch,
+    tmp_path,
+    *,
+    output_name="outputs",
+    include_noise_ceiling=True,
+    corrupt_indices=None,
+):
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    corrupt_indices = set(corrupt_indices or [])
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 24
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index) / 10.0
+            image_feature = 100.0 + feature if index in corrupt_indices else feature
+            response_feature = -100.0 - feature if index in corrupt_indices else feature
+            metadata = {
+                "roi": "synthetic_roi",
+                "subject_id": "subj_test",
+                "roi_responses": np.array(
+                    [2.0 * response_feature + 0.1, -response_feature + 0.2],
+                    dtype=np.float32,
+                ),
+            }
+            if include_noise_ceiling:
+                metadata["noise_ceiling"] = np.array([0.5, 0.25], dtype=np.float32)
+            return {
+                "image": np.full((3, 4, 4), image_feature, dtype=np.float32),
+                "image_id": f"item_{index:04d}",
+                "metadata": metadata,
+            }
+
+    class LayerSelectionModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            value = float(images.mean().detach().cpu().numpy())
+            item_index = int(round(value * 10.0))
+            bad_feature = float((item_index % 3) - 1)
+            outputs = {
+                "bad": np.array([[bad_feature, -bad_feature, 0.25]], dtype=np.float32),
+                "good": np.array([[value, value * value, 1.0]], dtype=np.float32),
+            }
+            return {layer: outputs[layer] for layer in layers}
+
+    output_dir = tmp_path / output_name
+    config_path = tmp_path / f"{output_name}.yaml"
+    save_yaml(
+        {
+            "seed": 0,
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {
+                "layers": ["bad", "good"],
+                "response_key": "roi_responses",
+                "noise_ceiling_key": "noise_ceiling",
+                "feature_reduction": "flatten_pca",
+                "pca_components": 2,
+                "pca_solver": "full",
+                "train_fraction": 0.75,
+                "ridge_alpha": 1.0,
+                "ridge_alphas": [0.01, 0.1, 1.0],
+                "metric": "correlation",
+                "selection": {
+                    "enabled": True,
+                    "validation_fraction": 0.25,
+                    "primary_score": "mean_noise_normalized_score",
+                },
+            },
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: LayerSelectionModel())
+
+    return neural_alignment.run_neural_alignment(config_path), output_dir
+
+
+def test_run_neural_alignment_selection_writes_artifacts_and_selected_scores(
+    monkeypatch,
+    tmp_path,
+):
+    result, output_dir = _run_synthetic_selection(monkeypatch, tmp_path)
+
+    assert (output_dir / "selection_candidates.csv").is_file()
+    assert (output_dir / "selection_artifact.json").is_file()
+    assert result["selection_enabled"] is True
+    assert result["selected_layer"] == "good"
+    assert result["selected_feature_reduction"] == "flatten_pca"
+    assert result["selection_candidates"].endswith("selection_candidates.csv")
+    assert result["selection_artifact"].endswith("selection_artifact.json")
+
+    candidate_rows = _read_csv(output_dir / "selection_candidates.csv")
+    assert len(candidate_rows) == 2
+    assert [row["selected"] for row in candidate_rows].count("true") == 1
+    assert [row["layer"] for row in candidate_rows] == ["bad", "good"]
+    selected_row = [row for row in candidate_rows if row["selected"] == "true"][0]
+    assert selected_row["validation_score_type"] == "noise_normalized"
+    assert selected_row["layer"] == "good"
+
+    encoding_rows = _read_csv(output_dir / "encoding_scores.csv")
+    assert len(encoding_rows) == 1
+    assert encoding_rows[0]["layer"] == "good"
+    assert encoding_rows[0]["alpha_selection_mode"] == "selection_validation"
+
+    metadata = json.loads((output_dir / "metadata.json").read_text(encoding="utf-8"))
+    artifact = json.loads((output_dir / "selection_artifact.json").read_text(encoding="utf-8"))
+    feature_metadata = json.loads(
+        (output_dir / "feature_reduction_metadata.json").read_text(encoding="utf-8")
+    )
+    assert metadata["selected_layer"] == "good"
+    assert len(artifact["selection_train_image_ids"]) == int(
+        selected_row["selection_n_train"]
+    )
+    assert len(artifact["selection_validation_image_ids"]) == int(
+        selected_row["selection_n_validation"]
+    )
+    assert feature_metadata["layers"][0]["n_train_fit"] == len(
+        artifact["outer_train_image_ids"]
+    )
+    assert int(selected_row["pca_n_train_fit"]) == len(artifact["selection_train_image_ids"])
+
+
+def test_run_neural_alignment_selection_ignores_heldout_test_rows(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+
+    clean_result, clean_output = _run_synthetic_selection(
+        monkeypatch,
+        tmp_path,
+        output_name="clean",
+    )
+    train_idx, test_idx = neural_alignment._outer_train_test_indices(
+        24,
+        0.75,
+        np.random.default_rng(0),
+    )
+    assert train_idx.size and test_idx.size
+
+    corrupt_result, corrupt_output = _run_synthetic_selection(
+        monkeypatch,
+        tmp_path,
+        output_name="corrupt",
+        corrupt_indices=set(int(index) for index in test_idx),
+    )
+
+    assert clean_result["selected_layer"] == corrupt_result["selected_layer"] == "good"
+    clean_candidates = _read_csv(clean_output / "selection_candidates.csv")
+    corrupt_candidates = _read_csv(corrupt_output / "selection_candidates.csv")
+    assert [
+        (row["layer"], row["validation_score"], row["selected_ridge_alpha"])
+        for row in clean_candidates
+    ] == [
+        (row["layer"], row["validation_score"], row["selected_ridge_alpha"])
+        for row in corrupt_candidates
+    ]
+
+
+def test_run_neural_alignment_selection_falls_back_to_raw_score_without_ceiling(
+    monkeypatch,
+    tmp_path,
+):
+    result, output_dir = _run_synthetic_selection(
+        monkeypatch,
+        tmp_path,
+        include_noise_ceiling=False,
+    )
+
+    assert result["selected_layer"] == "good"
+    selected_row = [
+        row for row in _read_csv(output_dir / "selection_candidates.csv") if row["selected"] == "true"
+    ][0]
+    assert selected_row["validation_score_type"] == "raw"
+
+
 def test_flatten_pca_fits_on_train_rows_only():
     from hma.experiments import neural_alignment
 
@@ -787,6 +993,187 @@ def test_run_neural_alignment_flatten_pca_rejects_too_many_components(
 
     with pytest.raises(ValueError, match="pca_components must be <= min"):
         run_neural_alignment(config_path)
+
+
+def _run_synthetic_learned_readout(
+    monkeypatch,
+    tmp_path,
+    *,
+    output_name="learned",
+    corrupt_indices=None,
+):
+    pytest.importorskip("torch")
+    from hma.experiments import neural_alignment
+    from hma.utils.config import save_yaml
+
+    corrupt_indices = set(corrupt_indices or [])
+
+    class SyntheticDataset:
+        def __len__(self):
+            return 18
+
+        def __iter__(self):
+            for index in range(len(self)):
+                yield self[index]
+
+        def __getitem__(self, index):
+            feature = float(index) / 10.0
+            image_feature = 100.0 + feature if index in corrupt_indices else feature
+            response_feature = -100.0 - feature if index in corrupt_indices else feature
+            return {
+                "image": np.full((3, 4, 4), image_feature, dtype=np.float32),
+                "image_id": f"item_{index:04d}",
+                "metadata": {
+                    "roi": "synthetic_roi",
+                    "subject_id": "subj_test",
+                    "roi_responses": np.array(
+                        [
+                            2.0 * response_feature + 0.1,
+                            -response_feature + 0.2,
+                            response_feature * 0.5,
+                        ],
+                        dtype=np.float32,
+                    ),
+                    "noise_ceiling": np.array([0.5, 0.0, np.nan], dtype=np.float32),
+                },
+            }
+
+    class SpatialFeatureModel:
+        def to(self, device):
+            return None
+
+        def get_features(self, images, layers=None):
+            value = float(images.mean().detach().cpu().numpy())
+            tokens = np.array(
+                [
+                    [value, value * value, 1.0],
+                    [value + 0.5, -value, 0.25],
+                    [0.1, value * 0.5, -0.5],
+                ],
+                dtype=np.float32,
+            )
+            return {layer: tokens for layer in layers}
+
+    output_dir = tmp_path / output_name
+    config_path = tmp_path / f"{output_name}.yaml"
+    save_yaml(
+        {
+            "seed": 0,
+            "device": "cpu",
+            "dataset": {"name": "synthetic"},
+            "model": {"name": "synthetic_model"},
+            "preprocessing": {"input_size": [4, 4], "mean": "none", "std": "none"},
+            "neural": {
+                "encoding_method": "learned_spatial_readout",
+                "layers": ["blocks.3"],
+                "response_key": "roi_responses",
+                "noise_ceiling_key": "noise_ceiling",
+                "train_fraction": 0.75,
+                "metric": "correlation",
+                "learned_readout": {
+                    "validation_fraction": 0.25,
+                    "max_epochs": 6,
+                    "batch_size": 4,
+                    "target_batch_size": 2,
+                    "lr": 0.01,
+                    "weight_decay": 0.0,
+                    "patience": 3,
+                    "objective": "pearson",
+                },
+            },
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+    monkeypatch.setattr(neural_alignment, "build_dataset", lambda _config: SyntheticDataset())
+    monkeypatch.setattr(neural_alignment, "build_model", lambda _config: SpatialFeatureModel())
+    return neural_alignment.run_neural_alignment(config_path), output_dir
+
+
+def test_run_neural_alignment_learned_readout_writes_outputs(monkeypatch, tmp_path):
+    result, output_dir = _run_synthetic_learned_readout(monkeypatch, tmp_path)
+
+    assert (output_dir / "encoding_scores.csv").is_file()
+    assert (output_dir / "encoding_target_scores.csv").is_file()
+    assert (output_dir / "metadata.json").is_file()
+    assert (output_dir / "learned_readout_metadata.json").is_file()
+    assert (output_dir / "feature_reduction_metadata.json").is_file()
+    row = result["score_rows"][0]
+    assert row["layer"] == "blocks.3"
+    assert row["feature_reduction"] == "learned_spatial_readout"
+    assert row["selected_ridge_alpha"] == ""
+    assert row["alpha_selection_mode"] == "early_stopping_validation"
+    assert row["valid_noise_ceiling_targets"] == 1
+    assert row["zero_noise_ceiling_targets"] == 1
+    assert row["invalid_noise_ceiling_targets"] == 1
+    target_rows = _read_csv(output_dir / "encoding_target_scores.csv")
+    assert target_rows[0]["feature_reduction"] == "learned_spatial_readout"
+    assert {"pearson_r", "r2_score_from_r", "prediction_r2", "noise_ceiling"} <= set(
+        target_rows[0]
+    )
+    metadata = json.loads((output_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["encoding_method"] == "learned_spatial_readout"
+    assert metadata["feature_reduction"] == "learned_spatial_readout"
+    readout_metadata = json.loads(
+        (output_dir / "learned_readout_metadata.json").read_text(encoding="utf-8")
+    )
+    assert readout_metadata["method"] == "learned_spatial_readout"
+    assert readout_metadata["layer"] == "blocks.3"
+    assert readout_metadata["best_epoch"] >= 1
+
+
+def test_run_neural_alignment_learned_readout_ignores_heldout_for_best_epoch(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+
+    clean_result, _clean_output = _run_synthetic_learned_readout(
+        monkeypatch,
+        tmp_path,
+        output_name="clean_learned",
+    )
+    _train_idx, test_idx = neural_alignment._outer_train_test_indices(
+        18,
+        0.75,
+        np.random.default_rng(0),
+    )
+    corrupt_result, _corrupt_output = _run_synthetic_learned_readout(
+        monkeypatch,
+        tmp_path,
+        output_name="corrupt_learned",
+        corrupt_indices=set(int(index) for index in test_idx),
+    )
+
+    assert clean_result["score_rows"][0]["layer"] == corrupt_result["score_rows"][0]["layer"]
+    assert clean_result["learned_readout_metadata"]
+    clean_metadata = json.loads(
+        (_clean_output / "learned_readout_metadata.json").read_text(encoding="utf-8")
+    )
+    corrupt_metadata = json.loads(
+        (_corrupt_output / "learned_readout_metadata.json").read_text(encoding="utf-8")
+    )
+    assert clean_metadata["best_epoch"] == corrupt_metadata["best_epoch"]
+    assert clean_metadata["validation_score"] == pytest.approx(
+        corrupt_metadata["validation_score"]
+    )
+
+
+def test_run_neural_alignment_learned_readout_summary_compatible(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments.summarize_neural_roi_results import summarize_neural_roi_results
+
+    _result, output_dir = _run_synthetic_learned_readout(monkeypatch, tmp_path)
+
+    outputs = summarize_neural_roi_results([output_dir], tmp_path / "summary")
+
+    combined_rows = _read_csv(outputs["combined_encoding_scores"])
+    ranking_rows = _read_csv(outputs["neural_model_rankings"])
+    assert combined_rows[0]["feature_reduction"] == "learned_spatial_readout"
+    assert combined_rows[0]["source_dir"] == str(output_dir.resolve())
+    assert ranking_rows
 
 
 def test_run_neural_alignment_missing_roi_response_fails(tmp_path):

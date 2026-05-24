@@ -40,6 +40,8 @@ the current project engineering level implementation progress as well as global 
 
 ## User Interaction rules
 
+- Terminal command policy is mandatory: when providing commands for the user to run in terminal, ALWAYS use Windows Command Prompt (`cmd.exe`) syntax and never PowerShell syntax.
+- If the execution environment reports PowerShell as the tool shell, treat that as an internal tool detail only. Do not mirror PowerShell syntax back to the user.
 - for each implementation, clarify what coding tasks can be run by agent and what tasks are needed for the user to complete, like terminal commands, external search, dataset/model download, etc.
 - for each implementation, when a session is finished, update the project status documentation on what is the current status and progress, as well as the plan for the next concrete implementation step. refer to the core references doc folder and relevant code parts if needed.
 
@@ -47,7 +49,6 @@ the current project engineering level implementation progress as well as global 
 ## Coding rules
 
 Use Python 3.10+.
-when providing commands for user to run in terminal, use cmd always-do not use powershell
 
 Prefer:
 - PyTorch

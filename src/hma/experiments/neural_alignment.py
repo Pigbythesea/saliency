@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import csv
+import gc
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -12,12 +14,15 @@ import numpy as np
 from hma.datasets import build_dataset
 from hma.models import build_model
 from hma.neural import (
+    SpatialReadoutConfig,
     benchmark_encoding_target_scores,
     compare_rdms,
     compute_rdm,
     evaluate_encoding,
     fit_ridge_encoding,
+    fit_spatial_readout,
     predict_ridge_encoding,
+    predict_spatial_readout,
     save_activations,
 )
 from hma.preprocessing import preprocess_image_for_model
@@ -40,11 +45,34 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     train_fraction = float(neural_config.get("train_fraction", 0.8))
     metric = str(neural_config.get("metric", "correlation"))
     seed = int(neural_config.get("seed", config.get("seed", 0)))
+    encoding_method = str(neural_config.get("encoding_method", "ridge"))
     feature_reduction = str(neural_config.get("feature_reduction", "flatten"))
-    feature_reduction_config = _feature_reduction_config(
-        neural_config,
-        feature_reduction=feature_reduction,
-        default_seed=seed,
+    selection_config = dict(neural_config.get("selection", {}))
+    selection_enabled = bool(selection_config.get("enabled", False))
+    if encoding_method == "learned_spatial_readout" and selection_enabled:
+        raise ValueError("learned_spatial_readout does not support neural.selection in V1")
+    if encoding_method not in {"ridge", "learned_spatial_readout"}:
+        raise ValueError("neural.encoding_method must be 'ridge' or 'learned_spatial_readout'")
+    selection_candidates = (
+        _selection_candidate_configs(
+            neural_config,
+            layers=layers,
+            feature_reduction=feature_reduction,
+            default_seed=seed,
+        )
+        if selection_enabled
+        else []
+    )
+    if selection_enabled:
+        layers = _unique_preserving([str(candidate["layer"]) for candidate in selection_candidates])
+    feature_reduction_config = (
+        {}
+        if selection_enabled
+        else _feature_reduction_config(
+            neural_config,
+            feature_reduction=feature_reduction,
+            default_seed=seed,
+        )
     )
     rsa_config = dict(neural_config.get("rsa", {}))
 
@@ -61,37 +89,94 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         response_key=response_key,
         noise_ceiling_key=noise_ceiling_key,
         device=device,
-        feature_reduction=feature_reduction,
+        feature_reduction=(
+            "selection_raw"
+            if selection_enabled or encoding_method == "learned_spatial_readout"
+            else feature_reduction
+        ),
+        feature_storage_dir=(
+            output_dir / "feature_cache"
+            if selection_enabled or encoding_method == "learned_spatial_readout"
+            else None
+        ),
     )
     image_ids, responses, features_by_layer, feature_shapes, item_metadata, noise_ceiling = collection
     if len(image_ids) < 2:
         raise ValueError("Neural alignment requires at least two response-bearing items")
 
-    (
-        score_rows,
-        target_score_rows,
-        reduced_features_by_layer,
-        feature_reduction_metadata,
-    ) = _fit_and_score_layers(
-        features_by_layer,
-        responses,
-        layers=layers,
-        feature_shapes=feature_shapes,
-        train_fraction=train_fraction,
-        alpha=alpha,
-        ridge_alphas=ridge_alphas,
-        validation_fraction=validation_fraction,
-        metric=metric,
-        seed=seed,
-        feature_reduction=feature_reduction,
-        feature_reduction_config=feature_reduction_config,
-        row_context=_score_row_context(config, item_metadata),
-        noise_ceiling=noise_ceiling,
+    selection_result: dict[str, Any] | None = None
+    learned_readout_result: dict[str, Any] | None = None
+    if encoding_method == "learned_spatial_readout":
+        (
+            score_rows,
+            target_score_rows,
+            reduced_features_by_layer,
+            feature_reduction_metadata,
+            learned_readout_result,
+        ) = _fit_and_score_learned_spatial_readout(
+            features_by_layer,
+            responses,
+            layers=layers,
+            feature_shapes=feature_shapes,
+            train_fraction=train_fraction,
+            metric=metric,
+            seed=seed,
+            device=device,
+            learned_config=dict(neural_config.get("learned_readout", {})),
+            row_context=_score_row_context(config, item_metadata),
+            noise_ceiling=noise_ceiling,
+            image_ids=image_ids,
+        )
+    elif selection_enabled:
+        (
+            score_rows,
+            target_score_rows,
+            reduced_features_by_layer,
+            feature_reduction_metadata,
+            selection_result,
+        ) = _select_candidate_and_score_final(
+            features_by_layer,
+            responses,
+            image_ids=image_ids,
+            candidates=selection_candidates,
+            feature_shapes=feature_shapes,
+            train_fraction=train_fraction,
+            alpha=alpha,
+            ridge_alphas=ridge_alphas,
+            metric=metric,
+            seed=seed,
+            selection_config=selection_config,
+            row_context=_score_row_context(config, item_metadata),
+            noise_ceiling=noise_ceiling,
+        )
+    else:
+        (
+            score_rows,
+            target_score_rows,
+            reduced_features_by_layer,
+            feature_reduction_metadata,
+        ) = _fit_and_score_layers(
+            features_by_layer,
+            responses,
+            layers=layers,
+            feature_shapes=feature_shapes,
+            train_fraction=train_fraction,
+            alpha=alpha,
+            ridge_alphas=ridge_alphas,
+            validation_fraction=validation_fraction,
+            metric=metric,
+            seed=seed,
+            feature_reduction=feature_reduction,
+            feature_reduction_config=feature_reduction_config,
+            row_context=_score_row_context(config, item_metadata),
+            noise_ceiling=noise_ceiling,
+        )
+    activation_payload = (
+        {"image_ids": np.asarray(image_ids, dtype=object)}
+        if encoding_method == "learned_spatial_readout"
+        else {"image_ids": np.asarray(image_ids, dtype=object), **reduced_features_by_layer}
     )
-    activation_path = save_activations(
-        {"image_ids": np.asarray(image_ids, dtype=object), **reduced_features_by_layer},
-        output_dir / "activations.npz",
-    )
+    activation_path = save_activations(activation_payload, output_dir / "activations.npz")
     feature_reduction_metadata_path = output_dir / "feature_reduction_metadata.json"
     feature_reduction_metadata_path.write_text(
         json.dumps(feature_reduction_metadata, indent=2),
@@ -104,10 +189,12 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     rsa_rows: list[dict[str, Any]] = []
     rsa_path: Path | None = None
     if bool(rsa_config.get("enabled", False)):
+        rsa_feature_source = reduced_features_by_layer if selection_enabled else features_by_layer
+        rsa_layers = [str(selection_result["selected_candidate"]["layer"])] if selection_result else layers
         rsa_rows = _compute_rsa_rows(
-            features_by_layer,
+            rsa_feature_source,
             responses,
-            layers=layers,
+            layers=rsa_layers,
             feature_rdm_metric=str(rsa_config.get("rdm_metric", "correlation")),
             response_rdm_metric=str(rsa_config.get("response_rdm_metric", "correlation")),
             compare_method=str(rsa_config.get("compare_method", "spearman")),
@@ -131,7 +218,12 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "noise_ceiling_source": _single_or_mixed(
             _unique_metadata_values(item_metadata, "noise_ceiling_source")
         ),
-        "feature_reduction": feature_reduction,
+        "encoding_method": encoding_method,
+        "feature_reduction": (
+            "learned_spatial_readout"
+            if encoding_method == "learned_spatial_readout"
+            else feature_reduction
+        ),
         "feature_reduction_metadata": str(feature_reduction_metadata_path),
         "ridge_alpha": alpha,
         "ridge_alphas": ridge_alphas,
@@ -142,16 +234,60 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "alpha_selection_modes": sorted(
             {str(row.get("alpha_selection_mode", "")) for row in score_rows}
         ),
-        "selected_ridge_alphas": {
-            str(row["layer"]): float(row["selected_ridge_alpha"]) for row in score_rows
-        },
+        "selected_ridge_alphas": _selected_ridge_alpha_metadata(score_rows),
         "subjects": sorted(_unique_metadata_values(item_metadata, "subject_id")),
         "rois": sorted(_unique_metadata_values(item_metadata, "roi")),
         "activations": str(activation_path),
         "encoding_scores": str(scores_path),
         "encoding_target_scores": str(target_scores_path),
         "rsa_scores": str(rsa_path) if rsa_path is not None else None,
+        "selection_enabled": bool(selection_enabled),
+        "selection_artifact": "",
+        "selection_candidates": "",
+        "selected_layer": "",
+        "selected_feature_reduction": "",
+        "selected_ridge_alpha": "",
+        "selection_score": "",
+        "learned_readout_metadata": "",
     }
+    if learned_readout_result is not None:
+        learned_metadata_path = output_dir / "learned_readout_metadata.json"
+        learned_metadata_path.write_text(
+            json.dumps(learned_readout_result["metadata"], indent=2),
+            encoding="utf-8",
+        )
+        metadata["learned_readout_metadata"] = str(learned_metadata_path)
+    if selection_result is not None:
+        selection_candidates_path = output_dir / "selection_candidates.csv"
+        _write_selection_candidate_rows(
+            selection_candidates_path,
+            selection_result["candidate_rows"],
+        )
+        selection_artifact_path = output_dir / "selection_artifact.json"
+        selection_artifact_path.write_text(
+            json.dumps(selection_result["artifact"], indent=2),
+            encoding="utf-8",
+        )
+        selected_candidate = selection_result["selected_candidate"]
+        metadata.update(
+            {
+                "selection_artifact": str(selection_artifact_path),
+                "selection_candidates": str(selection_candidates_path),
+                "selected_layer": str(selected_candidate["layer"]),
+                "selected_feature_reduction": str(selected_candidate["feature_reduction"]),
+                "selected_ridge_alpha": float(selection_result["selected_alpha"]),
+                "selection_score": float(selection_result["selection_score"]),
+            }
+        )
+        del collection
+        del features_by_layer
+        gc.collect()
+        _cleanup_feature_cache(output_dir / "feature_cache")
+    if learned_readout_result is not None:
+        del collection
+        del features_by_layer
+        gc.collect()
+        _cleanup_feature_cache(output_dir / "feature_cache")
     metadata_path = output_dir / "metadata.json"
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return {
@@ -180,6 +316,7 @@ def _collect_features_and_responses(
     noise_ceiling_key: str,
     device: str,
     feature_reduction: str,
+    feature_storage_dir: Path | None = None,
 ) -> tuple[
     list[str],
     np.ndarray,
@@ -193,7 +330,11 @@ def _collect_features_and_responses(
     noise_ceilings: list[np.ndarray | None] = []
     item_metadata: list[dict[str, Any]] = []
     collected: dict[str, list[np.ndarray]] = {layer: [] for layer in layers}
+    feature_memmaps: dict[str, np.ndarray] = {}
     feature_shapes: dict[str, list[int]] = {}
+    expected_items = _dataset_len(dataset) if feature_reduction == "selection_raw" else None
+    if feature_reduction == "selection_raw" and feature_storage_dir is not None:
+        feature_storage_dir.mkdir(parents=True, exist_ok=True)
 
     for index, item in enumerate(dataset):
         response = _response_for_item(item, response_key)
@@ -218,7 +359,18 @@ def _collect_features_and_responses(
         for layer in layers:
             feature_array = _feature_array(feature_dict[layer])
             feature_shapes.setdefault(layer, [int(dim) for dim in feature_array.shape])
-            if feature_reduction == "flatten_pca":
+            if feature_reduction == "selection_raw":
+                if expected_items is not None and feature_storage_dir is not None:
+                    if layer not in feature_memmaps:
+                        feature_memmaps[layer] = _create_feature_memmap(
+                            feature_storage_dir,
+                            layer=layer,
+                            shape=(expected_items, *feature_array.shape),
+                        )
+                    feature_memmaps[layer][index] = feature_array
+                else:
+                    collected[layer].append(feature_array)
+            elif feature_reduction == "flatten_pca":
                 collected[layer].append(feature_array.reshape(-1))
             else:
                 collected[layer].append(
@@ -226,10 +378,16 @@ def _collect_features_and_responses(
                 )
 
     response_matrix = _stack_consistent(responses, "ROI responses")
-    feature_matrix = {
-        layer: _stack_consistent(values, f"features for layer {layer}")
-        for layer, values in collected.items()
-    }
+    if feature_reduction == "selection_raw" and feature_memmaps:
+        feature_matrix = {
+            layer: feature_memmaps[layer][: len(image_ids)]
+            for layer in layers
+        }
+    else:
+        feature_matrix = {
+            layer: _stack_consistent(values, f"features for layer {layer}")
+            for layer, values in collected.items()
+        }
     noise_ceiling_array = _validate_noise_ceiling(
         noise_ceilings,
         num_targets=response_matrix.shape[1],
@@ -352,6 +510,403 @@ def _fit_and_score_layers(
     }
 
 
+def _fit_and_score_learned_spatial_readout(
+    features_by_layer: dict[str, np.ndarray],
+    responses: np.ndarray,
+    *,
+    layers: list[str],
+    feature_shapes: dict[str, list[int]],
+    train_fraction: float,
+    metric: str,
+    seed: int,
+    device: str,
+    learned_config: dict[str, Any],
+    row_context: dict[str, Any],
+    noise_ceiling: np.ndarray | None,
+    image_ids: list[str],
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, np.ndarray],
+    dict[str, Any],
+    dict[str, Any],
+]:
+    if len(layers) != 1:
+        raise ValueError("learned_spatial_readout V1 requires exactly one layer")
+    layer = layers[0]
+    n_items = responses.shape[0]
+    rng = np.random.default_rng(seed)
+    train_idx, test_idx = _outer_train_test_indices(n_items, train_fraction, rng)
+    validation_fraction = float(learned_config.get("validation_fraction", 0.2))
+    inner_train_idx, validation_idx = _inner_train_validation_indices(
+        train_idx,
+        validation_fraction,
+        rng,
+    )
+    readout_config = SpatialReadoutConfig(
+        max_epochs=int(learned_config.get("max_epochs", 100)),
+        batch_size=int(learned_config.get("batch_size", 32)),
+        target_batch_size=int(learned_config.get("target_batch_size", 256)),
+        lr=float(learned_config.get("lr", 1e-3)),
+        weight_decay=float(learned_config.get("weight_decay", 1e-4)),
+        patience=int(learned_config.get("patience", 10)),
+        min_delta=float(learned_config.get("min_delta", 1e-6)),
+        validation_fraction=validation_fraction,
+        objective=str(learned_config.get("objective", "pearson")),
+        seed=int(learned_config.get("seed", seed)),
+        device=str(learned_config.get("device", device)),
+    )
+    raw_features = features_by_layer[layer]
+    model_bundle = fit_spatial_readout(
+        raw_features,
+        responses,
+        train_idx=inner_train_idx,
+        validation_idx=validation_idx,
+        config=readout_config,
+    )
+    predictions = predict_spatial_readout(model_bundle, raw_features, indices=test_idx)
+    scores = evaluate_encoding(predictions, responses[test_idx], metric=metric)
+    layer_context = {
+        **row_context,
+        "layer": layer,
+        "metric": metric,
+        "n_train": int(train_idx.size),
+        "n_test": int(test_idx.size),
+        "split_seed": int(seed),
+        "feature_reduction": "learned_spatial_readout",
+        "selected_ridge_alpha": "",
+        "alpha_selection_mode": "early_stopping_validation",
+    }
+    target_rows = [
+        {
+            **layer_context,
+            **target_row,
+        }
+        for target_row in benchmark_encoding_target_scores(
+            predictions,
+            responses[test_idx],
+            noise_ceiling=noise_ceiling,
+        )
+    ]
+    rows = [
+        {
+            **layer_context,
+            "num_targets": int(scores.size),
+            "mean_score": float(np.mean(scores)),
+            "median_score": float(np.median(scores)),
+            "std_score": float(np.std(scores, ddof=1)) if scores.size > 1 else 0.0,
+            "mean_r2_score_from_r": float(
+                np.mean([float(target_row["r2_score_from_r"]) for target_row in target_rows])
+            ),
+            **_noise_normalized_layer_summary(target_rows),
+            "metric_scope": _metric_scope_from_target_rows(target_rows),
+        }
+    ]
+    readout_metadata = dict(model_bundle["metadata"])
+    readout_metadata.update(
+        {
+            "layer": layer,
+            "n_outer_train": int(train_idx.size),
+            "n_test": int(test_idx.size),
+            "outer_train_image_ids": _ids_for_indices(image_ids, train_idx),
+            "outer_test_image_ids": _ids_for_indices(image_ids, test_idx),
+            "selection_train_image_ids": _ids_for_indices(image_ids, inner_train_idx),
+            "selection_validation_image_ids": _ids_for_indices(image_ids, validation_idx),
+        }
+    )
+    feature_metadata = {
+        "feature_reduction": "learned_spatial_readout",
+        "layers": [
+            {
+                "layer": layer,
+                "method": "learned_spatial_readout",
+                "input_feature_shape": [
+                    int(dim) for dim in feature_shapes.get(layer, list(raw_features.shape[1:]))
+                ],
+                "output_feature_shape": [int(responses.shape[1])],
+                "requested_components": "",
+                "effective_components": int(responses.shape[1]),
+                "explained_variance_ratio_sum": "",
+                "train_only_fit": True,
+                "n_train_fit": int(inner_train_idx.size),
+                "random_seed": int(readout_config.seed),
+                "pca_solver": "",
+                "pca_whiten": "",
+            }
+        ],
+    }
+    return (
+        rows,
+        target_rows,
+        {},
+        feature_metadata,
+        {
+            "metadata": readout_metadata,
+        },
+    )
+
+
+def _dataset_len(dataset: Any) -> int | None:
+    try:
+        length = len(dataset)
+    except TypeError:
+        return None
+    return int(length) if length > 0 else None
+
+
+def _create_feature_memmap(
+    directory: Path,
+    *,
+    layer: str,
+    shape: tuple[int, ...],
+) -> np.ndarray:
+    path = directory / f"{_safe_name(layer)}.npy"
+    return np.lib.format.open_memmap(
+        path,
+        mode="w+",
+        dtype=np.float32,
+        shape=shape,
+    )
+
+
+def _cleanup_feature_cache(directory: Path) -> None:
+    if directory.is_dir():
+        shutil.rmtree(directory)
+
+
+def _safe_name(value: str) -> str:
+    return "".join(character if character.isalnum() else "_" for character in value)
+
+
+def _select_candidate_and_score_final(
+    features_by_layer: dict[str, np.ndarray],
+    responses: np.ndarray,
+    *,
+    image_ids: list[str],
+    candidates: list[dict[str, Any]],
+    feature_shapes: dict[str, list[int]],
+    train_fraction: float,
+    alpha: float,
+    ridge_alphas: list[float] | None,
+    metric: str,
+    seed: int,
+    selection_config: dict[str, Any],
+    row_context: dict[str, Any],
+    noise_ceiling: np.ndarray | None,
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, np.ndarray],
+    dict[str, Any],
+    dict[str, Any],
+]:
+    n_items = responses.shape[0]
+    rng = np.random.default_rng(seed)
+    train_idx, test_idx = _outer_train_test_indices(n_items, train_fraction, rng)
+    selection_fraction = float(selection_config.get("validation_fraction", 0.2))
+    selection_train_idx, validation_idx = _inner_train_validation_indices(
+        train_idx,
+        selection_fraction,
+        rng,
+    )
+    primary_score = str(selection_config.get("primary_score", "mean_noise_normalized_score"))
+
+    candidate_rows: list[dict[str, Any]] = []
+    candidate_artifacts: list[dict[str, Any]] = []
+    for candidate_index, candidate in enumerate(candidates):
+        layer = str(candidate["layer"])
+        candidate_feature_reduction = str(candidate["feature_reduction"])
+        candidate_config = _candidate_feature_reduction_config(candidate)
+        features, feature_metadata = _prepare_layer_features(
+            features_by_layer[layer],
+            layer=layer,
+            input_shape=feature_shapes.get(layer, list(features_by_layer[layer].shape[1:])),
+            train_idx=selection_train_idx,
+            feature_reduction=candidate_feature_reduction,
+            feature_reduction_config=candidate_config,
+        )
+        alpha_result = _select_ridge_alpha_on_validation(
+            features,
+            responses,
+            train_idx=selection_train_idx,
+            validation_idx=validation_idx,
+            alpha=alpha,
+            ridge_alphas=ridge_alphas,
+            metric=metric,
+            noise_ceiling=noise_ceiling,
+            primary_score=primary_score,
+        )
+        row = {
+            **row_context,
+            "candidate_index": int(candidate_index),
+            "layer": layer,
+            "feature_reduction": candidate_feature_reduction,
+            "pca_components": candidate.get("pca_components", ""),
+            "pca_solver": candidate.get("pca_solver", ""),
+            "pca_whiten": candidate.get("pca_whiten", ""),
+            "selected_ridge_alpha": float(alpha_result["selected_alpha"]),
+            "alpha_selection_mode": alpha_result["mode"],
+            "validation_score": float(alpha_result["score"]),
+            "validation_score_type": alpha_result["score_type"],
+            "primary_score": primary_score,
+            "selection_n_train": int(selection_train_idx.size),
+            "selection_n_validation": int(validation_idx.size),
+            "outer_n_train": int(train_idx.size),
+            "outer_n_test": int(test_idx.size),
+            "selected": "false",
+            "pca_n_train_fit": feature_metadata.get("n_train_fit", ""),
+            "pca_effective_components": feature_metadata.get("effective_components", ""),
+            "pca_explained_variance_ratio_sum": feature_metadata.get(
+                "explained_variance_ratio_sum",
+                "",
+            ),
+        }
+        candidate_rows.append(row)
+        candidate_artifacts.append(
+            {
+                "candidate": dict(candidate),
+                "validation": dict(row),
+                "feature_reduction_metadata": feature_metadata,
+            }
+        )
+
+    if not candidate_rows:
+        raise ValueError("neural.selection requires at least one candidate")
+    selected_index = _selected_candidate_index(candidate_rows)
+    candidate_rows[selected_index]["selected"] = "true"
+    selected_candidate = candidates[selected_index]
+    selected_alpha = float(candidate_rows[selected_index]["selected_ridge_alpha"])
+    selected_layer = str(selected_candidate["layer"])
+    selected_feature_reduction = str(selected_candidate["feature_reduction"])
+    selected_features, selected_feature_metadata = _prepare_layer_features(
+        features_by_layer[selected_layer],
+        layer=selected_layer,
+        input_shape=feature_shapes.get(
+            selected_layer,
+            list(features_by_layer[selected_layer].shape[1:]),
+        ),
+        train_idx=train_idx,
+        feature_reduction=selected_feature_reduction,
+        feature_reduction_config=_candidate_feature_reduction_config(selected_candidate),
+    )
+    final_rows, final_target_rows = _score_prepared_layer(
+        selected_features,
+        responses,
+        train_idx=train_idx,
+        test_idx=test_idx,
+        layer=selected_layer,
+        metric=metric,
+        selected_alpha=selected_alpha,
+        alpha_selection_mode="selection_validation",
+        split_seed=seed,
+        feature_reduction=selected_feature_reduction,
+        row_context=row_context,
+        noise_ceiling=noise_ceiling,
+    )
+    reduced_features_by_layer = {selected_layer: selected_features}
+    feature_reduction_metadata = {
+        "feature_reduction": selected_feature_reduction,
+        "layers": [selected_feature_metadata],
+        "selection_enabled": True,
+    }
+    artifact = {
+        "selection_enabled": True,
+        "primary_score": primary_score,
+        "split_seed": int(seed),
+        "outer_train_image_ids": _ids_for_indices(image_ids, train_idx),
+        "outer_test_image_ids": _ids_for_indices(image_ids, test_idx),
+        "selection_train_image_ids": _ids_for_indices(image_ids, selection_train_idx),
+        "selection_validation_image_ids": _ids_for_indices(image_ids, validation_idx),
+        "candidates": candidate_artifacts,
+        "selected_candidate_index": int(selected_index),
+        "selected_candidate": dict(selected_candidate),
+        "selected_alpha": selected_alpha,
+        "selection_score": float(candidate_rows[selected_index]["validation_score"]),
+        "selection_score_type": candidate_rows[selected_index]["validation_score_type"],
+        "final_test_config": {
+            "layer": selected_layer,
+            "feature_reduction": selected_feature_reduction,
+            "selected_ridge_alpha": selected_alpha,
+            "n_train": int(train_idx.size),
+            "n_test": int(test_idx.size),
+            "feature_reduction_metadata": selected_feature_metadata,
+        },
+    }
+    selection_result = {
+        "candidate_rows": candidate_rows,
+        "artifact": artifact,
+        "selected_candidate": dict(selected_candidate),
+        "selected_alpha": selected_alpha,
+        "selection_score": float(candidate_rows[selected_index]["validation_score"]),
+    }
+    return (
+        final_rows,
+        final_target_rows,
+        reduced_features_by_layer,
+        feature_reduction_metadata,
+        selection_result,
+    )
+
+
+def _score_prepared_layer(
+    features: np.ndarray,
+    responses: np.ndarray,
+    *,
+    train_idx: np.ndarray,
+    test_idx: np.ndarray,
+    layer: str,
+    metric: str,
+    selected_alpha: float,
+    alpha_selection_mode: str,
+    split_seed: int,
+    feature_reduction: str,
+    row_context: dict[str, Any],
+    noise_ceiling: np.ndarray | None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    model = fit_ridge_encoding(
+        features[train_idx],
+        responses[train_idx],
+        alpha=selected_alpha,
+    )
+    predictions = predict_ridge_encoding(model, features[test_idx])
+    scores = evaluate_encoding(predictions, responses[test_idx], metric=metric)
+    layer_context = {
+        **row_context,
+        "layer": layer,
+        "metric": metric,
+        "n_train": int(train_idx.size),
+        "n_test": int(test_idx.size),
+        "split_seed": int(split_seed),
+        "feature_reduction": feature_reduction,
+        "selected_ridge_alpha": float(selected_alpha),
+        "alpha_selection_mode": alpha_selection_mode,
+    }
+    target_rows = [
+        {
+            **layer_context,
+            **target_row,
+        }
+        for target_row in benchmark_encoding_target_scores(
+            predictions,
+            responses[test_idx],
+            noise_ceiling=noise_ceiling,
+        )
+    ]
+    row = {
+        **layer_context,
+        "num_targets": int(scores.size),
+        "mean_score": float(np.mean(scores)),
+        "median_score": float(np.median(scores)),
+        "std_score": float(np.std(scores, ddof=1)) if scores.size > 1 else 0.0,
+        "mean_r2_score_from_r": float(
+            np.mean([float(target_row["r2_score_from_r"]) for target_row in target_rows])
+        ),
+        **_noise_normalized_layer_summary(target_rows),
+        "metric_scope": _metric_scope_from_target_rows(target_rows),
+    }
+    return [row], target_rows
+
+
 def _feature_reduction_config(
     neural_config: dict[str, Any],
     *,
@@ -377,6 +932,86 @@ def _feature_reduction_config(
     }
 
 
+def _selection_candidate_configs(
+    neural_config: dict[str, Any],
+    *,
+    layers: list[str],
+    feature_reduction: str,
+    default_seed: int,
+) -> list[dict[str, Any]]:
+    selection_config = dict(neural_config.get("selection", {}))
+    raw_candidates = selection_config.get("candidates")
+    if raw_candidates is None:
+        raw_candidates = [{"layer": layer} for layer in layers]
+    if not isinstance(raw_candidates, list):
+        raise ValueError("neural.selection.candidates must be a list")
+
+    candidates: list[dict[str, Any]] = []
+    for index, raw_candidate in enumerate(raw_candidates):
+        if not isinstance(raw_candidate, dict):
+            raise ValueError("Each neural.selection candidate must be a mapping")
+        layer = raw_candidate.get("layer")
+        if layer is None:
+            raise ValueError("Each neural.selection candidate requires a layer")
+        candidate_feature_reduction = str(
+            raw_candidate.get("feature_reduction", feature_reduction)
+        )
+        candidate: dict[str, Any] = {
+            "layer": str(layer),
+            "feature_reduction": candidate_feature_reduction,
+            "candidate_index": int(index),
+        }
+        if candidate_feature_reduction == "flatten_pca":
+            if "pca_components" in raw_candidate:
+                pca_components = raw_candidate["pca_components"]
+            elif "pca_components" in neural_config:
+                pca_components = neural_config["pca_components"]
+            else:
+                raise ValueError(
+                    "neural.selection flatten_pca candidates require pca_components"
+                )
+            candidate.update(
+                {
+                    "pca_components": int(pca_components),
+                    "pca_solver": str(
+                        raw_candidate.get(
+                            "pca_solver",
+                            neural_config.get("pca_solver", "randomized"),
+                        )
+                    ),
+                    "pca_whiten": bool(
+                        raw_candidate.get(
+                            "pca_whiten",
+                            neural_config.get("pca_whiten", False),
+                        )
+                    ),
+                    "feature_reduction_seed": int(
+                        raw_candidate.get(
+                            "feature_reduction_seed",
+                            neural_config.get("feature_reduction_seed", default_seed),
+                        )
+                    ),
+                }
+            )
+        elif candidate_feature_reduction not in {"flatten", "spatial_mean"}:
+            raise ValueError(
+                "feature_reduction must be 'flatten', 'spatial_mean', or 'flatten_pca'"
+            )
+        candidates.append(candidate)
+    return candidates
+
+
+def _candidate_feature_reduction_config(candidate: dict[str, Any]) -> dict[str, Any]:
+    if str(candidate.get("feature_reduction")) != "flatten_pca":
+        return {}
+    return {
+        "pca_components": int(candidate["pca_components"]),
+        "pca_solver": str(candidate.get("pca_solver", "randomized")),
+        "pca_whiten": bool(candidate.get("pca_whiten", False)),
+        "feature_reduction_seed": int(candidate.get("feature_reduction_seed", 0)),
+    }
+
+
 def _prepare_layer_features(
     features: np.ndarray,
     *,
@@ -398,7 +1033,7 @@ def _prepare_layer_features(
             random_seed=int(feature_reduction_config["feature_reduction_seed"]),
         )
 
-    reduced = np.asarray(features, dtype=np.float32)
+    reduced = _reduce_feature_matrix(features, method=feature_reduction)
     metadata = {
         "layer": layer,
         "method": feature_reduction,
@@ -436,8 +1071,10 @@ def _fit_transform_flatten_pca(
         ) from exc
 
     matrix = np.asarray(features, dtype=np.float32)
-    if matrix.ndim != 2:
-        raise ValueError("flatten_pca expects a 2D flattened feature matrix")
+    if matrix.ndim < 2:
+        raise ValueError("flatten_pca expects a batched feature matrix")
+    if matrix.ndim > 2:
+        matrix = matrix.reshape(matrix.shape[0], -1)
     max_components = min(int(train_idx.size), int(matrix.shape[1]))
     if pca_components > max_components:
         raise ValueError(
@@ -445,14 +1082,16 @@ def _fit_transform_flatten_pca(
             f"{pca_components} > {max_components}"
         )
 
+    train_matrix = np.asarray(matrix[train_idx], dtype=np.float32, order="C")
     pca = PCA(
         n_components=pca_components,
         svd_solver=pca_solver,
         whiten=pca_whiten,
         random_state=random_seed,
+        copy=False,
     )
-    pca.fit(matrix[train_idx])
-    reduced = pca.transform(matrix).astype(np.float32, copy=False)
+    pca.fit(train_matrix)
+    reduced = _transform_pca_in_batches(matrix, pca).astype(np.float32, copy=False)
     metadata = {
         "layer": layer,
         "method": "flatten_pca",
@@ -468,6 +1107,38 @@ def _fit_transform_flatten_pca(
         "pca_whiten": bool(pca_whiten),
     }
     return reduced, metadata
+
+
+def _transform_pca_in_batches(
+    matrix: np.ndarray,
+    pca: Any,
+    *,
+    batch_size: int = 64,
+) -> np.ndarray:
+    components = np.asarray(pca.components_)
+    mean = np.asarray(pca.mean_)
+    n_items = int(matrix.shape[0])
+    n_components = int(components.shape[0])
+    reduced = np.empty((n_items, n_components), dtype=np.float32)
+    for start in range(0, n_items, batch_size):
+        end = min(start + batch_size, n_items)
+        batch = np.asarray(matrix[start:end], dtype=np.float32).reshape(end - start, -1)
+        centered = batch - mean
+        transformed = centered @ components.T
+        if bool(getattr(pca, "whiten", False)):
+            scale = np.sqrt(np.asarray(pca.explained_variance_))
+            scale[scale == 0.0] = 1.0
+            transformed = transformed / scale
+        reduced[start:end] = transformed.astype(np.float32, copy=False)
+    return reduced
+
+
+def _reduce_feature_matrix(features: np.ndarray, method: str = "flatten") -> np.ndarray:
+    matrix = np.asarray(features, dtype=np.float32)
+    if matrix.ndim < 2:
+        raise ValueError("Expected a batched feature matrix")
+    reduced = [_reduce_feature_array(item, method=method) for item in matrix]
+    return _stack_consistent(reduced, f"reduced {method} features")
 
 
 def _noise_normalized_layer_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -538,6 +1209,119 @@ def _select_ridge_alpha(
     return {"selected_alpha": best_alpha, "mode": "cv_inner_validation"}
 
 
+def _select_ridge_alpha_on_validation(
+    features: np.ndarray,
+    responses: np.ndarray,
+    *,
+    train_idx: np.ndarray,
+    validation_idx: np.ndarray,
+    alpha: float,
+    ridge_alphas: list[float] | None,
+    metric: str,
+    noise_ceiling: np.ndarray | None,
+    primary_score: str,
+) -> dict[str, Any]:
+    candidate_alphas = ridge_alphas or [float(alpha)]
+    mode = "selection_validation" if ridge_alphas else "fixed"
+    best_alpha = float(candidate_alphas[0])
+    best_score = -np.inf
+    best_score_type = "raw"
+    for candidate_alpha in candidate_alphas:
+        model = fit_ridge_encoding(
+            features[train_idx],
+            responses[train_idx],
+            alpha=float(candidate_alpha),
+        )
+        predictions = predict_ridge_encoding(model, features[validation_idx])
+        scores = evaluate_encoding(predictions, responses[validation_idx], metric=metric)
+        target_rows = benchmark_encoding_target_scores(
+            predictions,
+            responses[validation_idx],
+            noise_ceiling=noise_ceiling,
+        )
+        row = {
+            "mean_score": float(np.mean(scores)),
+            **_noise_normalized_layer_summary(target_rows),
+        }
+        score, score_type = _selection_primary_score(row, primary_score)
+        if score > best_score + 1e-6 or (
+            abs(score - best_score) <= 1e-6 and float(candidate_alpha) < best_alpha
+        ):
+            best_score = score
+            best_alpha = float(candidate_alpha)
+            best_score_type = score_type
+    return {
+        "selected_alpha": best_alpha,
+        "mode": mode,
+        "score": best_score,
+        "score_type": best_score_type,
+    }
+
+
+def _selection_primary_score(row: dict[str, Any], primary_score: str) -> tuple[float, str]:
+    if primary_score == "mean_noise_normalized_score":
+        normalized = _optional_float(row.get("mean_noise_normalized_score"))
+        if normalized is not None:
+            return normalized, "noise_normalized"
+        raw = _optional_float(row.get("mean_score"))
+        return (-np.inf if raw is None else raw), "raw"
+    if primary_score == "mean_score":
+        raw = _optional_float(row.get("mean_score"))
+        return (-np.inf if raw is None else raw), "raw"
+    raise ValueError(
+        "neural.selection.primary_score must be 'mean_noise_normalized_score' or 'mean_score'"
+    )
+
+
+def _selected_candidate_index(rows: list[dict[str, Any]]) -> int:
+    best_index = 0
+    best_score = -np.inf
+    for index, row in enumerate(rows):
+        score = float(row["validation_score"])
+        if score > best_score + 1e-6:
+            best_score = score
+            best_index = index
+    return best_index
+
+
+def _outer_train_test_indices(
+    n_items: int,
+    train_fraction: float,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray]:
+    n_train = min(max(1, int(round(n_items * train_fraction))), n_items - 1)
+    order = rng.permutation(n_items)
+    return order[:n_train], order[n_train:]
+
+
+def _inner_train_validation_indices(
+    train_idx: np.ndarray,
+    validation_fraction: float,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray]:
+    if train_idx.size < 3:
+        raise ValueError("neural.selection requires at least three outer-train items")
+    n_val = int(round(train_idx.size * validation_fraction))
+    n_val = min(max(1, n_val), train_idx.size - 1)
+    inner_order = train_idx[rng.permutation(train_idx.size)]
+    return inner_order[n_val:], inner_order[:n_val]
+
+
+def _ids_for_indices(image_ids: list[str], indices: np.ndarray) -> list[str]:
+    return [str(image_ids[int(index)]) for index in indices]
+
+
+def _unique_preserving(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique
+
+
 def _compute_rsa_rows(
     features_by_layer: dict[str, np.ndarray],
     responses: np.ndarray,
@@ -581,6 +1365,15 @@ def _optional_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _selected_ridge_alpha_metadata(rows: list[dict[str, Any]]) -> dict[str, float | str]:
+    values: dict[str, float | str] = {}
+    for row in rows:
+        raw = row.get("selected_ridge_alpha", "")
+        parsed = _optional_float(raw)
+        values[str(row["layer"])] = "" if parsed is None else parsed
+    return values
 
 
 def _metric_scope_from_target_rows(rows: list[dict[str, Any]]) -> str:
@@ -767,6 +1560,38 @@ def _write_target_score_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "alpha_selection_mode",
         "split_seed",
         "feature_reduction",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_selection_candidate_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    fieldnames = [
+        "dataset",
+        "model",
+        "subject_id",
+        "roi",
+        "candidate_index",
+        "layer",
+        "feature_reduction",
+        "pca_components",
+        "pca_solver",
+        "pca_whiten",
+        "selected_ridge_alpha",
+        "alpha_selection_mode",
+        "validation_score",
+        "validation_score_type",
+        "primary_score",
+        "selection_n_train",
+        "selection_n_validation",
+        "outer_n_train",
+        "outer_n_test",
+        "selected",
+        "pca_n_train_fit",
+        "pca_effective_components",
+        "pca_explained_variance_ratio_sum",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
