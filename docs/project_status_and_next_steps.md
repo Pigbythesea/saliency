@@ -90,26 +90,26 @@ Current interpretation:
 Current neural summary:
 
 - Path: `outputs/neural_roi_summary/`
-- Input neural directories: `28`
-- Encoding rows: `100`
-- Encoding target rows: `241450`
+- Input neural directories: `29`
+- Encoding rows: `101`
+- Encoding target rows: `244423`
 - RSA rows: `92`
 - Behavioral bridge CSV: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
 - Efficiency CSV: not provided in the latest summary.
-- Feature-reduction rows: `92` spatial-mean diagnostic rows and `8` validation-selected full-image-count `flatten_pca` rows.
-- Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `241350` rows are `benchmark_style_noise_normalized` and `100` rows are intentionally left `benchmark_style_non_noise_normalized`.
+- Feature-reduction rows: `92` spatial-mean diagnostic rows, `8` validation-selected full-image-count `flatten_pca` rows, and `1` full-image-count learned spatial readout row.
+- Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `244323` rows are `benchmark_style_noise_normalized` and `100` rows are intentionally left `benchmark_style_non_noise_normalized`.
 
 Current noise-normalized neural ranking:
 
-- Mean valid-target noise-normalized encoding leader: `vit_small_patch14_dinov2`, mean `0.591` (`59.11` on x100 scale).
+- Mean valid-target noise-normalized encoding leader: `vit_small_patch14_dinov2`, mean `0.621` (`62.11` on x100 scale).
 - `deit_small_patch16_224` ranks second by mean valid-target noise-normalized encoding, mean `0.562` (`56.17` x100).
 - The current noise-normalized encoding leader is the same model as the raw Pearson leader.
 - Each model ranking row aggregates `9654` valid positive-ceiling targets and excludes `4` zero-ceiling hV4 targets from noise-normalized aggregates.
-- The `vit_small_patch14_dinov2` and `deit_small_patch16_224` rankings are now driven by validation-selected full-image-count `flatten_pca` runs, while the other current model families remain ROI500 spatial-mean diagnostics.
+- The `vit_small_patch14_dinov2` ranking is now driven by the learned spatial readout V1 row plus validation-selected full-image-count `flatten_pca` rows for the remaining ROIs. The `deit_small_patch16_224` ranking is driven by validation-selected full-image-count `flatten_pca` rows. The other current model families remain ROI500 spatial-mean diagnostics.
 
 Current raw neural ranking:
 
-- Mean encoding leader: `vit_small_patch14_dinov2`, mean raw correlation `0.541`.
+- Mean encoding leader: `vit_small_patch14_dinov2`, mean raw correlation `0.555`.
 - Mean RSA leader: `vit_base_patch16_224`, mean Spearman RSA `0.088`.
 - `deit_small_patch16_224` ranks second for both raw encoding and noise-normalized encoding; `vit_small_patch14_dinov2` remains second by ROI500-scale RSA.
 - `resnet50` is now included in the regenerated summary and ranks fifth by mean raw encoding, fourth by mean RSA.
@@ -133,6 +133,15 @@ Validation-selected full-image-count `flatten_pca` `vit_small_patch14_dinov2` re
 - hV4 selected `blocks.6`: `1292` valid positive-ceiling targets plus `4` zero-ceiling targets, mean raw Pearson `0.457`, mean valid-target noise-normalized score `0.517` (`51.70` x100), selected `ridge_alpha=1000.0`.
 - PCA metadata for all four runs records `train_only_fit=true`, `n_train_fit=7873`, `effective_components=512`, `input_feature_shape=[1370, 384]`, and `pca_solver=randomized`.
 
+Full learned spatial readout `vit_small_patch14_dinov2` result:
+
+- V1 fixed `blocks.3`: `2973` valid targets, mean raw Pearson `0.648`, mean valid-target noise-normalized score `0.762` (`76.25` x100), median raw Pearson `0.691`, median noise-normalized score `0.803`.
+- This improves over the validation-selected DINOv2 V1 `flatten_pca` baseline by `+0.052` raw Pearson and `+0.120` valid-target noise-normalized score.
+- Training used `6298` inner-train and `1575` validation images inside the `7873` outer-train images; final scoring used `1968` held-out test images.
+- Longer diagnostic best epoch was `127`, early-stopped at epoch `142`, validation mean Pearson `0.648`; the gain over the 100-epoch run was negligible (`+0.00021` raw Pearson, `+0.00035` noise-normalized), so the V1 learned-readout training is effectively saturated for this head/config.
+- Output path: `C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_v1_learned_spatial_readout_full_180ep/`.
+- The learned row is included in regenerated `outputs/neural_roi_summary/` and `outputs/paper_inspection_v1/`.
+
 Current bridge readout:
 
 - Overall behavior-to-encoding leader match rate: `0.587`.
@@ -142,17 +151,17 @@ Current bridge readout:
 Interpretation:
 
 - The project has moved from a weak ROI500 spatial-mean neural diagnostic to a strong local full-image-count ridge baseline for one model family.
-- The `vit_small_patch14_dinov2` and `deit_small_patch16_224` `flatten_pca` baselines now clear the Algonauts organizer baseline scale numerically in these local PRF ROI summaries, but this is not leaderboard-equivalent because subject, cortex, split, and target scope differ.
-- The strongest current claim is methodological: full image count plus train-only PCA over flattened token features dramatically improves local neural encoding relative to ROI500 spatial-mean probes.
+- The `vit_small_patch14_dinov2` learned spatial readout V1 row and the `vit_small_patch14_dinov2` / `deit_small_patch16_224` `flatten_pca` baselines now clear the Algonauts organizer baseline scale numerically in these local PRF ROI summaries, but this is not leaderboard-equivalent because subject, cortex, split, and target scope differ.
+- The strongest current claim is methodological: full image count plus feature-preserving readouts dramatically improves local neural encoding relative to ROI500 spatial-mean probes, and learned spatial pooling materially improves V1 over `flatten_pca`.
 - The previous test-set feedback risk for layer choice has been addressed for the current one-subject PRF visual ROI baselines by validation-only layer selection.
 
 Current methodological gap to SOTA:
 
-- The current strong baseline uses `flatten_pca`, not learned spatial pooling or voxel-specific readouts. It preserves more feature information than spatial mean, but still falls short of SOTA-style spatial heads.
+- The current strongest V1 result uses a learned target-wise spatial readout, but only for one ROI and one backbone. The remaining ROIs still use `flatten_pca`, and the readout is simpler than SOTA voxel-specific RetinaMapper-style heads.
 - Current full-image-count runs cover `subj01` PRF visual ROIs only. SOTA scores use broader visual-cortex vertex sets across subjects and hemispheres.
 - Current ridge alpha selection is per-layer/ROI, not per-target. Per-target alpha or voxel-specific readouts may improve later, after the matched validation-selected backbone comparison is complete.
-- Current reporting mixes full `flatten_pca` rows for `vit_small_patch14_dinov2` and `deit_small_patch16_224` with ROI500 spatial-mean rows for other models. Cross-model rankings are useful for handoff, but model-family claims outside these two backbones should wait until the same full protocol is run.
-- Current scoring now supports validation-selected single-layer `flatten_pca`. SOTA methods go further with multi-layer fusion, learned layer selection, subject-specific heads, voxel-specific spatial readouts, and ensembles.
+- Current reporting mixes one learned-readout row, full `flatten_pca` rows for `vit_small_patch14_dinov2` and `deit_small_patch16_224`, and ROI500 spatial-mean rows for other models. Cross-model rankings are useful for handoff, but model-family claims outside matched protocols should wait.
+- Current scoring now supports validation-selected single-layer `flatten_pca` and fixed-layer learned spatial readout. SOTA methods go further with multi-layer fusion, learned layer selection, subject-specific heads, voxel-specific spatial readouts, and ensembles.
 
 Relevant SOTA references:
 
@@ -192,6 +201,7 @@ Neural infrastructure:
 - `timm` wrappers with named-layer activation extraction.
 - Ridge encoding over ROI response vectors.
 - Train-only `flatten_pca` feature reduction for full flattened activation tensors.
+- Frozen-backbone learned spatial readout with target-wise spatial pooling, target-wise channel weights, inner-validation early stopping, and summary-compatible output rows.
 - Cross-validated ridge alpha selection on an inner split of training images.
 - RSA over model and neural response RDMs.
 - ROI500 summaries, full-image-count PRF ROI summaries, model rankings, ROI winners, and descriptive behavior-neural bridge tables.
@@ -201,7 +211,7 @@ Reporting infrastructure:
 - Corrected behavioral aggregate and merged SSL/VLM aggregate.
 - Neural ROI summary tables.
 - Paper inspection pack with behavior, neural, bridge, SSL/VLM candidate, benchmark sanity tables, and an academic SOTA context section comparing the current figures against MIT/Tuebingen saliency, DeepGaze IIE SALICON, COCO-Search18 task-search, and Algonauts 2023 evaluation references.
-- Paper inspection README now explicitly distinguishes ROI500 diagnostics from full-image-count PRF ROI `flatten_pca` baselines.
+- Paper inspection README now explicitly distinguishes ROI500 diagnostics from full-image-count PRF ROI `flatten_pca` baselines and includes the full DINOv2 V1 learned spatial readout row through the neural summary.
 
 ## Superseded Or Historical Outputs
 
@@ -330,18 +340,18 @@ Latest focused result after full validation-selected summary regeneration: `46 p
 
 ## Next Concrete Milestone
 
-Priority: **Learned Spatial Readout Full V1 Run And Comparison**.
+Priority: **Learned Spatial Readout ROI Expansion V1**.
 
-Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, CKA, adaptive token pruning, foveation, scanpaths, video, or a broad model zoo. The project now has two validation-selected full-image-count `flatten_pca` baselines (`vit_small_patch14_dinov2` and `deit_small_patch16_224`) over `subj01` PRF visual ROIs. The frozen-backbone learned spatial readout prototype is implemented and smoke-tested; the next methodological step is the full `subj01` `V1` run and direct comparison against the DINOv2 `flatten_pca` baseline.
+Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, CKA, adaptive token pruning, foveation, scanpaths, video, or a broad model zoo. The project now has two validation-selected full-image-count `flatten_pca` baselines (`vit_small_patch14_dinov2` and `deit_small_patch16_224`) over `subj01` PRF visual ROIs, plus a completed and plateau-checked full learned spatial readout run for DINOv2 V1. The next methodological step is to extend the same learned-readout protocol to `V2`, `V3`, and `hV4` so the project can determine whether learned spatial pooling improves all PRF visual ROIs or mainly V1.
 
-Full-run acceptance target:
+Next acceptance target:
 
-- Start with one subject, one ROI, and one backbone: `subj01`, `V1`, `vit_small_patch14_dinov2`, selected layer `blocks.3`.
-- Freeze the image backbone and learn a target-wise spatial pooling/readout head over the selected feature tensor rather than flattening all tokens through PCA.
-- Use the same outer train/test split policy and an inner validation split for early stopping and hyperparameter selection.
-- Keep output files compatible with the existing neural summary format so learned-readout rows can join `encoding_scores.csv`, `encoding_target_scores.csv`, and paper inspection outputs.
-- Do not replace the ridge baseline; report learned readout versus the current validation-selected DINOv2 `flatten_pca` baseline.
-- Compare against the current DINOv2 `flatten_pca` V1 baseline: mean raw Pearson `0.595`, mean valid-target noise-normalized score `0.642`.
+- Create learned-readout configs for `subj01` `V2`, `V3`, and `hV4` using `vit_small_patch14_dinov2`.
+- Use the same learned-readout training settings as the accepted V1 180-epoch run: `max_epochs=180`, `patience=15`, `batch_size=32`, `target_batch_size=256`, `lr=0.001`, `weight_decay=0.0001`, progress logging enabled.
+- Use the same selected layers as the current validation-selected DINOv2 `flatten_pca` runs unless a separate validation-only learned-layer selection path is implemented first: `blocks.6` for `V2`, `V3`, and `hV4`.
+- Run the three ROI configs one at a time and inspect artifacts before summary regeneration.
+- Keep output files compatible with the existing neural summary format and continue reporting learned readout separately from `flatten_pca`.
+- Do not add more backbones until the learned-readout ROI expansion decision is made.
 
 Completed learned spatial readout prototype status:
 
@@ -353,9 +363,13 @@ Completed learned spatial readout prototype status:
 - Output compatibility is implemented for `encoding_scores.csv`, `encoding_target_scores.csv`, `metadata.json`, `feature_reduction_metadata.json`, and `learned_readout_metadata.json`.
 - Smoke config: `configs/experiments/neural_large_smoke/vit_small_patch14_dinov2_v1_learned_spatial_readout_smoke.yaml`.
 - Full config: `configs/experiments/neural_subj01_full/vit_small_patch14_dinov2_v1_learned_spatial_readout_full.yaml`.
+- Longer V1 diagnostic config: `configs/experiments/neural_subj01_full/vit_small_patch14_dinov2_v1_learned_spatial_readout_full_180ep.yaml`; this keeps the same subject, ROI, layer, split seed, optimizer, and output schema, but increases `max_epochs` to `180`, `patience` to `15`, and writes to a separate `C:/saliency_outputs/..._180ep` directory.
 - Smoke output: `outputs/neural_large_smoke/vit_small_patch14_dinov2_v1_learned_spatial_readout_smoke/`.
 - Smoke result on `64` images: `2973` valid V1 targets, mean raw Pearson `0.172`, mean valid-target noise-normalized score `0.250`, validation best epoch `35`, validation mean Pearson `0.221`, early-stopped after `45` epochs.
 - Smoke result is only a wiring and stability check; it should not be compared scientifically against the full `9841`-image `flatten_pca` baseline.
+- Full V1 100-epoch result on `9841` images: `2973` valid V1 targets, mean raw Pearson `0.647`, mean valid-target noise-normalized score `0.762`, validation best epoch `100`, validation mean Pearson `0.647`, no early stop.
+- Full V1 180-epoch diagnostic result: mean raw Pearson `0.648`, mean valid-target noise-normalized score `0.762`, validation best epoch `127`, early-stopped at epoch `142`, validation mean Pearson `0.648`; improvement over the 100-epoch run is negligible (`+0.00021` raw Pearson and `+0.00035` noise-normalized), so the V1 head/config is effectively saturated.
+- Regenerated summary status after accepting the 180-epoch V1 result: `outputs/neural_roi_summary/` has `29` input directories, `101` encoding rows, `244423` target rows, and `1` learned spatial readout row; `outputs/paper_inspection_v1/` was regenerated from this summary.
 - Verification after implementation: `185 passed` for `.\.venv\Scripts\python.exe -m pytest`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
 
 Completed DINOv2 setup and run status:
@@ -441,18 +455,20 @@ Step 6: stronger model backbones. **Status: implemented for `vit_small_patch14_d
 - Do not expand to many more models until the learned spatial readout prototype clarifies whether feature-preserving spatial heads improve over full `flatten_pca`.
 - Compare small versus large variants only after the matched DINOv2 full protocol is stable.
 
-Step 7: learned spatial readout prototype. **Status: implemented for code path, tests, configs, and real smoke run; full V1 run pending.**
+Step 7: learned spatial readout prototype. **Status: implemented for code path, tests, configs, real smoke run, full V1 run, neural summary, and paper inspection pack.**
 
 - Added a PyTorch encoding-head path after the strong ridge baseline.
 - Started with frozen `vit_small_patch14_dinov2` `blocks.3` features and a learned target-specific spatial pooling/readout head.
 - The first head uses target-wise softmax spatial weights, target-wise channel weights, and target-wise bias.
 - Uses an inner validation split from the outer training images for early stopping; final score rows are held-out outer test scores.
 - Keeps the first learned-readout scope small: one subject, one ROI, one backbone.
+- Full V1 learned readout improves DINOv2 `blocks.3` over `flatten_pca`: raw Pearson `0.648` versus `0.595`; valid-target noise-normalized score `0.762` versus `0.642`.
+- The 180-epoch V1 diagnostic early-stopped at epoch `142` with best epoch `127`; improvement over the 100-epoch run was negligible, so V1 is accepted as plateaued for this head/config.
 - This is the local analogue of SOTA components such as RetinaMapper, learned spatial pooling, voxel-specific heads, and subject-specific heads.
 
 Step 8: subject and cortex expansion.
 
-- After `subj01` strong baseline is credible, expand to additional available subjects.
+- After `subj01` learned-readout ROI coverage is credible, expand to additional available subjects.
 - Add subject-specific metadata and subject-wise summaries.
 - Move beyond PRF ROI500 toward the broader Algonauts visual-cortex vertex set if local data permits.
 - Keep subject-general claims blocked until at least multiple subjects have the same pipeline.
@@ -472,11 +488,11 @@ Step 10: uncertainty and robustness.
 
 Implementation order for the next Codex sessions:
 
-1. Run the full learned spatial readout config for frozen DINOv2 features: `configs\experiments\neural_subj01_full\vit_small_patch14_dinov2_v1_learned_spatial_readout_full.yaml`.
-2. Inspect the full output artifacts under `C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_v1_learned_spatial_readout_full/`, including `encoding_scores.csv`, `encoding_target_scores.csv`, `metadata.json`, `feature_reduction_metadata.json`, and `learned_readout_metadata.json`.
-3. Compare learned readout against the current DINOv2 `flatten_pca` V1 baseline: mean raw Pearson `0.595`, mean valid-target noise-normalized score `0.642`.
-4. Regenerate `outputs/neural_roi_summary/` and `outputs/paper_inspection_v1/` with the new full learned-readout output included.
-5. Expand to the remaining ROIs only if the V1 full learned-readout result improves or clarifies a useful failure mode.
+1. Create matched learned-readout configs for DINOv2 `V2`, `V3`, and `hV4` using the accepted V1 180-epoch training settings.
+2. Use fixed selected layers from the current validation-selected `flatten_pca` DINOv2 runs: `blocks.6` for `V2`, `V3`, and `hV4`.
+3. Run the three ROI configs one at a time, inspect each `encoding_scores.csv` and `learned_readout_metadata.json`, and compare against the corresponding DINOv2 `flatten_pca` ROI baseline.
+4. Regenerate `outputs/neural_roi_summary/` and `outputs/paper_inspection_v1/` after accepted ROI-expansion runs.
+5. Only after learned-readout ROI coverage is stable, consider validation-only learned-layer selection, multi-layer learned readout, or voxel-specific spatial readout improvements.
 
 ## Later Milestones
 

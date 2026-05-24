@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any
 
 import numpy as np
@@ -23,6 +24,8 @@ class SpatialReadoutConfig:
     objective: str = "pearson"
     seed: int = 0
     device: str = "cpu"
+    progress: bool = False
+    progress_every: int = 1
 
 
 def normalize_spatial_features(
@@ -133,6 +136,7 @@ def fit_spatial_readout(
     epochs_without_improvement = 0
     history: list[dict[str, float | int]] = []
     stopped_early = False
+    started_at = perf_counter()
 
     for epoch in range(1, int(config.max_epochs) + 1):
         model.train()
@@ -169,6 +173,7 @@ def fit_spatial_readout(
             }
         )
 
+        improved = val_score > best_score + float(config.min_delta)
         if val_score > best_score + float(config.min_delta):
             best_score = val_score
             best_epoch = int(epoch)
@@ -181,7 +186,33 @@ def fit_spatial_readout(
             epochs_without_improvement += 1
             if epochs_without_improvement >= int(config.patience):
                 stopped_early = True
+                _print_progress(
+                    config=config,
+                    epoch=epoch,
+                    train_loss=train_loss,
+                    val_loss=val_loss,
+                    val_score=val_score,
+                    best_score=best_score,
+                    best_epoch=best_epoch,
+                    epochs_without_improvement=epochs_without_improvement,
+                    started_at=started_at,
+                    forced=True,
+                    stopped_early=True,
+                )
                 break
+        _print_progress(
+            config=config,
+            epoch=epoch,
+            train_loss=train_loss,
+            val_loss=val_loss,
+            val_score=val_score,
+            best_score=best_score,
+            best_epoch=best_epoch,
+            epochs_without_improvement=epochs_without_improvement,
+            started_at=started_at,
+            forced=improved,
+            stopped_early=False,
+        )
 
     if best_state is not None:
         model.load_state_dict(best_state)
@@ -207,6 +238,8 @@ def fit_spatial_readout(
         "validation_score_type": "mean_pearson",
         "stopped_early": bool(stopped_early),
         "epochs_ran": int(len(history)),
+        "progress": bool(config.progress),
+        "progress_every": int(config.progress_every),
         "history": history,
     }
     return {
@@ -358,6 +391,56 @@ def _predict_standardized_in_batches(
         batch_tensor = torch.from_numpy(batch).to(device)
         predictions.append(model(batch_tensor))
     return torch.cat(predictions, dim=0)
+
+
+def _print_progress(
+    *,
+    config: SpatialReadoutConfig,
+    epoch: int,
+    train_loss: float,
+    val_loss: float,
+    val_score: float,
+    best_score: float,
+    best_epoch: int,
+    epochs_without_improvement: int,
+    started_at: float,
+    forced: bool,
+    stopped_early: bool,
+) -> None:
+    if not config.progress:
+        return
+    every = max(1, int(config.progress_every))
+    if not forced and epoch % every != 0 and epoch != int(config.max_epochs):
+        return
+    elapsed = perf_counter() - started_at
+    seconds_per_epoch = elapsed / max(1, epoch)
+    remaining_epochs = max(0, int(config.max_epochs) - int(epoch))
+    eta_seconds = seconds_per_epoch * remaining_epochs
+    status = " stopped_early" if stopped_early else ""
+    print(
+        "[learned_readout] "
+        f"epoch={epoch}/{int(config.max_epochs)} "
+        f"train_loss={train_loss:.4f} "
+        f"val_loss={val_loss:.4f} "
+        f"val_pearson={val_score:.4f} "
+        f"best={best_score:.4f}@{best_epoch} "
+        f"no_improve={epochs_without_improvement}/{int(config.patience)} "
+        f"elapsed={_format_duration(elapsed)} "
+        f"eta={_format_duration(eta_seconds)}"
+        f"{status}",
+        flush=True,
+    )
+
+
+def _format_duration(seconds: float) -> str:
+    seconds = max(0, int(round(seconds)))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h{minutes:02d}m{secs:02d}s"
+    if minutes:
+        return f"{minutes}m{secs:02d}s"
+    return f"{secs}s"
 
 
 try:  # Keep torch optional at import time for lightweight environments.

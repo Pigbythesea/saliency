@@ -555,6 +555,8 @@ def _fit_and_score_learned_spatial_readout(
         objective=str(learned_config.get("objective", "pearson")),
         seed=int(learned_config.get("seed", seed)),
         device=str(learned_config.get("device", device)),
+        progress=bool(learned_config.get("progress", False)),
+        progress_every=int(learned_config.get("progress_every", 1)),
     )
     raw_features = features_by_layer[layer]
     model_bundle = fit_spatial_readout(
