@@ -486,6 +486,81 @@ def test_summarize_neural_roi_results_preserves_noise_ceiling_target_fields(tmp_
     assert "Benchmark-style encoding scope: noise-normalized." in text
 
 
+def test_summarize_neural_roi_results_writes_learned_readout_comparison(tmp_path):
+    flatten_dir = tmp_path / "outputs" / "flatten"
+    learned_dir = tmp_path / "outputs" / "learned"
+    for path, feature_reduction, layer, raw, normalized in [
+        (flatten_dir, "flatten_pca", "blocks.3", 0.5, 0.6),
+        (learned_dir, "learned_spatial_readout", "blocks.6", 0.7, 0.9),
+    ]:
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "metadata.json").write_text("{}", encoding="utf-8")
+        _write_csv(
+            path / "encoding_scores.csv",
+            [
+                {
+                    "dataset": "nsd_v1",
+                    "model": "vit_small_patch14_dinov2",
+                    "subject_id": "subj01",
+                    "roi": "V1",
+                    "layer": layer,
+                    "metric": "correlation",
+                    "metric_scope": "benchmark_style_noise_normalized",
+                    "n_train": 80,
+                    "n_test": 20,
+                    "num_targets": 3,
+                    "mean_score": raw,
+                    "median_score": raw,
+                    "std_score": 0.0,
+                    "mean_noise_normalized_score": normalized,
+                    "median_noise_normalized_score": normalized,
+                    "valid_noise_ceiling_targets": 3,
+                    "zero_noise_ceiling_targets": 0,
+                    "invalid_noise_ceiling_targets": 0,
+                    "selected_ridge_alpha": "",
+                    "alpha_selection_mode": "fixed",
+                    "split_seed": 123,
+                    "feature_reduction": feature_reduction,
+                }
+            ],
+            [
+                "dataset",
+                "model",
+                "subject_id",
+                "roi",
+                "layer",
+                "metric",
+                "metric_scope",
+                "n_train",
+                "n_test",
+                "num_targets",
+                "mean_score",
+                "median_score",
+                "std_score",
+                "mean_noise_normalized_score",
+                "median_noise_normalized_score",
+                "valid_noise_ceiling_targets",
+                "zero_noise_ceiling_targets",
+                "invalid_noise_ceiling_targets",
+                "selected_ridge_alpha",
+                "alpha_selection_mode",
+                "split_seed",
+                "feature_reduction",
+            ],
+        )
+
+    outputs = summarize_neural_roi_results([flatten_dir, learned_dir], tmp_path / "summary")
+
+    rows = _read_csv(outputs["learned_readout_vs_flatten_pca"])
+    assert len(rows) == 1
+    assert rows[0]["flatten_pca_layer"] == "blocks.3"
+    assert rows[0]["learned_readout_layer"] == "blocks.6"
+    assert round(float(rows[0]["raw_delta"]), 6) == 0.2
+    assert round(float(rows[0]["noise_normalized_delta"]), 6) == 0.3
+    text = outputs["summary_note"].read_text(encoding="utf-8")
+    assert "Matched learned-readout and `flatten_pca` comparison rows: 1" in text
+
+
 def test_summarize_neural_roi_results_reports_mixed_noise_scope(tmp_path):
     output_dir = tmp_path / "outputs" / "mixed"
     _write_neural_output(output_dir, roi="hV4")

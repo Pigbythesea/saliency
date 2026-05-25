@@ -2,6 +2,8 @@ from scripts.create_paper_inspection_pack import (
     MODEL_COLORS,
     MODEL_LABELS,
     _candidate_table,
+    _learned_readout_comparison_table,
+    _load_optional_csv_rows,
     _neural_ranking_table,
     _top_behavior_rows,
     _write_readme,
@@ -139,6 +141,65 @@ def test_readme_reports_noise_normalized_neural_leader_when_available(tmp_path):
     assert "Noise-normalized neural encoding leader: DINOv2 ViT-S/14" in text
     assert "Raw neural encoding leader" not in text
     assert "Raw neural RSA leader" in text
+
+
+def test_readme_reports_learned_readout_comparison_when_available(tmp_path):
+    path = _write_readme(
+        tmp_path / "README.md",
+        behavior_table=[],
+        neural_table=[
+            {
+                "model": "DINOv2 ViT-S/14",
+                "mean_noise_normalized": "0.8",
+                "mean_noise_normalized_x100": "80",
+                "noise_normalized_rank": "1",
+                "mean_encoding": "0.3",
+                "mean_rsa": "0.1",
+                "encoding_rank": "1",
+                "rsa_rank": "1",
+            }
+        ],
+        overlap_table=[],
+        candidate_table=[],
+        learned_readout_table=[
+            {"roi": "V1", "raw_delta": "0.05"},
+            {"roi": "V2", "raw_delta": "0.02"},
+        ],
+        outputs={},
+    )
+
+    text = path.read_text(encoding="utf-8")
+    assert "Learned spatial readout improves over matched `flatten_pca` rows in 2/2" in text
+    assert "not Algonauts leaderboard scores" in text
+
+
+def test_learned_readout_table_formats_matched_comparison_rows():
+    rows = _learned_readout_comparison_table(
+        [
+            {
+                "model": "vit_small_patch14_dinov2",
+                "roi": "V1",
+                "flatten_pca_layer": "blocks.3",
+                "learned_readout_layer": "blocks.6",
+                "flatten_pca_raw_score": "0.5",
+                "learned_readout_raw_score": "0.7",
+                "raw_delta": "0.2",
+                "flatten_pca_noise_normalized_score": "0.6",
+                "learned_readout_noise_normalized_score": "0.9",
+                "noise_normalized_delta": "0.3",
+                "learned_readout_valid_noise_ceiling_targets": "3",
+                "learned_readout_zero_noise_ceiling_targets": "0",
+            }
+        ]
+    )
+
+    assert rows[0]["model"] == "DINOv2 ViT-S/14"
+    assert rows[0]["raw_delta"] == "0.200"
+    assert rows[0]["noise_normalized_delta"] == "0.300"
+
+
+def test_optional_learned_readout_comparison_csv_can_be_missing(tmp_path):
+    assert _load_optional_csv_rows(tmp_path / "missing.csv") == []
 
 
 def test_ssl_model_labels_and_colors_are_defined():

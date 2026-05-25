@@ -101,6 +101,9 @@ def create_paper_inspection_pack(
     roi_winners = _load_csv_rows(neural_root / "paper_model_roi_winners.csv")
     overlap_rows = _load_csv_rows(neural_root / "behavior_neural_leader_overlap.csv")
     candidate_rows = _load_csv_rows(neural_root / "ssl_multimodal_candidate_inventory.csv")
+    learned_readout_comparison_rows = _load_optional_csv_rows(
+        neural_root / "learned_readout_vs_flatten_pca.csv"
+    )
 
     static_nss_rows = _static_metric_rows(behavioral_rows, "nss")
     behavior_table = _top_behavior_rows(static_nss_rows, limit_per_dataset=8)
@@ -109,6 +112,9 @@ def create_paper_inspection_pack(
     overlap_table = _overlap_summary_table(overlap_rows)
     candidate_table = _candidate_table(candidate_rows)
     sanity_table = _benchmark_sanity_table(behavioral_rows)
+    learned_readout_table = _learned_readout_comparison_table(
+        learned_readout_comparison_rows
+    )
 
     outputs: dict[str, Path] = {}
     outputs["behavior_table_csv"] = _write_rows(
@@ -165,6 +171,15 @@ def create_paper_inspection_pack(
         tables_dir / "table6_benchmark_sanity_ranges.md",
         sanity_table,
     )
+    outputs["learned_readout_comparison_csv"] = _write_rows(
+        tables_dir / "table7_learned_readout_vs_flatten_pca.csv",
+        learned_readout_table,
+        list(learned_readout_table[0]) if learned_readout_table else [],
+    )
+    outputs["learned_readout_comparison_md"] = _write_markdown_table(
+        tables_dir / "table7_learned_readout_vs_flatten_pca.md",
+        learned_readout_table,
+    )
 
     outputs.update(
         _plot_behavior_nss(static_nss_rows, figures_dir / "figure1_behavior_static2000_nss")
@@ -186,6 +201,7 @@ def create_paper_inspection_pack(
         overlap_table=overlap_table,
         candidate_table=candidate_table,
         sanity_table=sanity_table,
+        learned_readout_table=learned_readout_table,
         outputs=outputs,
         behavioral_csv=behavioral_path,
     )
@@ -359,6 +375,34 @@ def _candidate_table(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
     ]
 
 
+def _learned_readout_comparison_table(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+    ordered = sorted(
+        rows,
+        key=lambda row: ROI_ORDER.index(row["roi"]) if row.get("roi") in ROI_ORDER else 99,
+    )
+    return [
+        {
+            "model": MODEL_LABELS.get(row.get("model", ""), row.get("model", "")),
+            "roi": row.get("roi", ""),
+            "flatten_pca_layer": row.get("flatten_pca_layer", ""),
+            "learned_readout_layer": row.get("learned_readout_layer", ""),
+            "flatten_pca_raw": _fmt(row.get("flatten_pca_raw_score")),
+            "learned_readout_raw": _fmt(row.get("learned_readout_raw_score")),
+            "raw_delta": _fmt(row.get("raw_delta")),
+            "flatten_pca_noise_normalized": _fmt(
+                row.get("flatten_pca_noise_normalized_score")
+            ),
+            "learned_readout_noise_normalized": _fmt(
+                row.get("learned_readout_noise_normalized_score")
+            ),
+            "noise_normalized_delta": _fmt(row.get("noise_normalized_delta")),
+            "valid_targets": row.get("learned_readout_valid_noise_ceiling_targets", ""),
+            "zero_ceiling_targets": row.get("learned_readout_zero_noise_ceiling_targets", ""),
+        }
+        for row in ordered
+    ]
+
+
 def _plot_behavior_nss(rows: list[dict[str, str]], output_stem: Path) -> dict[str, Path]:
     plt = _pyplot()
     _set_style(plt)
@@ -525,6 +569,7 @@ def _write_readme(
     outputs: dict[str, Path],
     behavioral_csv: str | Path | None = None,
     sanity_table: list[dict[str, Any]] | None = None,
+    learned_readout_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     best_behavior = behavior_table[0] if behavior_table else {}
     normalized_available = any(row.get("noise_normalized_rank") for row in neural_table)
@@ -542,6 +587,10 @@ def _write_readme(
     status_text = ", ".join(
         f"{status}={count}" for status, count in sorted(status_counts.items())
     ) or "none"
+    learned_readout_rows = learned_readout_table or []
+    learned_improvements = sum(
+        1 for row in learned_readout_rows if _float(row.get("raw_delta")) > 0.0
+    )
     lines = [
         "# Paper Inspection V1",
         "",
@@ -561,6 +610,13 @@ def _write_readme(
         f"- Raw neural RSA leader: {best_neural_rsa.get('model', '')}, mean RSA={best_neural_rsa.get('mean_rsa', '')}.",
         f"- Overall behavior-to-encoding leader match rate: {all_overlap.get('encoding_match_rate', '')}.",
         f"- Overall behavior-to-RSA leader match rate: {all_overlap.get('rsa_match_rate', '')}.",
+        (
+            "- Learned spatial readout improves over matched `flatten_pca` rows in "
+            f"{learned_improvements}/{len(learned_readout_rows)} PRF ROI comparisons; "
+            "these remain one-subject local baselines, not Algonauts leaderboard scores."
+            if learned_readout_rows
+            else "- Learned spatial readout versus `flatten_pca` comparison table is not available in this pack."
+        ),
         f"- SSL/multimodal candidates dry-inspected: {len(candidate_table)}; pretrained debug runs complete: {pretrained_count}.",
         f"- SSL/multimodal pretrained status counts: {status_text}.",
         "",
@@ -579,6 +635,7 @@ def _write_readme(
         "- `tables/table4_behavior_neural_overlap_summary.md`",
         "- `tables/table5_ssl_multimodal_candidates.md`",
         "- `tables/table6_benchmark_sanity_ranges.md`",
+        "- `tables/table7_learned_readout_vs_flatten_pca.md`",
         "",
         "## Academic SOTA Context",
         "",
@@ -665,6 +722,13 @@ def _save_figure(fig: Any, output_stem: Path, plt: Any, label: str) -> dict[str,
 def _load_csv_rows(path: str | Path) -> list[dict[str, str]]:
     with Path(path).open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _load_optional_csv_rows(path: str | Path) -> list[dict[str, str]]:
+    csv_path = Path(path)
+    if not csv_path.is_file():
+        return []
+    return _load_csv_rows(csv_path)
 
 
 def _fmt(value: Any) -> str:

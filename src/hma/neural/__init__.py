@@ -10,6 +10,7 @@ from hma.neural.encoding import (
 from hma.neural.learned_readout import (
     SpatialReadoutConfig,
     fit_spatial_readout,
+    fuse_spatial_feature_layers,
     normalize_spatial_features,
     predict_spatial_readout,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "extract_activations",
     "fit_ridge_encoding",
     "fit_spatial_readout",
+    "fuse_spatial_feature_layers",
     "normalize_spatial_features",
     "predict_ridge_encoding",
     "predict_spatial_readout",

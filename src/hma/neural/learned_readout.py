@@ -57,6 +57,65 @@ def normalize_spatial_features(
     return np.ascontiguousarray(transposed.reshape(array.shape[0], -1, array.shape[1]))
 
 
+def fuse_spatial_feature_layers(
+    features_by_layer: dict[str, np.ndarray],
+    *,
+    layers: list[str],
+    fusion_method: str = "channel_concat",
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Fuse spatial feature layers while preserving image and token alignment."""
+    if fusion_method != "channel_concat":
+        raise ValueError("learned_spatial_readout layer_fusion must be 'channel_concat'")
+    if not layers:
+        raise ValueError("At least one layer is required for learned_spatial_readout fusion")
+
+    normalized_layers: list[np.ndarray] = []
+    per_layer_shapes: dict[str, dict[str, list[int]]] = {}
+    expected_images: int | None = None
+    expected_positions: int | None = None
+    for layer in layers:
+        if layer not in features_by_layer:
+            raise KeyError(f"Missing features for layer '{layer}'")
+        raw = np.asarray(features_by_layer[layer], dtype=np.float32)
+        normalized = normalize_spatial_features(raw)
+        n_images = int(normalized.shape[0])
+        n_positions = int(normalized.shape[1])
+        if expected_images is None:
+            expected_images = n_images
+            expected_positions = n_positions
+        elif n_images != expected_images:
+            raise ValueError(
+                "All fused layers must have the same number of images: "
+                f"{layer} has {n_images}, expected {expected_images}"
+            )
+        elif n_positions != expected_positions:
+            raise ValueError(
+                "All fused layers must have the same number of spatial positions: "
+                f"{layer} has {n_positions}, expected {expected_positions}"
+            )
+        normalized_layers.append(normalized)
+        per_layer_shapes[layer] = {
+            "input_feature_shape": [int(dim) for dim in raw.shape[1:]],
+            "normalized_feature_shape": [int(dim) for dim in normalized.shape[1:]],
+        }
+
+    fused = np.ascontiguousarray(np.concatenate(normalized_layers, axis=2))
+    metadata = {
+        "fusion_method": fusion_method,
+        "layers": list(layers),
+        "per_layer_input_feature_shapes": {
+            layer: shapes["input_feature_shape"]
+            for layer, shapes in per_layer_shapes.items()
+        },
+        "per_layer_normalized_feature_shapes": {
+            layer: shapes["normalized_feature_shape"]
+            for layer, shapes in per_layer_shapes.items()
+        },
+        "fused_feature_shape": [int(dim) for dim in fused.shape[1:]],
+    }
+    return fused, metadata
+
+
 def fit_spatial_readout(
     features: np.ndarray,
     responses: np.ndarray,

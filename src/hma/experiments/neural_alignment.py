@@ -21,6 +21,7 @@ from hma.neural import (
     evaluate_encoding,
     fit_ridge_encoding,
     fit_spatial_readout,
+    fuse_spatial_feature_layers,
     predict_ridge_encoding,
     predict_spatial_readout,
     save_activations,
@@ -47,17 +48,20 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     seed = int(neural_config.get("seed", config.get("seed", 0)))
     encoding_method = str(neural_config.get("encoding_method", "ridge"))
     feature_reduction = str(neural_config.get("feature_reduction", "flatten"))
+    layer_fusion = str(neural_config.get("layer_fusion", ""))
     selection_config = dict(neural_config.get("selection", {}))
     selection_enabled = bool(selection_config.get("enabled", False))
-    if encoding_method == "learned_spatial_readout" and selection_enabled:
-        raise ValueError("learned_spatial_readout does not support neural.selection in V1")
     if encoding_method not in {"ridge", "learned_spatial_readout"}:
         raise ValueError("neural.encoding_method must be 'ridge' or 'learned_spatial_readout'")
     selection_candidates = (
         _selection_candidate_configs(
             neural_config,
             layers=layers,
-            feature_reduction=feature_reduction,
+            feature_reduction=(
+                "learned_spatial_readout"
+                if encoding_method == "learned_spatial_readout"
+                else feature_reduction
+            ),
             default_seed=seed,
         )
         if selection_enabled
@@ -75,6 +79,12 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         )
     )
     rsa_config = dict(neural_config.get("rsa", {}))
+    if (
+        encoding_method == "learned_spatial_readout"
+        and layer_fusion
+        and bool(rsa_config.get("enabled", False))
+    ):
+        raise ValueError("Multi-layer learned_spatial_readout smoke runs must keep RSA disabled")
 
     dataset = build_dataset(config)
     model = build_model(config)
@@ -106,7 +116,30 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
 
     selection_result: dict[str, Any] | None = None
     learned_readout_result: dict[str, Any] | None = None
-    if encoding_method == "learned_spatial_readout":
+    if encoding_method == "learned_spatial_readout" and selection_enabled:
+        (
+            score_rows,
+            target_score_rows,
+            reduced_features_by_layer,
+            feature_reduction_metadata,
+            learned_readout_result,
+            selection_result,
+        ) = _select_learned_readout_candidate_and_score_final(
+            features_by_layer,
+            responses,
+            image_ids=image_ids,
+            candidates=selection_candidates,
+            feature_shapes=feature_shapes,
+            train_fraction=train_fraction,
+            metric=metric,
+            seed=seed,
+            device=device,
+            selection_config=selection_config,
+            learned_config=dict(neural_config.get("learned_readout", {})),
+            row_context=_score_row_context(config, item_metadata),
+            noise_ceiling=noise_ceiling,
+        )
+    elif encoding_method == "learned_spatial_readout":
         (
             score_rows,
             target_score_rows,
@@ -123,6 +156,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
             seed=seed,
             device=device,
             learned_config=dict(neural_config.get("learned_readout", {})),
+            layer_fusion=layer_fusion,
             row_context=_score_row_context(config, item_metadata),
             noise_ceiling=noise_ceiling,
             image_ids=image_ids,
@@ -269,13 +303,16 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
             encoding="utf-8",
         )
         selected_candidate = selection_result["selected_candidate"]
+        selected_alpha = selection_result.get("selected_alpha", "")
         metadata.update(
             {
                 "selection_artifact": str(selection_artifact_path),
                 "selection_candidates": str(selection_candidates_path),
                 "selected_layer": str(selected_candidate["layer"]),
                 "selected_feature_reduction": str(selected_candidate["feature_reduction"]),
-                "selected_ridge_alpha": float(selection_result["selected_alpha"]),
+                "selected_ridge_alpha": (
+                    "" if selected_alpha == "" else float(selected_alpha)
+                ),
                 "selection_score": float(selection_result["selection_score"]),
             }
         )
@@ -283,7 +320,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         del features_by_layer
         gc.collect()
         _cleanup_feature_cache(output_dir / "feature_cache")
-    if learned_readout_result is not None:
+    if learned_readout_result is not None and selection_result is None:
         del collection
         del features_by_layer
         gc.collect()
@@ -521,6 +558,7 @@ def _fit_and_score_learned_spatial_readout(
     seed: int,
     device: str,
     learned_config: dict[str, Any],
+    layer_fusion: str = "",
     row_context: dict[str, Any],
     noise_ceiling: np.ndarray | None,
     image_ids: list[str],
@@ -531,34 +569,24 @@ def _fit_and_score_learned_spatial_readout(
     dict[str, Any],
     dict[str, Any],
 ]:
-    if len(layers) != 1:
-        raise ValueError("learned_spatial_readout V1 requires exactly one layer")
-    layer = layers[0]
+    layer, raw_features, fusion_metadata = _learned_readout_features(
+        features_by_layer,
+        layers=layers,
+        layer_fusion=layer_fusion,
+    )
     n_items = responses.shape[0]
     rng = np.random.default_rng(seed)
     train_idx, test_idx = _outer_train_test_indices(n_items, train_fraction, rng)
-    validation_fraction = float(learned_config.get("validation_fraction", 0.2))
+    readout_config = _learned_readout_config(
+        learned_config,
+        seed=seed,
+        device=device,
+    )
     inner_train_idx, validation_idx = _inner_train_validation_indices(
         train_idx,
-        validation_fraction,
+        readout_config.validation_fraction,
         rng,
     )
-    readout_config = SpatialReadoutConfig(
-        max_epochs=int(learned_config.get("max_epochs", 100)),
-        batch_size=int(learned_config.get("batch_size", 32)),
-        target_batch_size=int(learned_config.get("target_batch_size", 256)),
-        lr=float(learned_config.get("lr", 1e-3)),
-        weight_decay=float(learned_config.get("weight_decay", 1e-4)),
-        patience=int(learned_config.get("patience", 10)),
-        min_delta=float(learned_config.get("min_delta", 1e-6)),
-        validation_fraction=validation_fraction,
-        objective=str(learned_config.get("objective", "pearson")),
-        seed=int(learned_config.get("seed", seed)),
-        device=str(learned_config.get("device", device)),
-        progress=bool(learned_config.get("progress", False)),
-        progress_every=int(learned_config.get("progress_every", 1)),
-    )
-    raw_features = features_by_layer[layer]
     model_bundle = fit_spatial_readout(
         raw_features,
         responses,
@@ -608,12 +636,14 @@ def _fit_and_score_learned_spatial_readout(
     readout_metadata.update(
         {
             "layer": layer,
+            "layers": list(layers),
             "n_outer_train": int(train_idx.size),
             "n_test": int(test_idx.size),
             "outer_train_image_ids": _ids_for_indices(image_ids, train_idx),
             "outer_test_image_ids": _ids_for_indices(image_ids, test_idx),
             "selection_train_image_ids": _ids_for_indices(image_ids, inner_train_idx),
             "selection_validation_image_ids": _ids_for_indices(image_ids, validation_idx),
+            **fusion_metadata,
         }
     )
     feature_metadata = {
@@ -623,7 +653,13 @@ def _fit_and_score_learned_spatial_readout(
                 "layer": layer,
                 "method": "learned_spatial_readout",
                 "input_feature_shape": [
-                    int(dim) for dim in feature_shapes.get(layer, list(raw_features.shape[1:]))
+                    int(dim)
+                    for dim in _learned_readout_input_shape(
+                        layer=layer,
+                        layers=layers,
+                        feature_shapes=feature_shapes,
+                        raw_features=raw_features,
+                    )
                 ],
                 "output_feature_shape": [int(responses.shape[1])],
                 "requested_components": "",
@@ -634,6 +670,7 @@ def _fit_and_score_learned_spatial_readout(
                 "random_seed": int(readout_config.seed),
                 "pca_solver": "",
                 "pca_whiten": "",
+                **fusion_metadata,
             }
         ],
     }
@@ -645,6 +682,70 @@ def _fit_and_score_learned_spatial_readout(
         {
             "metadata": readout_metadata,
         },
+    )
+
+
+def _learned_readout_features(
+    features_by_layer: dict[str, np.ndarray],
+    *,
+    layers: list[str],
+    layer_fusion: str,
+) -> tuple[str, np.ndarray, dict[str, Any]]:
+    if len(layers) == 1:
+        if layer_fusion and layer_fusion != "channel_concat":
+            raise ValueError("learned_spatial_readout layer_fusion must be 'channel_concat'")
+        layer = layers[0]
+        return layer, features_by_layer[layer], {}
+    if layer_fusion != "channel_concat":
+        raise ValueError(
+            "learned_spatial_readout requires neural.layer_fusion='channel_concat' "
+            "when multiple layers are configured"
+        )
+    fused, metadata = fuse_spatial_feature_layers(
+        features_by_layer,
+        layers=layers,
+        fusion_method=layer_fusion,
+    )
+    return _fused_layer_label(layers), fused, metadata
+
+
+def _fused_layer_label(layers: list[str]) -> str:
+    return "+".join(str(layer) for layer in layers)
+
+
+def _learned_readout_input_shape(
+    *,
+    layer: str,
+    layers: list[str],
+    feature_shapes: dict[str, list[int]],
+    raw_features: np.ndarray,
+) -> list[int]:
+    if len(layers) == 1:
+        return [int(dim) for dim in feature_shapes.get(layer, list(raw_features.shape[1:]))]
+    return [int(dim) for dim in raw_features.shape[1:]]
+
+
+def _learned_readout_config(
+    learned_config: dict[str, Any],
+    *,
+    seed: int,
+    device: str,
+) -> SpatialReadoutConfig:
+    validation_fraction = float(learned_config.get("validation_fraction", 0.2))
+    return SpatialReadoutConfig(
+        max_epochs=int(learned_config.get("max_epochs", 100)),
+        batch_size=int(learned_config.get("batch_size", 32)),
+        target_batch_size=int(learned_config.get("target_batch_size", 256)),
+        lr=float(learned_config.get("lr", 1e-3)),
+        weight_decay=float(learned_config.get("weight_decay", 1e-4)),
+        patience=int(learned_config.get("patience", 10)),
+        min_delta=float(learned_config.get("min_delta", 1e-6)),
+        validation_fraction=validation_fraction,
+        objective=str(learned_config.get("objective", "pearson")),
+        seed=int(learned_config.get("seed", seed)),
+        device=str(learned_config.get("device", device)),
+        progress=bool(learned_config.get("progress", False)),
+        progress_every=int(learned_config.get("progress_every", 1)),
     )
 
 
@@ -850,6 +951,213 @@ def _select_candidate_and_score_final(
     )
 
 
+def _select_learned_readout_candidate_and_score_final(
+    features_by_layer: dict[str, np.ndarray],
+    responses: np.ndarray,
+    *,
+    image_ids: list[str],
+    candidates: list[dict[str, Any]],
+    feature_shapes: dict[str, list[int]],
+    train_fraction: float,
+    metric: str,
+    seed: int,
+    device: str,
+    selection_config: dict[str, Any],
+    learned_config: dict[str, Any],
+    row_context: dict[str, Any],
+    noise_ceiling: np.ndarray | None,
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, np.ndarray],
+    dict[str, Any],
+    dict[str, Any],
+    dict[str, Any],
+]:
+    n_items = responses.shape[0]
+    rng = np.random.default_rng(seed)
+    train_idx, test_idx = _outer_train_test_indices(n_items, train_fraction, rng)
+    selection_fraction = float(selection_config.get("validation_fraction", 0.2))
+    selection_train_idx, validation_idx = _inner_train_validation_indices(
+        train_idx,
+        selection_fraction,
+        rng,
+    )
+    primary_score = str(selection_config.get("primary_score", "mean_noise_normalized_score"))
+    readout_config = _learned_readout_config(
+        learned_config,
+        seed=seed,
+        device=device,
+    )
+
+    candidate_rows: list[dict[str, Any]] = []
+    candidate_artifacts: list[dict[str, Any]] = []
+    for candidate_index, candidate in enumerate(candidates):
+        layer = str(candidate["layer"])
+        if str(candidate.get("feature_reduction", "")) != "learned_spatial_readout":
+            raise ValueError(
+                "learned_spatial_readout selection candidates must use "
+                "feature_reduction='learned_spatial_readout'"
+            )
+        raw_features = features_by_layer[layer]
+        validation_result = _score_learned_readout_on_validation(
+            raw_features,
+            responses,
+            train_idx=selection_train_idx,
+            validation_idx=validation_idx,
+            metric=metric,
+            readout_config=readout_config,
+            noise_ceiling=noise_ceiling,
+            primary_score=primary_score,
+        )
+        row = {
+            **row_context,
+            "candidate_index": int(candidate_index),
+            "layer": layer,
+            "feature_reduction": "learned_spatial_readout",
+            "pca_components": "",
+            "pca_solver": "",
+            "pca_whiten": "",
+            "selected_ridge_alpha": "",
+            "alpha_selection_mode": "learned_readout_selection_validation",
+            "validation_score": float(validation_result["score"]),
+            "validation_score_type": validation_result["score_type"],
+            "primary_score": primary_score,
+            "selection_n_train": int(selection_train_idx.size),
+            "selection_n_validation": int(validation_idx.size),
+            "outer_n_train": int(train_idx.size),
+            "outer_n_test": int(test_idx.size),
+            "selected": "false",
+            "pca_n_train_fit": "",
+            "pca_effective_components": "",
+            "pca_explained_variance_ratio_sum": "",
+            "selection_best_epoch": validation_result["metadata"].get("best_epoch", ""),
+            "selection_epochs_ran": validation_result["metadata"].get("epochs_ran", ""),
+        }
+        candidate_rows.append(row)
+        candidate_artifacts.append(
+            {
+                "candidate": dict(candidate),
+                "validation": dict(row),
+                "learned_readout_metadata": validation_result["metadata"],
+            }
+        )
+
+    if not candidate_rows:
+        raise ValueError("neural.selection requires at least one candidate")
+    selected_index = _selected_candidate_index(candidate_rows)
+    candidate_rows[selected_index]["selected"] = "true"
+    selected_candidate = candidates[selected_index]
+    selected_layer = str(selected_candidate["layer"])
+
+    (
+        final_rows,
+        final_target_rows,
+        reduced_features_by_layer,
+        feature_reduction_metadata,
+        learned_readout_result,
+    ) = _fit_and_score_learned_spatial_readout(
+        features_by_layer,
+        responses,
+        layers=[selected_layer],
+        feature_shapes=feature_shapes,
+        train_fraction=train_fraction,
+        metric=metric,
+        seed=seed,
+        device=device,
+        learned_config=learned_config,
+        row_context=row_context,
+        noise_ceiling=noise_ceiling,
+        image_ids=image_ids,
+    )
+    for row in final_rows:
+        row["alpha_selection_mode"] = "learned_readout_selection_validation"
+    for row in final_target_rows:
+        row["alpha_selection_mode"] = "learned_readout_selection_validation"
+    feature_reduction_metadata["selection_enabled"] = True
+
+    artifact = {
+        "selection_enabled": True,
+        "primary_score": primary_score,
+        "split_seed": int(seed),
+        "outer_train_image_ids": _ids_for_indices(image_ids, train_idx),
+        "outer_test_image_ids": _ids_for_indices(image_ids, test_idx),
+        "selection_train_image_ids": _ids_for_indices(image_ids, selection_train_idx),
+        "selection_validation_image_ids": _ids_for_indices(image_ids, validation_idx),
+        "candidates": candidate_artifacts,
+        "selected_candidate_index": int(selected_index),
+        "selected_candidate": dict(selected_candidate),
+        "selected_alpha": "",
+        "selection_score": float(candidate_rows[selected_index]["validation_score"]),
+        "selection_score_type": candidate_rows[selected_index]["validation_score_type"],
+        "final_test_config": {
+            "layer": selected_layer,
+            "feature_reduction": "learned_spatial_readout",
+            "selected_ridge_alpha": "",
+            "n_train": int(train_idx.size),
+            "n_test": int(test_idx.size),
+            "feature_reduction_metadata": feature_reduction_metadata["layers"][0],
+        },
+    }
+    selection_result = {
+        "candidate_rows": candidate_rows,
+        "artifact": artifact,
+        "selected_candidate": {
+            "layer": selected_layer,
+            "feature_reduction": "learned_spatial_readout",
+            "candidate_index": int(selected_index),
+        },
+        "selected_alpha": "",
+        "selection_score": float(candidate_rows[selected_index]["validation_score"]),
+    }
+    return (
+        final_rows,
+        final_target_rows,
+        reduced_features_by_layer,
+        feature_reduction_metadata,
+        learned_readout_result,
+        selection_result,
+    )
+
+
+def _score_learned_readout_on_validation(
+    features: np.ndarray,
+    responses: np.ndarray,
+    *,
+    train_idx: np.ndarray,
+    validation_idx: np.ndarray,
+    metric: str,
+    readout_config: SpatialReadoutConfig,
+    noise_ceiling: np.ndarray | None,
+    primary_score: str,
+) -> dict[str, Any]:
+    model_bundle = fit_spatial_readout(
+        features,
+        responses,
+        train_idx=train_idx,
+        validation_idx=validation_idx,
+        config=readout_config,
+    )
+    predictions = predict_spatial_readout(model_bundle, features, indices=validation_idx)
+    scores = evaluate_encoding(predictions, responses[validation_idx], metric=metric)
+    target_rows = benchmark_encoding_target_scores(
+        predictions,
+        responses[validation_idx],
+        noise_ceiling=noise_ceiling,
+    )
+    row = {
+        "mean_score": float(np.mean(scores)),
+        **_noise_normalized_layer_summary(target_rows),
+    }
+    score, score_type = _selection_primary_score(row, primary_score)
+    return {
+        "score": score,
+        "score_type": score_type,
+        "mean_score": row["mean_score"],
+        "metadata": dict(model_bundle["metadata"]),
+    }
+
+
 def _score_prepared_layer(
     features: np.ndarray,
     responses: np.ndarray,
@@ -995,9 +1303,14 @@ def _selection_candidate_configs(
                     ),
                 }
             )
-        elif candidate_feature_reduction not in {"flatten", "spatial_mean"}:
+        elif candidate_feature_reduction not in {
+            "flatten",
+            "spatial_mean",
+            "learned_spatial_readout",
+        }:
             raise ValueError(
-                "feature_reduction must be 'flatten', 'spatial_mean', or 'flatten_pca'"
+                "feature_reduction must be 'flatten', 'spatial_mean', "
+                "'flatten_pca', or 'learned_spatial_readout'"
             )
         candidates.append(candidate)
     return candidates
@@ -1594,6 +1907,8 @@ def _write_selection_candidate_rows(path: Path, rows: list[dict[str, Any]]) -> N
         "pca_n_train_fit",
         "pca_effective_components",
         "pca_explained_variance_ratio_sum",
+        "selection_best_epoch",
+        "selection_epochs_ran",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)

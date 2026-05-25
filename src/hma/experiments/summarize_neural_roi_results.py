@@ -49,6 +49,7 @@ def summarize_neural_roi_results(
         "best_rsa_by_model_roi": output / "best_rsa_by_model_roi.csv",
         "paper_model_roi_winners": output / "paper_model_roi_winners.csv",
         "neural_model_rankings": output / "neural_model_rankings.csv",
+        "learned_readout_vs_flatten_pca": output / "learned_readout_vs_flatten_pca.csv",
         "summary_note": output / "neural_roi_summary.md",
         "multimodel_interpretation_note": output / "multimodel_interpretation_note.md",
     }
@@ -56,6 +57,7 @@ def summarize_neural_roi_results(
     best_rsa_rows = [row for row in best_rows if row.get("score_type") == "rsa"]
     paper_winner_rows = _paper_model_roi_winners(best_encoding_rows, best_rsa_rows)
     neural_ranking_rows = _neural_model_rankings(best_rows, efficiency_csv)
+    learned_readout_comparison_rows = _learned_readout_vs_flatten_pca_rows(encoding_rows)
     _write_rows(outputs["combined_encoding_scores"], encoding_rows, ENCODING_FIELDNAMES)
     if encoding_target_rows:
         outputs["combined_encoding_target_scores"] = output / "combined_encoding_target_scores.csv"
@@ -78,6 +80,11 @@ def summarize_neural_roi_results(
     )
     _write_rows(outputs["paper_model_roi_winners"], paper_winner_rows, PAPER_WINNER_FIELDNAMES)
     _write_rows(outputs["neural_model_rankings"], neural_ranking_rows, NEURAL_RANKING_FIELDNAMES)
+    _write_rows(
+        outputs["learned_readout_vs_flatten_pca"],
+        learned_readout_comparison_rows,
+        LEARNED_READOUT_COMPARISON_FIELDNAMES,
+    )
 
     bridge_rows: list[dict[str, Any]] = []
     behavior_neural_alignment_rows: list[dict[str, Any]] = []
@@ -130,6 +137,7 @@ def summarize_neural_roi_results(
         rsa_rows=rsa_rows,
         best_rows=best_rows,
         bridge_rows=bridge_rows,
+        learned_readout_comparison_rows=learned_readout_comparison_rows,
         input_dirs=dirs,
         behavioral_csv=behavioral_csv,
         efficiency_csv=efficiency_csv,
@@ -319,6 +327,96 @@ def _primary_encoding_score(row: dict[str, Any]) -> tuple[Any, str]:
     if _optional_float(normalized) is not None:
         return normalized, "noise_normalized"
     return row.get("mean_score", ""), "raw"
+
+
+def _learned_readout_vs_flatten_pca_rows(
+    encoding_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    by_key: dict[tuple[str, str, str, str], dict[str, dict[str, Any]]] = {}
+    for row in encoding_rows:
+        feature_reduction = str(row.get("feature_reduction", ""))
+        if feature_reduction not in {"flatten_pca", "learned_spatial_readout"}:
+            continue
+        key = (
+            str(row.get("model", "")),
+            str(row.get("subject_id", "")),
+            str(row.get("roi", "")),
+            str(row.get("metric", "")),
+        )
+        by_key.setdefault(key, {})[feature_reduction] = row
+
+    rows: list[dict[str, Any]] = []
+    for key in sorted(by_key):
+        pair = by_key[key]
+        flatten = pair.get("flatten_pca")
+        learned = pair.get("learned_spatial_readout")
+        if flatten is None or learned is None:
+            continue
+        flatten_raw = _optional_float(flatten.get("mean_score"))
+        learned_raw = _optional_float(learned.get("mean_score"))
+        flatten_normalized = _optional_float(flatten.get("mean_noise_normalized_score"))
+        learned_normalized = _optional_float(learned.get("mean_noise_normalized_score"))
+        rows.append(
+            {
+                "model": key[0],
+                "subject_id": key[1],
+                "roi": key[2],
+                "metric": key[3],
+                "flatten_pca_layer": flatten.get("layer", ""),
+                "learned_readout_layer": learned.get("layer", ""),
+                "flatten_pca_raw_score": flatten.get("mean_score", ""),
+                "learned_readout_raw_score": learned.get("mean_score", ""),
+                "raw_delta": (
+                    learned_raw - flatten_raw
+                    if learned_raw is not None and flatten_raw is not None
+                    else ""
+                ),
+                "flatten_pca_noise_normalized_score": flatten.get(
+                    "mean_noise_normalized_score",
+                    "",
+                ),
+                "learned_readout_noise_normalized_score": learned.get(
+                    "mean_noise_normalized_score",
+                    "",
+                ),
+                "noise_normalized_delta": (
+                    learned_normalized - flatten_normalized
+                    if learned_normalized is not None and flatten_normalized is not None
+                    else ""
+                ),
+                "flatten_pca_valid_noise_ceiling_targets": flatten.get(
+                    "valid_noise_ceiling_targets",
+                    "",
+                ),
+                "learned_readout_valid_noise_ceiling_targets": learned.get(
+                    "valid_noise_ceiling_targets",
+                    "",
+                ),
+                "flatten_pca_zero_noise_ceiling_targets": flatten.get(
+                    "zero_noise_ceiling_targets",
+                    "",
+                ),
+                "learned_readout_zero_noise_ceiling_targets": learned.get(
+                    "zero_noise_ceiling_targets",
+                    "",
+                ),
+                "flatten_pca_invalid_noise_ceiling_targets": flatten.get(
+                    "invalid_noise_ceiling_targets",
+                    "",
+                ),
+                "learned_readout_invalid_noise_ceiling_targets": learned.get(
+                    "invalid_noise_ceiling_targets",
+                    "",
+                ),
+                "flatten_pca_n_train": flatten.get("n_train", ""),
+                "learned_readout_n_train": learned.get("n_train", ""),
+                "flatten_pca_n_test": flatten.get("n_test", ""),
+                "learned_readout_n_test": learned.get("n_test", ""),
+                "flatten_pca_source_dir": flatten.get("source_dir", ""),
+                "learned_readout_source_dir": learned.get("source_dir", ""),
+            }
+        )
+    return rows
 
 
 def _attach_noise_normalized_aggregates(
@@ -882,6 +980,7 @@ def _write_summary_note(
     rsa_rows: list[dict[str, Any]],
     best_rows: list[dict[str, Any]],
     bridge_rows: list[dict[str, Any]],
+    learned_readout_comparison_rows: list[dict[str, Any]],
     input_dirs: list[Path],
     behavioral_csv: str | Path | None,
     efficiency_csv: str | Path | None,
@@ -940,6 +1039,21 @@ def _write_summary_note(
         "- Do not interpret bridge rows as cross-model correlations until neural outputs "
         "exist for multiple model families."
     )
+    lines.extend(["", "## Learned Readout Versus Flatten PCA", ""])
+    if learned_readout_comparison_rows:
+        improved = sum(
+            1
+            for row in learned_readout_comparison_rows
+            if _optional_float(row.get("raw_delta")) is not None
+            and _float(row.get("raw_delta")) > 0.0
+        )
+        lines.append(
+            "- Matched learned-readout and `flatten_pca` comparison rows: "
+            f"{len(learned_readout_comparison_rows)}; raw-score improvements: "
+            f"{improved}/{len(learned_readout_comparison_rows)}."
+        )
+    else:
+        lines.append("- No matched learned-readout and `flatten_pca` comparison rows are available.")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -1348,6 +1462,33 @@ NEURAL_RANKING_FIELDNAMES = [
     "rsa_score_per_model_size_mb",
     "encoding_score_per_gflop",
     "rsa_score_per_gflop",
+]
+
+LEARNED_READOUT_COMPARISON_FIELDNAMES = [
+    "model",
+    "subject_id",
+    "roi",
+    "metric",
+    "flatten_pca_layer",
+    "learned_readout_layer",
+    "flatten_pca_raw_score",
+    "learned_readout_raw_score",
+    "raw_delta",
+    "flatten_pca_noise_normalized_score",
+    "learned_readout_noise_normalized_score",
+    "noise_normalized_delta",
+    "flatten_pca_valid_noise_ceiling_targets",
+    "learned_readout_valid_noise_ceiling_targets",
+    "flatten_pca_zero_noise_ceiling_targets",
+    "learned_readout_zero_noise_ceiling_targets",
+    "flatten_pca_invalid_noise_ceiling_targets",
+    "learned_readout_invalid_noise_ceiling_targets",
+    "flatten_pca_n_train",
+    "learned_readout_n_train",
+    "flatten_pca_n_test",
+    "learned_readout_n_test",
+    "flatten_pca_source_dir",
+    "learned_readout_source_dir",
 ]
 
 BEHAVIOR_NEURAL_ALIGNMENT_FIELDNAMES = [
