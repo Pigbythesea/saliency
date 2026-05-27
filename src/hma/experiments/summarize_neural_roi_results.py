@@ -18,6 +18,15 @@ METADATA_FILE = "metadata.json"
 STATIC_SUFFIX = "_static2000"
 BRIDGE_METHODS = {"vanilla_gradient", "gradcam", "attention_rollout"}
 LOWER_IS_BETTER_METRICS = {"kl", "emd", "emd_2d", "mae", "mse", "rmse", "loss"}
+MATCHED_PANEL_MODELS = {
+    "resnet50",
+    "convnext_tiny",
+    "deit_small_patch16_224",
+    "vit_base_patch16_224",
+    "vit_small_patch14_dinov2",
+    "vit_base_patch16_clip_224",
+}
+MATCHED_PANEL_ROIS = {"V1", "V2", "V3", "hV4"}
 
 
 def summarize_neural_roi_results(
@@ -49,6 +58,8 @@ def summarize_neural_roi_results(
         "best_rsa_by_model_roi": output / "best_rsa_by_model_roi.csv",
         "paper_model_roi_winners": output / "paper_model_roi_winners.csv",
         "neural_model_rankings": output / "neural_model_rankings.csv",
+        "matched_panel_encoding_scores": output / "matched_full_panel_encoding_scores.csv",
+        "matched_panel_model_rankings": output / "matched_full_panel_model_rankings.csv",
         "learned_readout_vs_flatten_pca": output / "learned_readout_vs_flatten_pca.csv",
         "summary_note": output / "neural_roi_summary.md",
         "multimodel_interpretation_note": output / "multimodel_interpretation_note.md",
@@ -57,6 +68,13 @@ def summarize_neural_roi_results(
     best_rsa_rows = [row for row in best_rows if row.get("score_type") == "rsa"]
     paper_winner_rows = _paper_model_roi_winners(best_encoding_rows, best_rsa_rows)
     neural_ranking_rows = _neural_model_rankings(best_rows, efficiency_csv)
+    for row in neural_ranking_rows:
+        row["interpretation_scope"] = "mixed_scope"
+    matched_encoding_rows = _matched_panel_encoding_rows(encoding_rows)
+    matched_best_rows = _best_layer_rows(matched_encoding_rows, [])
+    matched_panel_ranking_rows = _neural_model_rankings(matched_best_rows, efficiency_csv)
+    for row in matched_panel_ranking_rows:
+        row["interpretation_scope"] = "matched_full_image_flatten_pca"
     learned_readout_comparison_rows = _learned_readout_vs_flatten_pca_rows(encoding_rows)
     _write_rows(outputs["combined_encoding_scores"], encoding_rows, ENCODING_FIELDNAMES)
     if encoding_target_rows:
@@ -80,6 +98,16 @@ def summarize_neural_roi_results(
     )
     _write_rows(outputs["paper_model_roi_winners"], paper_winner_rows, PAPER_WINNER_FIELDNAMES)
     _write_rows(outputs["neural_model_rankings"], neural_ranking_rows, NEURAL_RANKING_FIELDNAMES)
+    _write_rows(
+        outputs["matched_panel_encoding_scores"],
+        matched_encoding_rows,
+        ENCODING_FIELDNAMES,
+    )
+    _write_rows(
+        outputs["matched_panel_model_rankings"],
+        matched_panel_ranking_rows,
+        NEURAL_RANKING_FIELDNAMES,
+    )
     _write_rows(
         outputs["learned_readout_vs_flatten_pca"],
         learned_readout_comparison_rows,
@@ -138,6 +166,7 @@ def summarize_neural_roi_results(
         best_rows=best_rows,
         bridge_rows=bridge_rows,
         learned_readout_comparison_rows=learned_readout_comparison_rows,
+        matched_panel_ranking_rows=matched_panel_ranking_rows,
         input_dirs=dirs,
         behavioral_csv=behavioral_csv,
         efficiency_csv=efficiency_csv,
@@ -148,6 +177,7 @@ def summarize_neural_roi_results(
     _write_multimodel_interpretation_note(
         outputs["multimodel_interpretation_note"],
         neural_ranking_rows=neural_ranking_rows,
+        matched_panel_ranking_rows=matched_panel_ranking_rows,
         paper_winner_rows=paper_winner_rows,
         behavior_neural_alignment_rows=behavior_neural_alignment_rows,
         leader_overlap_rows=leader_overlap_rows,
@@ -416,6 +446,29 @@ def _learned_readout_vs_flatten_pca_rows(
                 "learned_readout_source_dir": learned.get("source_dir", ""),
             }
         )
+    return rows
+
+
+def _matched_panel_encoding_rows(
+    encoding_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return rows eligible for the matched full-image flatten_pca panel."""
+    rows = []
+    for row in encoding_rows:
+        if str(row.get("model", "")) not in MATCHED_PANEL_MODELS:
+            continue
+        if str(row.get("subject_id", "")) != "subj01":
+            continue
+        if str(row.get("roi", "")) not in MATCHED_PANEL_ROIS:
+            continue
+        if str(row.get("feature_reduction", "")) != "flatten_pca":
+            continue
+        if int(_float(row.get("metadata_num_items"))) != 9841:
+            continue
+        alpha_mode = str(row.get("alpha_selection_mode", ""))
+        if alpha_mode not in {"selection_validation", "cv_inner_validation"}:
+            continue
+        rows.append({**row, "interpretation_scope": "matched_full_image_flatten_pca"})
     return rows
 
 
@@ -981,6 +1034,7 @@ def _write_summary_note(
     best_rows: list[dict[str, Any]],
     bridge_rows: list[dict[str, Any]],
     learned_readout_comparison_rows: list[dict[str, Any]],
+    matched_panel_ranking_rows: list[dict[str, Any]],
     input_dirs: list[Path],
     behavioral_csv: str | Path | None,
     efficiency_csv: str | Path | None,
@@ -1001,6 +1055,7 @@ def _write_summary_note(
         f"- Behavioral bridge CSV: {behavioral_csv if behavioral_csv else 'not provided'}.",
         f"- Efficiency CSV: {efficiency_csv if efficiency_csv else 'not provided'}.",
         f"- Benchmark-style encoding scope: {_benchmark_target_scope_note(encoding_target_rows)}.",
+        f"- Matched full-image `flatten_pca` panel models complete in summary: {len(matched_panel_ranking_rows)}.",
         "",
         "## Best Encoding Layers",
         "",
@@ -1054,6 +1109,17 @@ def _write_summary_note(
         )
     else:
         lines.append("- No matched learned-readout and `flatten_pca` comparison rows are available.")
+    lines.extend(["", "## Matched Full-Image Flatten PCA Panel", ""])
+    if matched_panel_ranking_rows:
+        for row in matched_panel_ranking_rows:
+            lines.append(
+                "- "
+                f"{row.get('model', '')}: ROIs={row.get('num_encoding_rois', '')}, "
+                f"mean_noise_normalized={_float(row.get('mean_noise_normalized_score')):.6g}, "
+                f"rank={row.get('rank_mean_noise_normalized', '')}."
+            )
+    else:
+        lines.append("- No complete matched full-image `flatten_pca` rows are available yet.")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -1076,6 +1142,7 @@ def _write_multimodel_interpretation_note(
     path: Path,
     *,
     neural_ranking_rows: list[dict[str, Any]],
+    matched_panel_ranking_rows: list[dict[str, Any]],
     paper_winner_rows: list[dict[str, Any]],
     behavior_neural_alignment_rows: list[dict[str, Any]],
     leader_overlap_rows: list[dict[str, Any]],
@@ -1111,6 +1178,7 @@ def _write_multimodel_interpretation_note(
         "",
         f"- Model/ROI winner rows: {len(paper_winner_rows)}.",
         f"- Model ranking rows: {len(neural_ranking_rows)}.",
+        f"- Matched full-image `flatten_pca` ranking rows: {len(matched_panel_ranking_rows)}.",
         f"- Behavior-neural alignment rows: {len(behavior_neural_alignment_rows)}.",
         f"- Behavioral CSV: {behavioral_csv if behavioral_csv else 'not provided'}.",
         f"- Efficiency CSV: {efficiency_csv if efficiency_csv else 'not provided'}.",
@@ -1140,6 +1208,25 @@ def _write_multimodel_interpretation_note(
         )
     if not raw_encoding and not raw_rsa:
         lines.append("- No neural ranking rows are available.")
+
+    lines.extend(["", "## Matched Full-Image Flatten PCA Panel", ""])
+    if matched_panel_ranking_rows:
+        leader = _leader_by_score(
+            matched_panel_ranking_rows,
+            "mean_noise_normalized_score",
+        )
+        lines.append(
+            "- Matched panel leader by mean noise-normalized encoding: "
+            f"{leader.get('model')} "
+            f"({_float(leader.get('mean_noise_normalized_score')):.6g}; "
+            f"ROIs={leader.get('num_encoding_rois')})."
+        )
+        lines.append(
+            "- This matched panel excludes learned-readout, ROI500, spatial-mean, "
+            "and rejected voxel-specific rows."
+        )
+    else:
+        lines.append("- Matched full-image `flatten_pca` panel rows are not complete yet.")
 
     lines.extend(["", "## Efficiency-Normalized Ranking", ""])
     if latency_encoding:

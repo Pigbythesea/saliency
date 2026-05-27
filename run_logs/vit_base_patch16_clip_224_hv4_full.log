@@ -1,0 +1,3 @@
+Activations: D:\Git\saliency\outputs\neural_subj01_full\vit_base_patch16_clip_224_hv4_flatten_pca_validation_selection_full\activations.npz
+Encoding scores: D:\Git\saliency\outputs\neural_subj01_full\vit_base_patch16_clip_224_hv4_flatten_pca_validation_selection_full\encoding_scores.csv
+Metadata: D:\Git\saliency\outputs\neural_subj01_full\vit_base_patch16_clip_224_hv4_flatten_pca_validation_selection_full\metadata.json

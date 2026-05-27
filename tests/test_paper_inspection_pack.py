@@ -143,6 +143,46 @@ def test_readme_reports_noise_normalized_neural_leader_when_available(tmp_path):
     assert "Raw neural RSA leader" in text
 
 
+def test_readme_uses_complete_matched_panel_for_encoding_headline(tmp_path):
+    path = _write_readme(
+        tmp_path / "README.md",
+        behavior_table=[],
+        neural_table=[
+            {
+                "model": "Mixed Leader",
+                "mean_noise_normalized": "0.9",
+                "mean_noise_normalized_x100": "90",
+                "noise_normalized_rank": "1",
+                "mean_encoding": "0.9",
+                "mean_rsa": "0.2",
+                "encoding_rank": "1",
+                "rsa_rank": "1",
+            }
+        ],
+        matched_panel_table=[
+            {
+                "model": f"Matched {index}",
+                "mean_noise_normalized": "0.8",
+                "mean_noise_normalized_x100": "80",
+                "noise_normalized_rank": str(index),
+                "mean_encoding": "0.3",
+                "mean_rsa": "",
+                "encoding_rank": str(index),
+                "rsa_rank": "",
+                "valid_noise_ceiling_targets": "10",
+            }
+            for index in range(1, 7)
+        ],
+        overlap_table=[],
+        candidate_table=[],
+        outputs={},
+    )
+
+    text = path.read_text(encoding="utf-8")
+    assert "Matched-panel Noise-normalized neural encoding leader: Matched 1" in text
+    assert "matched full-image `flatten_pca` panel is complete" in text.lower()
+
+
 def test_readme_reports_learned_readout_comparison_when_available(tmp_path):
     path = _write_readme(
         tmp_path / "README.md",

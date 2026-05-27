@@ -10,11 +10,14 @@ from hma.neural import (
     compare_rdms,
     compute_rdm,
     evaluate_encoding,
+    fit_spatial_readout,
     fit_ridge_encoding,
     fuse_spatial_feature_layers,
     normalize_spatial_features,
+    predict_spatial_readout,
     predict_ridge_encoding,
     save_activations,
+    SpatialReadoutConfig,
 )
 
 
@@ -1002,6 +1005,7 @@ def _run_synthetic_learned_readout(
     *,
     output_name="learned",
     corrupt_indices=None,
+    learned_readout_overrides=None,
 ):
     pytest.importorskip("torch")
     from hma.experiments import neural_alignment
@@ -1057,6 +1061,17 @@ def _run_synthetic_learned_readout(
 
     output_dir = tmp_path / output_name
     config_path = tmp_path / f"{output_name}.yaml"
+    learned_readout_config = {
+        "validation_fraction": 0.25,
+        "max_epochs": 6,
+        "batch_size": 4,
+        "target_batch_size": 2,
+        "lr": 0.01,
+        "weight_decay": 0.0,
+        "patience": 3,
+        "objective": "pearson",
+    }
+    learned_readout_config.update(learned_readout_overrides or {})
     save_yaml(
         {
             "seed": 0,
@@ -1071,16 +1086,7 @@ def _run_synthetic_learned_readout(
                 "noise_ceiling_key": "noise_ceiling",
                 "train_fraction": 0.75,
                 "metric": "correlation",
-                "learned_readout": {
-                    "validation_fraction": 0.25,
-                    "max_epochs": 6,
-                    "batch_size": 4,
-                    "target_batch_size": 2,
-                    "lr": 0.01,
-                    "weight_decay": 0.0,
-                    "patience": 3,
-                    "objective": "pearson",
-                },
+                "learned_readout": learned_readout_config,
             },
             "output": {"dir": str(output_dir)},
         },
@@ -1175,6 +1181,137 @@ def test_run_neural_alignment_learned_readout_summary_compatible(
     assert combined_rows[0]["feature_reduction"] == "learned_spatial_readout"
     assert combined_rows[0]["source_dir"] == str(output_dir.resolve())
     assert ranking_rows
+
+
+def test_run_neural_alignment_voxel_specific_readout_writes_outputs(
+    monkeypatch,
+    tmp_path,
+):
+    result, output_dir = _run_synthetic_learned_readout(
+        monkeypatch,
+        tmp_path,
+        output_name="voxel_specific",
+        learned_readout_overrides={
+            "variant": "voxel_specific_lowrank",
+            "spatial_rank": 2,
+            "target_batch_size": 2,
+        },
+    )
+
+    assert (output_dir / "encoding_scores.csv").is_file()
+    assert (output_dir / "encoding_target_scores.csv").is_file()
+    assert (output_dir / "metadata.json").is_file()
+    assert (output_dir / "learned_readout_metadata.json").is_file()
+    assert (output_dir / "feature_reduction_metadata.json").is_file()
+    assert result["score_rows"][0]["feature_reduction"] == (
+        "voxel_specific_spatial_readout"
+    )
+    assert result["target_score_rows"][0]["feature_reduction"] == (
+        "voxel_specific_spatial_readout"
+    )
+
+    metadata = json.loads((output_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["feature_reduction"] == "voxel_specific_spatial_readout"
+    readout_metadata = json.loads(
+        (output_dir / "learned_readout_metadata.json").read_text(encoding="utf-8")
+    )
+    assert readout_metadata["readout_variant"] == "voxel_specific_lowrank"
+    assert readout_metadata["spatial_rank"] == 2
+    assert readout_metadata["parameter_count"] > 0
+    assert readout_metadata["outer_train_image_ids"]
+    assert readout_metadata["selection_validation_image_ids"]
+
+    feature_metadata = json.loads(
+        (output_dir / "feature_reduction_metadata.json").read_text(encoding="utf-8")
+    )
+    assert feature_metadata["feature_reduction"] == "voxel_specific_spatial_readout"
+    assert feature_metadata["layers"][0]["readout_variant"] == "voxel_specific_lowrank"
+    assert feature_metadata["layers"][0]["spatial_rank"] == 2
+
+
+def test_run_neural_alignment_voxel_specific_ignores_heldout_for_best_epoch(
+    monkeypatch,
+    tmp_path,
+):
+    from hma.experiments import neural_alignment
+
+    overrides = {
+        "variant": "voxel_specific_lowrank",
+        "spatial_rank": 2,
+        "target_batch_size": 2,
+    }
+    _clean_result, clean_output = _run_synthetic_learned_readout(
+        monkeypatch,
+        tmp_path,
+        output_name="clean_voxel_specific",
+        learned_readout_overrides=overrides,
+    )
+    _train_idx, test_idx = neural_alignment._outer_train_test_indices(
+        18,
+        0.75,
+        np.random.default_rng(0),
+    )
+    _corrupt_result, corrupt_output = _run_synthetic_learned_readout(
+        monkeypatch,
+        tmp_path,
+        output_name="corrupt_voxel_specific",
+        corrupt_indices=set(int(index) for index in test_idx),
+        learned_readout_overrides=overrides,
+    )
+
+    clean_metadata = json.loads(
+        (clean_output / "learned_readout_metadata.json").read_text(encoding="utf-8")
+    )
+    corrupt_metadata = json.loads(
+        (corrupt_output / "learned_readout_metadata.json").read_text(encoding="utf-8")
+    )
+    assert clean_metadata["best_epoch"] == corrupt_metadata["best_epoch"]
+    assert clean_metadata["validation_score"] == pytest.approx(
+        corrupt_metadata["validation_score"]
+    )
+
+
+def test_voxel_specific_readout_target_batches_are_isolated():
+    pytest.importorskip("torch")
+    rng = np.random.default_rng(0)
+    features = rng.normal(size=(12, 3, 4)).astype(np.float32)
+    responses = rng.normal(size=(12, 5)).astype(np.float32)
+    train_idx = np.arange(8)
+    validation_idx = np.arange(8, 10)
+    config = SpatialReadoutConfig(
+        variant="voxel_specific_lowrank",
+        spatial_rank=2,
+        max_epochs=2,
+        batch_size=4,
+        target_batch_size=2,
+        lr=0.01,
+        weight_decay=0.0,
+        patience=1,
+        seed=0,
+        device="cpu",
+    )
+
+    bundle = fit_spatial_readout(
+        features,
+        responses,
+        train_idx=train_idx,
+        validation_idx=validation_idx,
+        config=config,
+    )
+    baseline = predict_spatial_readout(bundle, features, indices=np.array([10, 11]))
+    modified = dict(bundle)
+    modified_state = {
+        key: value.clone() if hasattr(value, "clone") else value
+        for key, value in bundle["state_dict"].items()
+    }
+    modified_state["spatial_logits"][2:] += 100.0
+    modified_state["channel_weights"][2:] += 100.0
+    modified_state["bias"][2:] += 100.0
+    modified["state_dict"] = modified_state
+    changed = predict_spatial_readout(modified, features, indices=np.array([10, 11]))
+
+    np.testing.assert_allclose(changed[:, :2], baseline[:, :2], atol=1e-6)
+    assert not np.allclose(changed[:, 2:], baseline[:, 2:])
 
 
 def test_fuse_spatial_feature_layers_channel_concatenates_by_image():

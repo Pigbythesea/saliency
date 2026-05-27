@@ -13,6 +13,8 @@ import numpy as np
 class SpatialReadoutConfig:
     """Training options for a target-wise spatial readout."""
 
+    variant: str = "separable"
+    spatial_rank: int = 1
     max_epochs: int = 100
     batch_size: int = 32
     target_batch_size: int = 256
@@ -162,11 +164,13 @@ def fit_spatial_readout(
         if str(requested_device).startswith("cuda") and torch.cuda.is_available()
         else requested_device
     )
-    model = TargetWiseSpatialReadout(
+    model = _build_spatial_readout_model(
+        variant=config.variant,
         n_positions=int(sample_features.shape[1]),
         n_channels=int(sample_features.shape[2]),
         n_targets=int(y.shape[1]),
         target_batch_size=int(config.target_batch_size),
+        spatial_rank=int(config.spatial_rank),
     ).to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -281,6 +285,8 @@ def fit_spatial_readout(
     }
     metadata = {
         "method": "learned_spatial_readout",
+        "readout_variant": str(config.variant),
+        "spatial_rank": int(config.spatial_rank),
         "input_feature_shape": [int(dim) for dim in np.asarray(features).shape[1:]],
         "normalized_feature_shape": [int(dim) for dim in sample_features.shape[1:]],
         "n_train": int(train_idx.size),
@@ -299,6 +305,8 @@ def fit_spatial_readout(
         "epochs_ran": int(len(history)),
         "progress": bool(config.progress),
         "progress_every": int(config.progress_every),
+        "parameter_count": int(sum(value.numel() for value in state.values())),
+        "trainable_parameter_count": int(sum(value.numel() for value in state.values())),
         "history": history,
     }
     return {
@@ -326,16 +334,26 @@ def predict_spatial_readout(
     state = model_bundle["state_dict"]
     spatial_logits = state["spatial_logits"]
     channel_weights = state["channel_weights"]
-    n_targets, n_positions = spatial_logits.shape
+    if spatial_logits.ndim == 2:
+        n_targets, n_positions = spatial_logits.shape
+        n_channels = int(channel_weights.shape[1])
+    else:
+        n_targets = int(spatial_logits.shape[0])
+        n_positions = int(spatial_logits.shape[2])
+        n_channels = int(channel_weights.shape[2])
     sample_index = 0 if indices is None else int(np.asarray(indices).ravel()[0])
     sample_features = normalize_spatial_features(feature_matrix[sample_index][None, ...])
     if sample_features.shape[1] != n_positions:
         raise ValueError("features do not match fitted readout spatial shape")
-    model = TargetWiseSpatialReadout(
+    variant = str(getattr(model_bundle["config"], "variant", "separable"))
+    spatial_rank = int(getattr(model_bundle["config"], "spatial_rank", 1))
+    model = _build_spatial_readout_model(
+        variant=variant,
         n_positions=int(n_positions),
-        n_channels=int(channel_weights.shape[1]),
+        n_channels=n_channels,
         n_targets=int(n_targets),
         target_batch_size=int(model_bundle["config"].target_batch_size),
+        spatial_rank=spatial_rank,
     )
     model.load_state_dict(state)
     model.eval()
@@ -399,6 +417,86 @@ class TargetWiseSpatialReadout:  # pragma: no cover - exercised through training
                 return torch.cat(chunks, dim=1)
 
         return _TargetWiseSpatialReadout(*args, **kwargs)
+
+
+def _build_spatial_readout_model(
+    *,
+    variant: str,
+    n_positions: int,
+    n_channels: int,
+    n_targets: int,
+    target_batch_size: int,
+    spatial_rank: int,
+) -> Any:
+    if variant == "separable":
+        return TargetWiseSpatialReadout(
+            n_positions=n_positions,
+            n_channels=n_channels,
+            n_targets=n_targets,
+            target_batch_size=target_batch_size,
+        )
+    if variant == "voxel_specific_lowrank":
+        return LowRankVoxelSpatialReadout(
+            n_positions=n_positions,
+            n_channels=n_channels,
+            n_targets=n_targets,
+            target_batch_size=target_batch_size,
+            spatial_rank=spatial_rank,
+        )
+    raise ValueError(
+        "learned_spatial_readout variant must be 'separable' or "
+        "'voxel_specific_lowrank'"
+    )
+
+
+class LowRankVoxelSpatialReadout:  # pragma: no cover - exercised through training tests
+    """Low-rank per-target spatial-channel readout for voxel-specific routing."""
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        try:
+            import torch
+            from torch import nn
+        except ImportError as exc:
+            raise ImportError("learned_spatial_readout requires PyTorch") from exc
+
+        class _LowRankVoxelSpatialReadout(nn.Module):
+            def __init__(
+                self,
+                *,
+                n_positions: int,
+                n_channels: int,
+                n_targets: int,
+                target_batch_size: int,
+                spatial_rank: int,
+            ) -> None:
+                super().__init__()
+                if int(spatial_rank) < 1:
+                    raise ValueError("voxel_specific_lowrank spatial_rank must be >= 1")
+                self.n_targets = int(n_targets)
+                self.target_batch_size = int(target_batch_size)
+                self.spatial_rank = int(spatial_rank)
+                self.spatial_logits = nn.Parameter(
+                    torch.zeros(int(n_targets), self.spatial_rank, int(n_positions))
+                )
+                self.channel_weights = nn.Parameter(
+                    torch.empty(int(n_targets), self.spatial_rank, int(n_channels))
+                )
+                nn.init.normal_(self.channel_weights, mean=0.0, std=0.01)
+                self.bias = nn.Parameter(torch.zeros(int(n_targets)))
+
+            def forward(self, features: Any) -> Any:
+                weights = torch.softmax(self.spatial_logits, dim=2)
+                chunks = []
+                for start in range(0, self.n_targets, self.target_batch_size):
+                    end = min(start + self.target_batch_size, self.n_targets)
+                    spatial = weights[start:end]
+                    pooled = torch.einsum("bpc,trp->btrc", features, spatial)
+                    values = (pooled * self.channel_weights[start:end]).sum(dim=(2, 3))
+                    values = values + self.bias[start:end]
+                    chunks.append(values)
+                return torch.cat(chunks, dim=1)
+
+        return _LowRankVoxelSpatialReadout(*args, **kwargs)
 
 
 def _mean_columnwise_pearson_torch(predictions: Any, target: Any) -> float:

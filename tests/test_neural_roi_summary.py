@@ -4,6 +4,7 @@ import json
 from hma.experiments.summarize_neural_roi_results import summarize_neural_roi_results
 from hma.utils.config import load_yaml
 from scripts.create_neural_roi500_configs import (
+    create_matched_full_subject_flatten_pca_configs,
     create_neural_full_subject_configs,
     create_neural_large_smoke_configs,
     create_neural_roi500_configs,
@@ -13,6 +14,7 @@ from scripts.create_neural_roi500_configs import (
     inspect_ssl_multimodal_candidates,
     refresh_ssl_pretrained_status,
 )
+from scripts.audit_matched_neural_panel import audit_matched_neural_panel
 from scripts.merge_efficiency_profiles import merge_efficiency_profiles
 
 
@@ -971,6 +973,157 @@ def test_create_neural_large_smoke_and_full_subject_configs(tmp_path):
     assert full_config["dataset"]["max_items"] == 9841
     assert full_config["neural"]["feature_reduction"] == "spatial_mean"
     assert full_config["output"]["dir"].endswith("deit_small_patch16_224_v1_full")
+
+
+def test_create_matched_full_subject_flatten_pca_configs(tmp_path):
+    written = create_matched_full_subject_flatten_pca_configs(
+        output_dir=tmp_path / "configs",
+        output_root=tmp_path / "outputs",
+        models=["resnet50", "vit_base_patch16_clip_224"],
+        rois=["V1", "hV4"],
+    )
+
+    assert len(written) == 4
+    configs = {path.name: load_yaml(path) for path in written}
+    resnet = configs["resnet50_v1_flatten_pca_validation_selection_full.yaml"]
+    clip = configs["vit_base_patch16_clip_224_hv4_flatten_pca_validation_selection_full.yaml"]
+
+    assert resnet["dataset"]["manifest_path"] == (
+        "data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv"
+    )
+    assert resnet["dataset"]["max_items"] == 9841
+    assert resnet["neural"]["feature_reduction"] == "flatten_pca"
+    assert resnet["neural"]["pca_components"] == 512
+    assert resnet["neural"]["pca_solver"] == "randomized"
+    assert resnet["neural"]["pca_whiten"] is False
+    assert resnet["neural"]["selection"]["enabled"] is True
+    assert resnet["neural"]["selection"]["primary_score"] == "mean_noise_normalized_score"
+    assert resnet["neural"]["rsa"]["enabled"] is False
+    assert len(resnet["neural"]["ridge_alphas"]) == 11
+    assert clip["neural"]["layers"] == ["blocks.0", "blocks.3", "blocks.6", "blocks.9", "blocks.11"]
+    assert clip["preprocessing"]["input_size"] == [224, 224]
+
+
+def test_summarize_neural_roi_results_writes_matched_panel_rankings(tmp_path):
+    matched = tmp_path / "outputs" / "matched"
+    diagnostic = tmp_path / "outputs" / "diagnostic"
+    for path, model, feature_reduction, num_items, normalized in [
+        (matched, "resnet50", "flatten_pca", 9841, 0.7),
+        (diagnostic, "convnext_tiny", "spatial_mean", 500, 0.9),
+    ]:
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "metadata.json").write_text(
+            json.dumps({"num_items": num_items}),
+            encoding="utf-8",
+        )
+        _write_csv(
+            path / "encoding_scores.csv",
+            [
+                {
+                    "dataset": f"{model}_v1",
+                    "model": model,
+                    "subject_id": "subj01",
+                    "roi": "V1",
+                    "layer": "layer1",
+                    "metric": "correlation",
+                    "metric_scope": "benchmark_style_noise_normalized",
+                    "n_train": 7873,
+                    "n_test": 1968,
+                    "num_targets": 2,
+                    "mean_score": 0.5,
+                    "median_score": 0.5,
+                    "std_score": 0.0,
+                    "mean_noise_normalized_score": normalized,
+                    "median_noise_normalized_score": normalized,
+                    "valid_noise_ceiling_targets": 2,
+                    "zero_noise_ceiling_targets": 0,
+                    "invalid_noise_ceiling_targets": 0,
+                    "selected_ridge_alpha": 1.0,
+                    "alpha_selection_mode": "selection_validation",
+                    "split_seed": 123,
+                    "feature_reduction": feature_reduction,
+                }
+            ],
+            [
+                "dataset",
+                "model",
+                "subject_id",
+                "roi",
+                "layer",
+                "metric",
+                "metric_scope",
+                "n_train",
+                "n_test",
+                "num_targets",
+                "mean_score",
+                "median_score",
+                "std_score",
+                "mean_noise_normalized_score",
+                "median_noise_normalized_score",
+                "valid_noise_ceiling_targets",
+                "zero_noise_ceiling_targets",
+                "invalid_noise_ceiling_targets",
+                "selected_ridge_alpha",
+                "alpha_selection_mode",
+                "split_seed",
+                "feature_reduction",
+            ],
+        )
+
+    outputs = summarize_neural_roi_results([matched, diagnostic], tmp_path / "summary")
+
+    matched_rows = _read_csv(outputs["matched_panel_model_rankings"])
+    assert [row["model"] for row in matched_rows] == ["resnet50"]
+    assert matched_rows[0]["interpretation_scope"] == "matched_full_image_flatten_pca"
+    mixed_rows = _read_csv(outputs["neural_model_rankings"])
+    assert {row["interpretation_scope"] for row in mixed_rows} == {"mixed_scope"}
+    note = outputs["summary_note"].read_text(encoding="utf-8")
+    assert "Matched full-image `flatten_pca` panel models complete in summary: 1" in note
+
+
+def test_audit_matched_neural_panel_reports_complete_missing_and_skipped(tmp_path):
+    config_dir = tmp_path / "configs"
+    output_dir = tmp_path / "outputs" / "resnet50_v1_flatten_pca_validation_selection_full"
+    config_dir.mkdir()
+    output_dir.mkdir(parents=True)
+    config_path = config_dir / "resnet50_v1_flatten_pca_validation_selection_full.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "output:",
+                f"  dir: {output_dir.as_posix()}",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    for filename in [
+        "encoding_scores.csv",
+        "encoding_target_scores.csv",
+        "feature_reduction_metadata.json",
+    ]:
+        (output_dir / filename).write_text("", encoding="utf-8")
+    (output_dir / "metadata.json").write_text(
+        json.dumps({"feature_reduction": "flatten_pca", "num_items": 9841}),
+        encoding="utf-8",
+    )
+    skip_csv = tmp_path / "skips.csv"
+    _write_csv(
+        skip_csv,
+        [{"model": "convnext_tiny", "roi": "V1", "skip_reason": "pretrained weights failed"}],
+        ["model", "roi", "skip_reason"],
+    )
+
+    output = audit_matched_neural_panel(
+        config_dir=config_dir,
+        output_csv=tmp_path / "audit.csv",
+        skip_csv=skip_csv,
+        models=["resnet50", "convnext_tiny"],
+    )
+
+    rows = {(row["model"], row["roi"]): row for row in _read_csv(output)}
+    assert rows[("resnet50", "V1")]["status"] == "complete"
+    assert rows[("convnext_tiny", "V1")]["status"] == "explicitly_skipped"
+    assert rows[("resnet50", "V2")]["status"] == "missing"
 
 
 def test_behavior_neural_leader_overlap_handles_lower_is_better_metric(tmp_path):

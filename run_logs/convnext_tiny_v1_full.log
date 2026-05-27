@@ -1,0 +1,4 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Activations: D:\Git\saliency\outputs\neural_subj01_full\convnext_tiny_v1_flatten_pca_validation_selection_full\activations.npz
+Encoding scores: D:\Git\saliency\outputs\neural_subj01_full\convnext_tiny_v1_flatten_pca_validation_selection_full\encoding_scores.csv
+Metadata: D:\Git\saliency\outputs\neural_subj01_full\convnext_tiny_v1_flatten_pca_validation_selection_full\metadata.json

@@ -254,7 +254,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         ),
         "encoding_method": encoding_method,
         "feature_reduction": (
-            "learned_spatial_readout"
+            feature_reduction_metadata.get("feature_reduction", "learned_spatial_readout")
             if encoding_method == "learned_spatial_readout"
             else feature_reduction
         ),
@@ -582,6 +582,7 @@ def _fit_and_score_learned_spatial_readout(
         seed=seed,
         device=device,
     )
+    feature_reduction_label = _learned_readout_feature_reduction(readout_config)
     inner_train_idx, validation_idx = _inner_train_validation_indices(
         train_idx,
         readout_config.validation_fraction,
@@ -603,7 +604,7 @@ def _fit_and_score_learned_spatial_readout(
         "n_train": int(train_idx.size),
         "n_test": int(test_idx.size),
         "split_seed": int(seed),
-        "feature_reduction": "learned_spatial_readout",
+        "feature_reduction": feature_reduction_label,
         "selected_ridge_alpha": "",
         "alpha_selection_mode": "early_stopping_validation",
     }
@@ -637,6 +638,7 @@ def _fit_and_score_learned_spatial_readout(
         {
             "layer": layer,
             "layers": list(layers),
+            "feature_reduction": feature_reduction_label,
             "n_outer_train": int(train_idx.size),
             "n_test": int(test_idx.size),
             "outer_train_image_ids": _ids_for_indices(image_ids, train_idx),
@@ -647,11 +649,13 @@ def _fit_and_score_learned_spatial_readout(
         }
     )
     feature_metadata = {
-        "feature_reduction": "learned_spatial_readout",
+        "feature_reduction": feature_reduction_label,
         "layers": [
             {
                 "layer": layer,
-                "method": "learned_spatial_readout",
+                "method": feature_reduction_label,
+                "readout_variant": readout_config.variant,
+                "spatial_rank": int(readout_config.spatial_rank),
                 "input_feature_shape": [
                     int(dim)
                     for dim in _learned_readout_input_shape(
@@ -732,7 +736,11 @@ def _learned_readout_config(
     device: str,
 ) -> SpatialReadoutConfig:
     validation_fraction = float(learned_config.get("validation_fraction", 0.2))
+    variant = str(learned_config.get("variant", "separable"))
+    spatial_rank = int(learned_config.get("spatial_rank", 1 if variant == "separable" else 4))
     return SpatialReadoutConfig(
+        variant=variant,
+        spatial_rank=spatial_rank,
         max_epochs=int(learned_config.get("max_epochs", 100)),
         batch_size=int(learned_config.get("batch_size", 32)),
         target_batch_size=int(learned_config.get("target_batch_size", 256)),
@@ -747,6 +755,12 @@ def _learned_readout_config(
         progress=bool(learned_config.get("progress", False)),
         progress_every=int(learned_config.get("progress_every", 1)),
     )
+
+
+def _learned_readout_feature_reduction(config: SpatialReadoutConfig) -> str:
+    if config.variant == "voxel_specific_lowrank":
+        return "voxel_specific_spatial_readout"
+    return "learned_spatial_readout"
 
 
 def _dataset_len(dataset: Any) -> int | None:

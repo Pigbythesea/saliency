@@ -98,6 +98,9 @@ def create_paper_inspection_pack(
 
     behavioral_rows = _load_csv_rows(behavioral_path)
     model_rankings = _load_csv_rows(neural_root / "neural_model_rankings.csv")
+    matched_panel_rankings = _load_optional_csv_rows(
+        neural_root / "matched_full_panel_model_rankings.csv"
+    )
     roi_winners = _load_csv_rows(neural_root / "paper_model_roi_winners.csv")
     overlap_rows = _load_csv_rows(neural_root / "behavior_neural_leader_overlap.csv")
     candidate_rows = _load_csv_rows(neural_root / "ssl_multimodal_candidate_inventory.csv")
@@ -108,6 +111,7 @@ def create_paper_inspection_pack(
     static_nss_rows = _static_metric_rows(behavioral_rows, "nss")
     behavior_table = _top_behavior_rows(static_nss_rows, limit_per_dataset=8)
     neural_table = _neural_ranking_table(model_rankings)
+    matched_panel_table = _neural_ranking_table(matched_panel_rankings)
     roi_table = _roi_winner_table(roi_winners)
     overlap_table = _overlap_summary_table(overlap_rows)
     candidate_table = _candidate_table(candidate_rows)
@@ -134,6 +138,15 @@ def create_paper_inspection_pack(
     outputs["neural_table_md"] = _write_markdown_table(
         tables_dir / "table2_neural_model_rankings.md",
         neural_table,
+    )
+    outputs["matched_panel_table_csv"] = _write_rows(
+        tables_dir / "table8_matched_full_panel_model_rankings.csv",
+        matched_panel_table,
+        list(matched_panel_table[0]) if matched_panel_table else [],
+    )
+    outputs["matched_panel_table_md"] = _write_markdown_table(
+        tables_dir / "table8_matched_full_panel_model_rankings.md",
+        matched_panel_table,
     )
     outputs["roi_table_csv"] = _write_rows(
         tables_dir / "table3_roi_winners.csv",
@@ -198,6 +211,7 @@ def create_paper_inspection_pack(
         output_root / "README.md",
         behavior_table=behavior_table,
         neural_table=neural_table,
+        matched_panel_table=matched_panel_table,
         overlap_table=overlap_table,
         candidate_table=candidate_table,
         sanity_table=sanity_table,
@@ -570,12 +584,16 @@ def _write_readme(
     behavioral_csv: str | Path | None = None,
     sanity_table: list[dict[str, Any]] | None = None,
     learned_readout_table: list[dict[str, Any]] | None = None,
+    matched_panel_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     best_behavior = behavior_table[0] if behavior_table else {}
-    normalized_available = any(row.get("noise_normalized_rank") for row in neural_table)
+    matched_rows = matched_panel_table or []
+    matched_panel_complete = _matched_panel_complete(matched_rows)
+    headline_neural_table = matched_rows if matched_panel_complete else neural_table
+    normalized_available = any(row.get("noise_normalized_rank") for row in headline_neural_table)
     encoding_rank_key = "noise_normalized_rank" if normalized_available else "encoding_rank"
     best_neural_encoding = sorted(
-        neural_table,
+        headline_neural_table,
         key=lambda row: int(row.get(encoding_rank_key) or 999),
     )[0]
     best_neural_rsa = sorted(neural_table, key=lambda row: int(row["rsa_rank"] or 999))[0]
@@ -601,13 +619,18 @@ def _write_readme(
         "",
         f"- Top displayed behavioral NSS row: {best_behavior.get('dataset', '')} / {best_behavior.get('model', '')} / {best_behavior.get('saliency_method', '')}, NSS={best_behavior.get('nss_mean', '')}.",
         (
-            f"- Noise-normalized neural encoding leader: {best_neural_encoding.get('model', '')}, "
+            f"- {'Matched-panel ' if matched_panel_complete else ''}Noise-normalized neural encoding leader: {best_neural_encoding.get('model', '')}, "
             f"mean noise-normalized score={best_neural_encoding.get('mean_noise_normalized', '')} "
             f"(x100={best_neural_encoding.get('mean_noise_normalized_x100', '')})."
             if normalized_available
-            else f"- Raw neural encoding leader: {best_neural_encoding.get('model', '')}, mean encoding={best_neural_encoding.get('mean_encoding', '')}."
+            else f"- {'Matched-panel ' if matched_panel_complete else ''}Raw neural encoding leader: {best_neural_encoding.get('model', '')}, mean encoding={best_neural_encoding.get('mean_encoding', '')}."
         ),
         f"- Raw neural RSA leader: {best_neural_rsa.get('model', '')}, mean RSA={best_neural_rsa.get('mean_rsa', '')}.",
+        (
+            "- Matched full-image `flatten_pca` panel is complete and used for the encoding headline."
+            if matched_panel_complete
+            else f"- Matched full-image `flatten_pca` panel rows available: {len(matched_rows)}; mixed-scope ranking remains the headline until all expected model/ROI cells are complete."
+        ),
         f"- Overall behavior-to-encoding leader match rate: {all_overlap.get('encoding_match_rate', '')}.",
         f"- Overall behavior-to-RSA leader match rate: {all_overlap.get('rsa_match_rate', '')}.",
         (
@@ -636,6 +659,7 @@ def _write_readme(
         "- `tables/table5_ssl_multimodal_candidates.md`",
         "- `tables/table6_benchmark_sanity_ranges.md`",
         "- `tables/table7_learned_readout_vs_flatten_pca.md`",
+        "- `tables/table8_matched_full_panel_model_rankings.md`",
         "",
         "## Academic SOTA Context",
         "",
@@ -652,6 +676,7 @@ def _write_readme(
         "## Interpretation Boundary",
         "",
         "Treat this pack as a paper-style inspection layer, not final evidence. The neural side is one subject with mixed ROI500 diagnostics and validation-selected full-image-count PRF ROI baselines; the bridge is descriptive and should not be interpreted as causal or as a definitive cross-model correlation.",
+        "Use the matched full-image `flatten_pca` table for cross-model encoding comparisons once all expected model/ROI cells are complete.",
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -665,6 +690,12 @@ def _candidate_status_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
         status = str(row.get("pretrained_status") or "not_run")
         counts[status] = counts.get(status, 0) + 1
     return counts
+
+
+def _matched_panel_complete(rows: list[dict[str, Any]]) -> bool:
+    if len(rows) < 6:
+        return False
+    return all(int(float(row.get("valid_noise_ceiling_targets") or 0)) > 0 for row in rows)
 
 
 def _static_metric_rows(rows: Iterable[dict[str, str]], metric: str) -> list[dict[str, str]]:

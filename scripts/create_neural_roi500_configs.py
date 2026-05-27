@@ -50,6 +50,12 @@ MODEL_SPECS = {
         "layers": ["blocks.0", "blocks.3", "blocks.6", "blocks.9", "blocks.11"],
     },
 }
+MATCHED_PANEL_MODEL_SPECS = {
+    **MODEL_SPECS,
+    "vit_base_patch16_clip_224": {
+        "layers": ["blocks.0", "blocks.3", "blocks.6", "blocks.9", "blocks.11"],
+    },
+}
 SSL_MULTIMODAL_CANDIDATES = [
     {"model_name": "vit_small_patch14_dinov2", "family": "DINOv2"},
     {"model_name": "vit_base_patch14_dinov2", "family": "DINOv2"},
@@ -70,6 +76,19 @@ REQUIRED_NEURAL_OUTPUT_FILES = [
     "encoding_scores.csv",
     "rsa_scores.csv",
     "metadata.json",
+]
+FULL_PANEL_RIDGE_ALPHAS = [
+    0.001,
+    0.01,
+    0.1,
+    1.0,
+    10.0,
+    100.0,
+    1000.0,
+    10000.0,
+    100000.0,
+    1000000.0,
+    10000000.0,
 ]
 SSL_CANDIDATE_FIELDNAMES = [
     "model_name",
@@ -177,6 +196,77 @@ def create_neural_full_subject_configs(
         max_items=max_items,
         name_suffix=name_suffix,
     )
+
+
+def create_matched_full_subject_flatten_pca_configs(
+    *,
+    output_dir: str | Path = FULL_SUBJECT_CONFIG_ROOT,
+    manifest_path: str = FULL_MANIFEST_PATH,
+    output_root: str | Path = FULL_SUBJECT_OUTPUT_ROOT,
+    models: Iterable[str] | None = None,
+    rois: Iterable[str] | None = None,
+    max_items: int = 9841,
+    name_suffix: str = "flatten_pca_validation_selection_full",
+    pca_components: int = 512,
+) -> list[Path]:
+    """Write matched full-image-count validation-selected flatten_pca configs."""
+    root = Path(output_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    selected_models = list(models) if models is not None else list(MATCHED_PANEL_MODEL_SPECS)
+    selected_rois = list(rois) if rois is not None else [roi for roi, _slug in ROI_CONFIGS]
+    roi_slug_by_name = dict(ROI_CONFIGS)
+    written = []
+    for model_name in selected_models:
+        if model_name not in MATCHED_PANEL_MODEL_SPECS:
+            raise ValueError(
+                f"Unknown model spec '{model_name}'. Available specs: {sorted(MATCHED_PANEL_MODEL_SPECS)}"
+            )
+        for roi in selected_rois:
+            if roi not in roi_slug_by_name:
+                raise ValueError(
+                    f"Unknown ROI '{roi}'. Available ROIs: {sorted(roi_slug_by_name)}"
+                )
+            slug = roi_slug_by_name[roi]
+            name = _run_name(model_name, slug, name_suffix)
+            config = _config_for_roi(
+                model_name=model_name,
+                roi=roi,
+                slug=slug,
+                manifest_path=manifest_path,
+                output_root=str(output_root),
+                max_items=max_items,
+                name_suffix=name_suffix,
+            )
+            config["preprocessing"]["input_size"] = _input_size_for_candidate(model_name)
+            neural = config["neural"]
+            neural.update(
+                {
+                    "noise_ceiling_key": "noise_ceiling",
+                    "feature_reduction": "flatten_pca",
+                    "pca_components": int(pca_components),
+                    "pca_solver": "randomized",
+                    "pca_whiten": False,
+                    "feature_reduction_seed": int(config.get("seed", 123)),
+                    "ridge_alphas": list(FULL_PANEL_RIDGE_ALPHAS),
+                    "validation_fraction": 0.2,
+                    "selection": {
+                        "enabled": True,
+                        "validation_fraction": 0.2,
+                        "primary_score": "mean_noise_normalized_score",
+                    },
+                    "rsa": {
+                        "enabled": False,
+                        "rdm_metric": "correlation",
+                        "response_rdm_metric": "correlation",
+                        "compare_method": "spearman",
+                    },
+                }
+            )
+            config["output"]["dir"] = f"{output_root}/{name}"
+            path = root / f"{name}.yaml"
+            save_yaml(config, path)
+            written.append(path)
+    return written
 
 
 def inspect_ssl_multimodal_candidates(
@@ -428,7 +518,8 @@ def _config_for_roi(
     name_suffix: str,
 ) -> dict:
     name = _run_name(model_name, slug, name_suffix)
-    layers = MODEL_SPECS[model_name]["layers"]
+    model_specs = MATCHED_PANEL_MODEL_SPECS if model_name in MATCHED_PANEL_MODEL_SPECS else MODEL_SPECS
+    layers = model_specs[model_name]["layers"]
     return {
         "seed": 123,
         "device": "auto",
@@ -616,7 +707,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-dir", default=str(CONFIG_ROOT))
     parser.add_argument("--output-root", default=str(OUTPUT_ROOT))
     parser.add_argument("--manifest-path", default=MANIFEST_PATH)
-    parser.add_argument("--models", nargs="+", choices=sorted(MODEL_SPECS))
+    parser.add_argument("--models", nargs="+", choices=sorted(MATCHED_PANEL_MODEL_SPECS))
     parser.add_argument("--rois", nargs="+", choices=[roi for roi, _slug in ROI_CONFIGS])
     parser.add_argument("--max-items", type=int, default=500)
     parser.add_argument("--name-suffix", default="500")
@@ -629,6 +720,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--full-subject",
         action="store_true",
         help="Generate full-subject configs against the full PRF visual ROI manifest.",
+    )
+    parser.add_argument(
+        "--flatten-pca-validation-selection",
+        action="store_true",
+        help="With --full-subject or --large-smoke, write validation-selected flatten_pca configs.",
     )
     parser.add_argument(
         "--debug",
@@ -741,12 +837,57 @@ def main() -> None:
         name_suffix = "debug"
         rois = ["V1"]
     if args.large_smoke:
-        written = create_neural_large_smoke_configs(models=models)
+        output_dir = str(LARGE_SMOKE_CONFIG_ROOT) if args.output_dir == str(CONFIG_ROOT) else output_dir
+        output_root = str(LARGE_SMOKE_OUTPUT_ROOT) if args.output_root == str(OUTPUT_ROOT) else output_root
+        manifest_path = FULL_MANIFEST_PATH if args.manifest_path == MANIFEST_PATH else manifest_path
+        if args.flatten_pca_validation_selection:
+            written = create_matched_full_subject_flatten_pca_configs(
+                output_dir=output_dir,
+                manifest_path=manifest_path,
+                output_root=output_root,
+                models=models or ["deit_small_patch16_224"],
+                rois=rois or ["V1"],
+                max_items=64,
+                name_suffix="flatten_pca_validation_selection_smoke",
+                pca_components=16,
+            )
+        else:
+            written = create_neural_large_smoke_configs(
+                models=models,
+                rois=rois,
+                max_items=max_items if args.max_items != 500 else 64,
+                name_suffix=name_suffix if args.name_suffix != "500" else "smoke",
+            )
         for path in written:
             print(path)
         return
     if args.full_subject:
-        written = create_neural_full_subject_configs(models=models, rois=rois)
+        output_dir = str(FULL_SUBJECT_CONFIG_ROOT) if args.output_dir == str(CONFIG_ROOT) else output_dir
+        output_root = str(FULL_SUBJECT_OUTPUT_ROOT) if args.output_root == str(OUTPUT_ROOT) else output_root
+        manifest_path = FULL_MANIFEST_PATH if args.manifest_path == MANIFEST_PATH else manifest_path
+        if (
+            args.flatten_pca_validation_selection
+            or name_suffix == "flatten_pca_validation_selection_full"
+        ):
+            written = create_matched_full_subject_flatten_pca_configs(
+                output_dir=output_dir,
+                manifest_path=manifest_path,
+                output_root=output_root,
+                models=models,
+                rois=rois,
+                max_items=max_items if args.max_items != 500 else 9841,
+                name_suffix=name_suffix,
+            )
+        else:
+            written = create_neural_full_subject_configs(
+                output_dir=output_dir,
+                manifest_path=manifest_path,
+                output_root=output_root,
+                models=models,
+                rois=rois,
+                max_items=max_items if args.max_items != 500 else 9841,
+                name_suffix=name_suffix if args.name_suffix != "500" else "full",
+            )
         for path in written:
             print(path)
         return
