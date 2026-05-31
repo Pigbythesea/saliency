@@ -103,6 +103,9 @@ def create_paper_inspection_pack(
     )
     roi_winners = _load_csv_rows(neural_root / "paper_model_roi_winners.csv")
     overlap_rows = _load_csv_rows(neural_root / "behavior_neural_leader_overlap.csv")
+    matched_cross_level_correlation_rows = _load_optional_csv_rows(
+        neural_root / "matched_cross_level_correlations.csv"
+    )
     candidate_rows = _load_csv_rows(neural_root / "ssl_multimodal_candidate_inventory.csv")
     learned_readout_comparison_rows = _load_optional_csv_rows(
         neural_root / "learned_readout_vs_flatten_pca.csv"
@@ -118,6 +121,9 @@ def create_paper_inspection_pack(
     sanity_table = _benchmark_sanity_table(behavioral_rows)
     learned_readout_table = _learned_readout_comparison_table(
         learned_readout_comparison_rows
+    )
+    matched_cross_level_table = _matched_cross_level_correlation_table(
+        matched_cross_level_correlation_rows
     )
 
     outputs: dict[str, Path] = {}
@@ -193,6 +199,15 @@ def create_paper_inspection_pack(
         tables_dir / "table7_learned_readout_vs_flatten_pca.md",
         learned_readout_table,
     )
+    outputs["matched_cross_level_correlations_csv"] = _write_rows(
+        tables_dir / "table9_matched_cross_level_correlations.csv",
+        matched_cross_level_table,
+        list(matched_cross_level_table[0]) if matched_cross_level_table else [],
+    )
+    outputs["matched_cross_level_correlations_md"] = _write_markdown_table(
+        tables_dir / "table9_matched_cross_level_correlations.md",
+        matched_cross_level_table,
+    )
 
     outputs.update(
         _plot_behavior_nss(static_nss_rows, figures_dir / "figure1_behavior_static2000_nss")
@@ -207,6 +222,13 @@ def create_paper_inspection_pack(
             figures_dir / "figure4_behavior_neural_leader_overlap",
         )
     )
+    if matched_cross_level_table:
+        outputs.update(
+            _plot_matched_cross_level_correlations(
+                matched_cross_level_table,
+                figures_dir / "figure5_matched_cross_level_correlations",
+            )
+        )
     outputs["readme"] = _write_readme(
         output_root / "README.md",
         behavior_table=behavior_table,
@@ -216,6 +238,7 @@ def create_paper_inspection_pack(
         candidate_table=candidate_table,
         sanity_table=sanity_table,
         learned_readout_table=learned_readout_table,
+        matched_cross_level_table=matched_cross_level_table,
         outputs=outputs,
         behavioral_csv=behavioral_path,
     )
@@ -417,6 +440,61 @@ def _learned_readout_comparison_table(rows: list[dict[str, str]]) -> list[dict[s
     ]
 
 
+def _matched_cross_level_correlation_table(
+    rows: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            row.get("status") != "complete",
+            DATASET_LABELS.get(row.get("behavior_dataset", ""), row.get("behavior_dataset", "")),
+            row.get("behavior_metric", ""),
+            row.get("behavior_saliency_method", ""),
+            row.get("neural_scope", ""),
+            ROI_ORDER.index(row["roi_or_mean"])
+            if row.get("roi_or_mean") in ROI_ORDER
+            else 99,
+            row.get("roi_or_mean", ""),
+        ),
+    )
+    return [
+        {
+            "dataset": DATASET_LABELS.get(row.get("behavior_dataset", ""), row.get("behavior_dataset", "")),
+            "metric": row.get("behavior_metric", ""),
+            "direction": row.get("behavior_metric_direction", ""),
+            "saliency_method": METHOD_LABELS.get(
+                row.get("behavior_saliency_method", ""),
+                row.get("behavior_saliency_method", ""),
+            ),
+            "saliency_family": row.get("behavior_saliency_family", ""),
+            "roi_or_mean": row.get("roi_or_mean", ""),
+            "n_models": row.get("n_models", ""),
+            "status": row.get("status", ""),
+            "spearman_noise_normalized": _fmt(
+                row.get("spearman_behavior_vs_noise_normalized")
+            )
+            if row.get("spearman_behavior_vs_noise_normalized")
+            else "",
+            "spearman_raw_encoding": _fmt(row.get("spearman_behavior_vs_raw_encoding"))
+            if row.get("spearman_behavior_vs_raw_encoding")
+            else "",
+            "ols_noise_normalized_slope": _fmt(row.get("ols_noise_normalized_slope"))
+            if row.get("ols_noise_normalized_slope")
+            else "",
+            "ols_noise_normalized_r2": _fmt(row.get("ols_noise_normalized_r2"))
+            if row.get("ols_noise_normalized_r2")
+            else "",
+            "ols_raw_encoding_slope": _fmt(row.get("ols_raw_encoding_slope"))
+            if row.get("ols_raw_encoding_slope")
+            else "",
+            "ols_raw_encoding_r2": _fmt(row.get("ols_raw_encoding_r2"))
+            if row.get("ols_raw_encoding_r2")
+            else "",
+        }
+        for row in ordered
+    ]
+
+
 def _plot_behavior_nss(rows: list[dict[str, str]], output_stem: Path) -> dict[str, Path]:
     plt = _pyplot()
     _set_style(plt)
@@ -573,6 +651,63 @@ def _plot_overlap_summary(rows: list[dict[str, Any]], output_stem: Path) -> dict
     return _save_figure(fig, output_stem, plt, "leader_overlap")
 
 
+def _plot_matched_cross_level_correlations(
+    rows: list[dict[str, Any]],
+    output_stem: Path,
+) -> dict[str, Path]:
+    display_rows = [
+        row
+        for row in rows
+        if row.get("status") == "complete"
+        and row.get("metric") == "nss"
+        and row.get("spearman_noise_normalized")
+        and row.get("roi_or_mean") in {"V1", "V2", "V3", "hV4", "across_roi_mean"}
+    ]
+    if not display_rows:
+        return {}
+    display_rows = display_rows[:30]
+    plt = _pyplot()
+    _set_style(plt)
+    labels = [
+        f"{row.get('dataset', '')}\n{row.get('saliency_method', '')}\n{row.get('roi_or_mean', '')}"
+        for row in display_rows
+    ]
+    values = [_float(row.get("spearman_noise_normalized")) for row in display_rows]
+    colors = [
+        FAMILY_COLORS.get(str(row.get("saliency_family", "")), "#6b7280")
+        for row in display_rows
+    ]
+    positions = list(range(len(display_rows)))
+    fig, ax = plt.subplots(figsize=(max(9.0, len(display_rows) * 0.45), 5.2))
+    ax.bar(positions, values, color=colors, width=0.72)
+    ax.axhline(0.0, color="#111827", linewidth=0.8)
+    ax.set_xticks(positions)
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    ax.set_ylim(-1.05, 1.05)
+    ax.set_ylabel("Spearman rho")
+    ax.set_title(
+        "Matched Cross-Level NSS vs Noise-Normalized Encoding",
+        loc="left",
+        fontweight="bold",
+    )
+    ax.grid(axis="y", color="#e5e7eb", linewidth=0.8)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    for x, value in zip(positions, values):
+        va = "bottom" if value >= 0 else "top"
+        offset = 0.025 if value >= 0 else -0.025
+        ax.text(x, value + offset, _fmt(value), ha="center", va=va, fontsize=7)
+    fig.text(
+        0.01,
+        0.01,
+        "Model-level correlations across the matched six-model panel; one-subject local neural data.",
+        fontsize=8,
+        color="#4b5563",
+    )
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    return _save_figure(fig, output_stem, plt, "matched_cross_level_correlations")
+
+
 def _write_readme(
     path: Path,
     *,
@@ -585,6 +720,7 @@ def _write_readme(
     sanity_table: list[dict[str, Any]] | None = None,
     learned_readout_table: list[dict[str, Any]] | None = None,
     matched_panel_table: list[dict[str, Any]] | None = None,
+    matched_cross_level_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     best_behavior = behavior_table[0] if behavior_table else {}
     matched_rows = matched_panel_table or []
@@ -608,6 +744,20 @@ def _write_readme(
     learned_readout_rows = learned_readout_table or []
     learned_improvements = sum(
         1 for row in learned_readout_rows if _float(row.get("raw_delta")) > 0.0
+    )
+    matched_cross_level_rows = matched_cross_level_table or []
+    complete_cross_level_rows = [
+        row for row in matched_cross_level_rows if row.get("status") == "complete"
+    ]
+    top_cross_level = next(
+        (
+            row
+            for row in complete_cross_level_rows
+            if row.get("metric") == "nss"
+            and row.get("roi_or_mean") == "across_roi_mean"
+            and row.get("spearman_noise_normalized")
+        ),
+        complete_cross_level_rows[0] if complete_cross_level_rows else {},
     )
     lines = [
         "# Paper Inspection V1",
@@ -640,6 +790,15 @@ def _write_readme(
             if learned_readout_rows
             else "- Learned spatial readout versus `flatten_pca` comparison table is not available in this pack."
         ),
+        (
+            "- Matched cross-level correlation headline: "
+            f"{top_cross_level.get('dataset', '')} / {top_cross_level.get('metric', '')} / "
+            f"{top_cross_level.get('saliency_method', '')} / {top_cross_level.get('roi_or_mean', '')}, "
+            f"Spearman rho={top_cross_level.get('spearman_noise_normalized', '')} against noise-normalized encoding "
+            f"across n={top_cross_level.get('n_models', '')} matched models."
+            if complete_cross_level_rows
+            else "- Matched cross-level correlation table is not available in this pack."
+        ),
         f"- SSL/multimodal candidates dry-inspected: {len(candidate_table)}; pretrained debug runs complete: {pretrained_count}.",
         f"- SSL/multimodal pretrained status counts: {status_text}.",
         "",
@@ -649,6 +808,7 @@ def _write_readme(
         "- `figures/figure2_neural_model_rankings.png`: noise-normalized encoding, raw encoding, RSA, and latency-normalized RSA scores.",
         "- `figures/figure3_roi_heatmaps.png`: best noise-normalized encoding/RSA layers and scores by model and ROI.",
         "- `figures/figure4_behavior_neural_leader_overlap.png`: descriptive leader-overlap rates.",
+        "- `figures/figure5_matched_cross_level_correlations.png`: matched model-level NSS correlations where available.",
         "",
         "## Tables",
         "",
@@ -660,6 +820,7 @@ def _write_readme(
         "- `tables/table6_benchmark_sanity_ranges.md`",
         "- `tables/table7_learned_readout_vs_flatten_pca.md`",
         "- `tables/table8_matched_full_panel_model_rankings.md`",
+        "- `tables/table9_matched_cross_level_correlations.md`",
         "",
         "## Academic SOTA Context",
         "",
@@ -675,8 +836,8 @@ def _write_readme(
         "",
         "## Interpretation Boundary",
         "",
-        "Treat this pack as a paper-style inspection layer, not final evidence. The neural side is one subject with mixed ROI500 diagnostics and validation-selected full-image-count PRF ROI baselines; the bridge is descriptive and should not be interpreted as causal or as a definitive cross-model correlation.",
-        "Use the matched full-image `flatten_pca` table for cross-model encoding comparisons once all expected model/ROI cells are complete.",
+        "Treat this pack as a paper-style inspection layer, not final evidence. The neural side is one subject with mixed ROI500 diagnostics and validation-selected full-image-count PRF ROI baselines. Matched cross-level correlations are model-level summaries over a small six-model panel, not causal tests.",
+        "Use the matched full-image `flatten_pca` table for cross-model encoding comparisons once all expected model/ROI cells are complete. Use leader-overlap tables only as descriptive continuity diagnostics.",
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")

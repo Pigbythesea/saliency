@@ -117,6 +117,8 @@ def summarize_neural_roi_results(
     bridge_rows: list[dict[str, Any]] = []
     behavior_neural_alignment_rows: list[dict[str, Any]] = []
     leader_overlap_rows: list[dict[str, Any]] = []
+    matched_cross_level_observation_rows: list[dict[str, Any]] = []
+    matched_cross_level_correlation_rows: list[dict[str, Any]] = []
     if behavioral_csv is not None:
         bridge_rows = _behavior_neural_bridge(behavioral_csv, best_rows)
         behavior_neural_alignment_rows = _behavior_neural_alignment_summary(
@@ -127,12 +129,26 @@ def summarize_neural_roi_results(
             bridge_rows,
             neural_ranking_rows,
         )
+        matched_cross_level_observation_rows = _matched_cross_level_observations(
+            behavioral_csv,
+            matched_encoding_rows,
+            matched_panel_ranking_rows,
+        )
+        matched_cross_level_correlation_rows = _matched_cross_level_correlations(
+            matched_cross_level_observation_rows,
+        )
         outputs["behavior_neural_bridge"] = output / "behavior_neural_bridge.csv"
         outputs["behavior_neural_model_summary"] = output / "behavior_neural_model_summary.csv"
         outputs["behavior_neural_alignment_summary"] = (
             output / "behavior_neural_alignment_summary.csv"
         )
         outputs["behavior_neural_leader_overlap"] = output / "behavior_neural_leader_overlap.csv"
+        outputs["matched_cross_level_observations"] = (
+            output / "matched_cross_level_observations.csv"
+        )
+        outputs["matched_cross_level_correlations"] = (
+            output / "matched_cross_level_correlations.csv"
+        )
         _write_rows(outputs["behavior_neural_bridge"], bridge_rows, BRIDGE_FIELDNAMES)
         _write_rows(
             outputs["behavior_neural_model_summary"],
@@ -148,6 +164,16 @@ def summarize_neural_roi_results(
             outputs["behavior_neural_leader_overlap"],
             leader_overlap_rows,
             LEADER_OVERLAP_FIELDNAMES,
+        )
+        _write_rows(
+            outputs["matched_cross_level_observations"],
+            matched_cross_level_observation_rows,
+            MATCHED_CROSS_LEVEL_OBSERVATION_FIELDNAMES,
+        )
+        _write_rows(
+            outputs["matched_cross_level_correlations"],
+            matched_cross_level_correlation_rows,
+            MATCHED_CROSS_LEVEL_CORRELATION_FIELDNAMES,
         )
 
     if efficiency_csv is not None:
@@ -165,6 +191,8 @@ def summarize_neural_roi_results(
         rsa_rows=rsa_rows,
         best_rows=best_rows,
         bridge_rows=bridge_rows,
+        matched_cross_level_observation_rows=matched_cross_level_observation_rows,
+        matched_cross_level_correlation_rows=matched_cross_level_correlation_rows,
         learned_readout_comparison_rows=learned_readout_comparison_rows,
         matched_panel_ranking_rows=matched_panel_ranking_rows,
         input_dirs=dirs,
@@ -181,6 +209,7 @@ def summarize_neural_roi_results(
         paper_winner_rows=paper_winner_rows,
         behavior_neural_alignment_rows=behavior_neural_alignment_rows,
         leader_overlap_rows=leader_overlap_rows,
+        matched_cross_level_correlation_rows=matched_cross_level_correlation_rows,
         candidate_inventory=candidate_inventory if candidate_inventory.is_file() else None,
         behavioral_csv=behavioral_csv,
         efficiency_csv=efficiency_csv,
@@ -947,6 +976,249 @@ def _behavior_neural_leader_overlap(
     return rows
 
 
+def _matched_cross_level_observations(
+    behavioral_csv: str | Path,
+    matched_encoding_rows: list[dict[str, Any]],
+    matched_panel_ranking_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Join corrected behavioral rows to the matched full-image neural panel."""
+    matched_models = {
+        str(row.get("model", ""))
+        for row in matched_panel_ranking_rows
+        if row.get("model")
+    } or {
+        str(row.get("model", ""))
+        for row in matched_encoding_rows
+        if row.get("model")
+    }
+    behavior_rows = [
+        row
+        for row in _load_csv_rows(Path(behavioral_csv))
+        if row.get("model") in matched_models
+        and str(row.get("dataset", "")).endswith(STATIC_SUFFIX)
+        and _optional_float(row.get("mean")) is not None
+    ]
+    roi_rows_by_model: dict[str, list[dict[str, Any]]] = {}
+    for row in matched_encoding_rows:
+        model = str(row.get("model", ""))
+        if model:
+            roi_rows_by_model.setdefault(model, []).append(row)
+    mean_rows_by_model = {
+        str(row.get("model", "")): row
+        for row in matched_panel_ranking_rows
+        if row.get("model")
+    }
+
+    rows: list[dict[str, Any]] = []
+    for behavior in behavior_rows:
+        model = str(behavior.get("model", ""))
+        behavior_metric = str(behavior.get("metric", ""))
+        behavior_mean = _float(behavior.get("mean"))
+        behavior_aligned = behavior_mean if _metric_higher_is_better(behavior_metric) else -behavior_mean
+        common = {
+            "behavior_dataset": behavior.get("dataset", ""),
+            "behavior_metric": behavior_metric,
+            "behavior_metric_direction": _metric_direction(behavior_metric),
+            "behavior_saliency_method": behavior.get("saliency_method", ""),
+            "behavior_saliency_family": behavior.get("saliency_family", ""),
+            "model": model,
+            "behavior_mean_raw": behavior.get("mean", ""),
+            "behavior_score_aligned": behavior_aligned,
+            "n_behavior": behavior.get("n", ""),
+            "fixation_protocol": behavior.get("fixation_protocol", ""),
+        }
+        for neural in sorted(
+            roi_rows_by_model.get(model, []),
+            key=lambda row: str(row.get("roi", "")),
+        ):
+            rows.append(
+                {
+                    **common,
+                    "roi_or_mean": neural.get("roi", ""),
+                    "neural_scope": "matched_full_image_flatten_pca_roi",
+                    "neural_mean_encoding_raw": neural.get("mean_score", ""),
+                    "neural_mean_noise_normalized": neural.get(
+                        "mean_noise_normalized_score",
+                        "",
+                    ),
+                }
+            )
+        mean_row = mean_rows_by_model.get(model)
+        if mean_row is not None:
+            rows.append(
+                {
+                    **common,
+                    "roi_or_mean": "across_roi_mean",
+                    "neural_scope": "matched_full_image_flatten_pca_model_mean",
+                    "neural_mean_encoding_raw": mean_row.get("mean_encoding_score", ""),
+                    "neural_mean_noise_normalized": mean_row.get(
+                        "mean_noise_normalized_score",
+                        "",
+                    ),
+                }
+            )
+    rows.sort(
+        key=lambda row: (
+            row["behavior_dataset"],
+            row["behavior_metric"],
+            row["behavior_saliency_method"],
+            row["neural_scope"],
+            row["roi_or_mean"],
+            row["model"],
+        )
+    )
+    return rows
+
+
+def _matched_cross_level_correlations(
+    observation_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str, str, str, str, str], list[dict[str, Any]]] = {}
+    for row in observation_rows:
+        key = (
+            str(row.get("behavior_dataset", "")),
+            str(row.get("behavior_metric", "")),
+            str(row.get("behavior_saliency_method", "")),
+            str(row.get("behavior_saliency_family", "")),
+            str(row.get("neural_scope", "")),
+            str(row.get("roi_or_mean", "")),
+        )
+        grouped.setdefault(key, []).append(row)
+
+    rows: list[dict[str, Any]] = []
+    for key in sorted(grouped):
+        model_rows: dict[str, dict[str, Any]] = {}
+        for row in grouped[key]:
+            model = str(row.get("model", ""))
+            if model:
+                model_rows[model] = row
+        usable = [
+            row
+            for row in model_rows.values()
+            if _optional_float(row.get("behavior_score_aligned")) is not None
+            and _optional_float(row.get("neural_mean_encoding_raw")) is not None
+        ]
+        n_models = len(usable)
+        base = {
+            "behavior_dataset": key[0],
+            "behavior_metric": key[1],
+            "behavior_metric_direction": _metric_direction(key[1]),
+            "behavior_saliency_method": key[2],
+            "behavior_saliency_family": key[3],
+            "neural_scope": key[4],
+            "roi_or_mean": key[5],
+            "n_models": n_models,
+            "models": ";".join(sorted(str(row.get("model", "")) for row in usable)),
+        }
+        if n_models < 3:
+            rows.append({**base, "status": "insufficient_models"})
+            continue
+
+        behavior_values = [_float(row.get("behavior_score_aligned")) for row in usable]
+        raw_values = [_float(row.get("neural_mean_encoding_raw")) for row in usable]
+        normalized_pairs = [
+            (
+                _float(row.get("behavior_score_aligned")),
+                _float(row.get("neural_mean_noise_normalized")),
+            )
+            for row in usable
+            if _optional_float(row.get("neural_mean_noise_normalized")) is not None
+        ]
+        raw_ols = _ols_summary(behavior_values, raw_values)
+        raw_spearman = _spearman(behavior_values, raw_values)
+        normalized_spearman: float | None = None
+        normalized_ols: dict[str, float] | None = None
+        if len(normalized_pairs) >= 3:
+            normalized_x = [pair[0] for pair in normalized_pairs]
+            normalized_y = [pair[1] for pair in normalized_pairs]
+            normalized_spearman = _spearman(normalized_x, normalized_y)
+            normalized_ols = _ols_summary(normalized_x, normalized_y)
+
+        status = "complete"
+        if raw_spearman is None and normalized_spearman is None:
+            status = "constant_input"
+        rows.append(
+            {
+                **base,
+                "status": status,
+                "spearman_behavior_vs_noise_normalized": (
+                    normalized_spearman if normalized_spearman is not None else ""
+                ),
+                "spearman_behavior_vs_raw_encoding": (
+                    raw_spearman if raw_spearman is not None else ""
+                ),
+                "ols_noise_normalized_slope": (
+                    normalized_ols["slope"] if normalized_ols is not None else ""
+                ),
+                "ols_noise_normalized_intercept": (
+                    normalized_ols["intercept"] if normalized_ols is not None else ""
+                ),
+                "ols_noise_normalized_r2": (
+                    normalized_ols["r2"] if normalized_ols is not None else ""
+                ),
+                "ols_raw_encoding_slope": raw_ols["slope"] if raw_ols is not None else "",
+                "ols_raw_encoding_intercept": (
+                    raw_ols["intercept"] if raw_ols is not None else ""
+                ),
+                "ols_raw_encoding_r2": raw_ols["r2"] if raw_ols is not None else "",
+            }
+        )
+    return rows
+
+
+def _spearman(x_values: list[float], y_values: list[float]) -> float | None:
+    if len(x_values) != len(y_values) or len(x_values) < 2:
+        return None
+    return _pearson(_average_ranks(x_values), _average_ranks(y_values))
+
+
+def _average_ranks(values: list[float]) -> list[float]:
+    indexed = sorted(enumerate(values), key=lambda item: item[1])
+    ranks = [0.0] * len(values)
+    index = 0
+    while index < len(indexed):
+        end = index + 1
+        while end < len(indexed) and indexed[end][1] == indexed[index][1]:
+            end += 1
+        average_rank = (index + 1 + end) / 2.0
+        for original_index, _ in indexed[index:end]:
+            ranks[original_index] = average_rank
+        index = end
+    return ranks
+
+
+def _pearson(x_values: list[float], y_values: list[float]) -> float | None:
+    if len(x_values) != len(y_values) or len(x_values) < 2:
+        return None
+    mean_x = _mean(x_values)
+    mean_y = _mean(y_values)
+    centered_x = [value - mean_x for value in x_values]
+    centered_y = [value - mean_y for value in y_values]
+    ss_x = sum(value * value for value in centered_x)
+    ss_y = sum(value * value for value in centered_y)
+    if ss_x == 0.0 or ss_y == 0.0:
+        return None
+    return sum(x * y for x, y in zip(centered_x, centered_y)) / math.sqrt(ss_x * ss_y)
+
+
+def _ols_summary(x_values: list[float], y_values: list[float]) -> dict[str, float] | None:
+    if len(x_values) != len(y_values) or len(x_values) < 2:
+        return None
+    mean_x = _mean(x_values)
+    mean_y = _mean(y_values)
+    centered_x = [value - mean_x for value in x_values]
+    denominator = sum(value * value for value in centered_x)
+    if denominator == 0.0:
+        return None
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(x_values, y_values)) / denominator
+    intercept = mean_y - slope * mean_x
+    predictions = [intercept + slope * x for x in x_values]
+    ss_res = sum((y - pred) ** 2 for y, pred in zip(y_values, predictions))
+    ss_tot = sum((y - mean_y) ** 2 for y in y_values)
+    r2 = 1.0 - ss_res / ss_tot if ss_tot else 0.0
+    return {"slope": slope, "intercept": intercept, "r2": r2}
+
+
 def _alignment_per_efficiency(
     best_rows: list[dict[str, Any]],
     efficiency_csv: str | Path,
@@ -1033,6 +1305,8 @@ def _write_summary_note(
     rsa_rows: list[dict[str, Any]],
     best_rows: list[dict[str, Any]],
     bridge_rows: list[dict[str, Any]],
+    matched_cross_level_observation_rows: list[dict[str, Any]],
+    matched_cross_level_correlation_rows: list[dict[str, Any]],
     learned_readout_comparison_rows: list[dict[str, Any]],
     matched_panel_ranking_rows: list[dict[str, Any]],
     input_dirs: list[Path],
@@ -1094,6 +1368,27 @@ def _write_summary_note(
         "- Do not interpret bridge rows as cross-model correlations until neural outputs "
         "exist for multiple model families."
     )
+    lines.extend(["", "## Matched Cross-Level Analysis", ""])
+    if matched_cross_level_correlation_rows:
+        complete_rows = [
+            row
+            for row in matched_cross_level_correlation_rows
+            if row.get("status") == "complete"
+        ]
+        lines.append(
+            "- Matched cross-level observation rows: "
+            f"{len(matched_cross_level_observation_rows)}."
+        )
+        lines.append(
+            "- Matched cross-level correlation/regression groups: "
+            f"{len(complete_rows)}/{len(matched_cross_level_correlation_rows)} complete."
+        )
+        lines.append(
+            "- These rows use only the full-image `flatten_pca` matched panel and keep "
+            "COCO-Search18 separate from free-viewing datasets."
+        )
+    else:
+        lines.append("- No matched cross-level correlation rows were generated.")
     lines.extend(["", "## Learned Readout Versus Flatten PCA", ""])
     if learned_readout_comparison_rows:
         improved = sum(
@@ -1146,6 +1441,7 @@ def _write_multimodel_interpretation_note(
     paper_winner_rows: list[dict[str, Any]],
     behavior_neural_alignment_rows: list[dict[str, Any]],
     leader_overlap_rows: list[dict[str, Any]],
+    matched_cross_level_correlation_rows: list[dict[str, Any]],
     candidate_inventory: Path | None,
     behavioral_csv: str | Path | None,
     efficiency_csv: str | Path | None,
@@ -1180,6 +1476,7 @@ def _write_multimodel_interpretation_note(
         f"- Model ranking rows: {len(neural_ranking_rows)}.",
         f"- Matched full-image `flatten_pca` ranking rows: {len(matched_panel_ranking_rows)}.",
         f"- Behavior-neural alignment rows: {len(behavior_neural_alignment_rows)}.",
+        f"- Matched cross-level correlation rows: {len(matched_cross_level_correlation_rows)}.",
         f"- Behavioral CSV: {behavioral_csv if behavioral_csv else 'not provided'}.",
         f"- Efficiency CSV: {efficiency_csv if efficiency_csv else 'not provided'}.",
         "- Interpretation boundary: descriptive only; one subject, ROI500 subset, and "
@@ -1260,9 +1557,28 @@ def _write_multimodel_interpretation_note(
         lines.append("- Behavioral bridge rows were not generated.")
 
     lines.extend(["", "## Bridge Interpretation", ""])
+    complete_cross_level_rows = [
+        row
+        for row in matched_cross_level_correlation_rows
+        if row.get("status") == "complete"
+    ]
+    if complete_cross_level_rows:
+        lines.append(
+            "- Matched cross-level correlation tables are now the primary descriptive "
+            "cross-axis evidence for the completed six-model full-image `flatten_pca` panel."
+        )
+        lines.append(
+            "- Small-n warning: each complete correlation group is model-level and has "
+            "at most six matched models from one subject."
+        )
+    else:
+        lines.append(
+            "- Matched cross-level correlation tables were not generated or had no "
+            "complete groups."
+        )
     lines.append(
-        "- Bridge tables are descriptive joins, not causal tests or cross-model "
-        "correlation claims."
+        "- Legacy bridge and leader-overlap tables remain descriptive continuity "
+        "diagnostics, not causal tests."
     )
     lines.append(
         "- Use `behavior_neural_alignment_summary.csv` for paper-style side-by-side "
@@ -1270,6 +1586,10 @@ def _write_multimodel_interpretation_note(
     )
     lines.append(
         "- Use `behavior_neural_leader_overlap.csv` for the compact leader-match check."
+    )
+    lines.append(
+        "- Use `matched_cross_level_correlations.csv` for matched model-level "
+        "correlations/regressions."
     )
 
     lines.extend(["", "## SSL And Multimodal Candidate Prep", ""])
@@ -1613,6 +1933,44 @@ LEADER_OVERLAP_FIELDNAMES = [
     "neural_rsa_leader_mean_score",
     "matches_rsa_leader",
     "interpretation_scope",
+]
+
+MATCHED_CROSS_LEVEL_OBSERVATION_FIELDNAMES = [
+    "behavior_dataset",
+    "behavior_metric",
+    "behavior_metric_direction",
+    "behavior_saliency_method",
+    "behavior_saliency_family",
+    "model",
+    "roi_or_mean",
+    "neural_scope",
+    "behavior_mean_raw",
+    "behavior_score_aligned",
+    "neural_mean_encoding_raw",
+    "neural_mean_noise_normalized",
+    "n_behavior",
+    "fixation_protocol",
+]
+
+MATCHED_CROSS_LEVEL_CORRELATION_FIELDNAMES = [
+    "behavior_dataset",
+    "behavior_metric",
+    "behavior_metric_direction",
+    "behavior_saliency_method",
+    "behavior_saliency_family",
+    "neural_scope",
+    "roi_or_mean",
+    "n_models",
+    "models",
+    "status",
+    "spearman_behavior_vs_noise_normalized",
+    "spearman_behavior_vs_raw_encoding",
+    "ols_noise_normalized_slope",
+    "ols_noise_normalized_intercept",
+    "ols_noise_normalized_r2",
+    "ols_raw_encoding_slope",
+    "ols_raw_encoding_intercept",
+    "ols_raw_encoding_r2",
 ]
 
 EFFICIENCY_FIELDNAMES = [

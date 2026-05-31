@@ -192,6 +192,81 @@ def _write_neural_output(
         )
 
 
+def _write_matched_neural_output(
+    path,
+    *,
+    model,
+    roi="V1",
+    raw_score=0.2,
+    normalized_score=0.3,
+    num_items=9841,
+    feature_reduction="flatten_pca",
+):
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "metadata.json").write_text(
+        json.dumps(
+            {
+                "config_path": f"configs/experiments/{model}_{roi}.yaml",
+                "num_items": num_items,
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_csv(
+        path / "encoding_scores.csv",
+        [
+            {
+                "dataset": f"{model}_{roi}",
+                "model": model,
+                "subject_id": "subj01",
+                "roi": roi,
+                "layer": "layer2",
+                "metric": "correlation",
+                "metric_scope": "benchmark_style_noise_normalized",
+                "n_train": 7873,
+                "n_test": 1968,
+                "num_targets": 10,
+                "mean_score": raw_score,
+                "median_score": raw_score,
+                "std_score": 0.01,
+                "mean_noise_normalized_score": normalized_score,
+                "median_noise_normalized_score": normalized_score,
+                "valid_noise_ceiling_targets": 10,
+                "zero_noise_ceiling_targets": 0,
+                "invalid_noise_ceiling_targets": 0,
+                "selected_ridge_alpha": 1.0,
+                "alpha_selection_mode": "selection_validation",
+                "split_seed": 123,
+                "feature_reduction": feature_reduction,
+            }
+        ],
+        [
+            "dataset",
+            "model",
+            "subject_id",
+            "roi",
+            "layer",
+            "metric",
+            "metric_scope",
+            "n_train",
+            "n_test",
+            "num_targets",
+            "mean_score",
+            "median_score",
+            "std_score",
+            "mean_noise_normalized_score",
+            "median_noise_normalized_score",
+            "valid_noise_ceiling_targets",
+            "zero_noise_ceiling_targets",
+            "invalid_noise_ceiling_targets",
+            "selected_ridge_alpha",
+            "alpha_selection_mode",
+            "split_seed",
+            "feature_reduction",
+        ],
+    )
+
+
 def test_summarize_neural_roi_results_writes_best_layers_and_bridge(tmp_path):
     v1 = tmp_path / "outputs" / "v1"
     v2 = tmp_path / "outputs" / "v2"
@@ -398,6 +473,181 @@ def test_behavior_neural_bridge_includes_dinov2_rows_from_merged_behavior_csv(tm
     assert len(bridge_rows) == 1
     assert bridge_rows[0]["neural_model"] == "vit_small_patch14_dinov2"
     assert bridge_rows[0]["behavior_saliency_method"] == "attention_rollout"
+
+
+def test_matched_cross_level_analysis_uses_only_matched_panel_rows(tmp_path):
+    models = ["resnet50", "convnext_tiny", "deit_small_patch16_224"]
+    for index, model in enumerate(models, start=1):
+        _write_matched_neural_output(
+            tmp_path / "outputs" / f"{model}_matched",
+            model=model,
+            raw_score=0.1 * index,
+            normalized_score=0.2 * index,
+        )
+    _write_matched_neural_output(
+        tmp_path / "outputs" / "resnet50_learned",
+        model="resnet50",
+        raw_score=0.9,
+        normalized_score=0.9,
+        feature_reduction="learned_spatial_readout",
+    )
+    _write_matched_neural_output(
+        tmp_path / "outputs" / "convnext_roi500",
+        model="convnext_tiny",
+        raw_score=0.9,
+        normalized_score=0.9,
+        num_items=500,
+    )
+
+    behavioral_csv = tmp_path / "behavior.csv"
+    rows = []
+    for index, model in enumerate(models, start=1):
+        rows.extend(
+            [
+                {
+                    "dataset": "salicon_static2000",
+                    "model": model,
+                    "saliency_method": "gradcam",
+                    "saliency_family": "class_localization",
+                    "metric": "nss",
+                    "n": 2000,
+                    "mean": 0.1 * index,
+                    "ci95_low": 0.0,
+                    "ci95_high": 1.0,
+                    "fixation_protocol": "points",
+                },
+                {
+                    "dataset": "coco_search18_static2000",
+                    "model": model,
+                    "saliency_method": "gradcam",
+                    "saliency_family": "class_localization",
+                    "metric": "nss",
+                    "n": 2000,
+                    "mean": 0.2 * index,
+                    "ci95_low": 0.0,
+                    "ci95_high": 1.0,
+                    "fixation_protocol": "task_points",
+                },
+                {
+                    "dataset": "salicon_static2000",
+                    "model": model,
+                    "saliency_method": "gradcam",
+                    "saliency_family": "class_localization",
+                    "metric": "kl",
+                    "n": 2000,
+                    "mean": float(4 - index),
+                    "ci95_low": 0.0,
+                    "ci95_high": 1.0,
+                    "fixation_protocol": "points",
+                },
+            ]
+        )
+    _write_csv(
+        behavioral_csv,
+        rows,
+        [
+            "dataset",
+            "model",
+            "saliency_method",
+            "saliency_family",
+            "metric",
+            "n",
+            "mean",
+            "ci95_low",
+            "ci95_high",
+            "fixation_protocol",
+        ],
+    )
+
+    outputs = summarize_neural_roi_results(
+        [
+            tmp_path / "outputs" / f"{model}_matched"
+            for model in models
+        ]
+        + [
+            tmp_path / "outputs" / "resnet50_learned",
+            tmp_path / "outputs" / "convnext_roi500",
+        ],
+        tmp_path / "summary",
+        behavioral_csv=behavioral_csv,
+    )
+
+    observation_rows = _read_csv(outputs["matched_cross_level_observations"])
+    assert {row["model"] for row in observation_rows} == set(models)
+    assert {row["behavior_dataset"] for row in observation_rows} == {
+        "salicon_static2000",
+        "coco_search18_static2000",
+    }
+    assert {row["roi_or_mean"] for row in observation_rows} == {"V1", "across_roi_mean"}
+    assert all(row["neural_mean_noise_normalized"] != "0.9" for row in observation_rows)
+
+    correlation_rows = _read_csv(outputs["matched_cross_level_correlations"])
+    salicon_nss = next(
+        row
+        for row in correlation_rows
+        if row["behavior_dataset"] == "salicon_static2000"
+        and row["behavior_metric"] == "nss"
+        and row["roi_or_mean"] == "across_roi_mean"
+    )
+    assert salicon_nss["status"] == "complete"
+    assert salicon_nss["n_models"] == "3"
+    assert float(salicon_nss["spearman_behavior_vs_noise_normalized"]) == 1.0
+    salicon_kl = next(
+        row
+        for row in correlation_rows
+        if row["behavior_dataset"] == "salicon_static2000"
+        and row["behavior_metric"] == "kl"
+        and row["roi_or_mean"] == "across_roi_mean"
+    )
+    assert salicon_kl["behavior_metric_direction"] == "lower_is_better"
+    assert float(salicon_kl["spearman_behavior_vs_noise_normalized"]) == 1.0
+
+
+def test_matched_cross_level_analysis_marks_sparse_groups_insufficient(tmp_path):
+    for index, model in enumerate(["resnet50", "convnext_tiny"], start=1):
+        _write_matched_neural_output(
+            tmp_path / "outputs" / model,
+            model=model,
+            raw_score=0.1 * index,
+            normalized_score=0.2 * index,
+        )
+    behavioral_csv = tmp_path / "behavior.csv"
+    _write_csv(
+        behavioral_csv,
+        [
+            {
+                "dataset": "salicon_static2000",
+                "model": model,
+                "saliency_method": "gradcam",
+                "saliency_family": "class_localization",
+                "metric": "nss",
+                "n": 2000,
+                "mean": 0.1 * index,
+                "fixation_protocol": "points",
+            }
+            for index, model in enumerate(["resnet50", "convnext_tiny"], start=1)
+        ],
+        [
+            "dataset",
+            "model",
+            "saliency_method",
+            "saliency_family",
+            "metric",
+            "n",
+            "mean",
+            "fixation_protocol",
+        ],
+    )
+
+    outputs = summarize_neural_roi_results(
+        [tmp_path / "outputs" / "resnet50", tmp_path / "outputs" / "convnext_tiny"],
+        tmp_path / "summary",
+        behavioral_csv=behavioral_csv,
+    )
+
+    rows = _read_csv(outputs["matched_cross_level_correlations"])
+    assert rows
+    assert {row["status"] for row in rows} == {"insufficient_models"}
 
 
 def test_summarize_neural_roi_results_tolerates_missing_rsa(tmp_path):

@@ -4,6 +4,7 @@ from scripts.create_paper_inspection_pack import (
     _candidate_table,
     _learned_readout_comparison_table,
     _load_optional_csv_rows,
+    _matched_cross_level_correlation_table,
     _neural_ranking_table,
     _top_behavior_rows,
     _write_readme,
@@ -240,6 +241,83 @@ def test_learned_readout_table_formats_matched_comparison_rows():
 
 def test_optional_learned_readout_comparison_csv_can_be_missing(tmp_path):
     assert _load_optional_csv_rows(tmp_path / "missing.csv") == []
+
+
+def test_matched_cross_level_table_formats_rows():
+    rows = _matched_cross_level_correlation_table(
+        [
+            {
+                "behavior_dataset": "salicon_static2000",
+                "behavior_metric": "nss",
+                "behavior_metric_direction": "higher_is_better",
+                "behavior_saliency_method": "gradcam",
+                "behavior_saliency_family": "class_localization",
+                "neural_scope": "matched_full_image_flatten_pca_model_mean",
+                "roi_or_mean": "across_roi_mean",
+                "n_models": "6",
+                "status": "complete",
+                "spearman_behavior_vs_noise_normalized": "0.33333",
+                "spearman_behavior_vs_raw_encoding": "0.5",
+                "ols_noise_normalized_slope": "0.25",
+                "ols_noise_normalized_r2": "0.125",
+                "ols_raw_encoding_slope": "0.75",
+                "ols_raw_encoding_r2": "0.625",
+            }
+        ]
+    )
+
+    assert rows[0]["dataset"] == "SALICON"
+    assert rows[0]["saliency_method"] == "Grad-CAM"
+    assert rows[0]["spearman_noise_normalized"] == "0.333"
+    assert rows[0]["ols_raw_encoding_r2"] == "0.625"
+
+
+def test_readme_reports_matched_cross_level_and_descriptive_overlap(tmp_path):
+    path = _write_readme(
+        tmp_path / "README.md",
+        behavior_table=[],
+        neural_table=[
+            {
+                "model": "DINOv2 ViT-S/14",
+                "mean_noise_normalized": "0.8",
+                "mean_noise_normalized_x100": "80",
+                "noise_normalized_rank": "1",
+                "mean_encoding": "0.3",
+                "mean_rsa": "0.1",
+                "encoding_rank": "1",
+                "rsa_rank": "1",
+            }
+        ],
+        overlap_table=[
+            {
+                "saliency_family": "all",
+                "encoding_match_rate": "0.5",
+                "rsa_match_rate": "0.0",
+            }
+        ],
+        candidate_table=[],
+        matched_cross_level_table=[
+            {
+                "dataset": "SALICON",
+                "metric": "nss",
+                "saliency_method": "Grad-CAM",
+                "roi_or_mean": "across_roi_mean",
+                "spearman_noise_normalized": "0.333",
+                "n_models": "6",
+                "status": "complete",
+            }
+        ],
+        outputs={},
+    )
+
+    text = path.read_text(encoding="utf-8")
+    assert "Matched cross-level correlation headline" in text
+    assert "leader-overlap tables only as descriptive continuity diagnostics" in text
+    assert "table9_matched_cross_level_correlations.md" in text
+
+
+def test_optional_matched_cross_level_csv_can_be_missing(tmp_path):
+    assert _load_optional_csv_rows(tmp_path / "missing_cross_level.csv") == []
 
 
 def test_ssl_model_labels_and_colors_are_defined():

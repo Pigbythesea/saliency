@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-05-27
+Updated: 2026-05-31
 
 ## Purpose
 
@@ -19,20 +19,24 @@ It is not an experiment diary. Completed rerun logs and stale pilot interpretati
 Current steering documents under `docs/`:
 
 - `project_status_and_next_steps.md`: this engineering status file.
+- `paper1_cross_axis_alignment_roadmap.md`: current publication roadmap for Paper 1. It reframes the project as a cross-axis dissociation study across fixation alignment, neural encoding, representational geometry, and efficiency.
+- `paper1_literaturereview.md`: current literature review for Paper 1. It raises the required controls around dataset bias, scanpath/task specificity, subject variability, encoding reliability, representational-geometry metrics, and transformer attribution.
 - `Literature Review and Research Redesign for the Human-Like Adaptive Visual Attention Project.md`: argues the project should become a multi-axis NeuroAI alignment study, not a saliency-map leaderboard.
 - `Deep Research Assessment of the Human-Machine Visual Alignment Project.md`: emphasizes the publishable question as convergence versus dissociation among fixation alignment, neural predictivity, representational geometry, and efficiency.
 - `Zhang_Zihuan_zzhan330_proposal.docx`: original proposal; defines behavioral saliency, neural encoding, RSA, Brain-Score-style comparison, and compute efficiency as the core axes.
 - `Comparing Human and Machine Visual Saliency_ A Comprehensive Review.pdf`: reinforces that fixation prediction requires strong controls such as center bias, DeepGaze-class references, point-based NSS/AUC, and separate treatment of free-viewing versus task-driven viewing.
 - `__Attention and Saliency Map Extraction in Visual AI Models_ A Comprehensive Review__.pdf`: reinforces that gradients, CAMs, attention rollout, perturbation maps, LRP-style methods, and transformer attribution are different explanation objects and should not be collapsed into one "attention" score.
-- `v2_static2000_results_note.md`: superseded by corrected point-fixation reruns. Keep it only as historical context for why the protocol fix was needed.
+- `v2_static2000_results_note.md`: historical only. It is superseded by corrected point-fixation reruns and should not guide current planning.
 
 ## Current Snapshot
 
 The repository now implements three active layers:
 
 - Behavioral saliency / fixation benchmarking on SALICON, CAT2000, and COCO-Search18.
-- Neural encoding/RSA diagnostics on local Algonauts / NSD `subj01` visual ROIs, including ROI500 spatial-mean diagnostics, full-image-count `flatten_pca` PRF ROI baselines, and full-image-count learned spatial readout for DINOv2.
-- Paper-style inspection tables and figures that join corrected behavioral summaries with the current mixed-scope neural summaries.
+- Neural encoding and legacy ROI500 RSA diagnostics on local Algonauts / NSD `subj01` visual ROIs, including full-image-count `flatten_pca` PRF ROI baselines and full-image-count learned spatial readout for DINOv2.
+- Paper-style inspection tables and figures that join corrected behavioral summaries with the matched full-image neural panel, matched cross-level correlation/regression outputs, and legacy mixed-scope diagnostics.
+
+The repository does not yet implement the missing matched full-image representational-geometry axis. Current RSA rows are not accepted as headline geometry evidence for Paper 1.
 
 Main package: `src/hma/`.
 
@@ -45,6 +49,7 @@ Current generated outputs:
 - Corrected SSL/VLM behavioral aggregate: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`.
 - Neural ROI summary with full `flatten_pca` and learned-readout rows included: `outputs/neural_roi_summary/`.
 - Matched full-image `flatten_pca` panel outputs and audit: `outputs/neural_roi_summary/matched_full_panel_model_rankings.csv`, `outputs/neural_roi_summary/matched_full_panel_artifact_audit.csv`.
+- Matched cross-level analysis outputs: `outputs/neural_roi_summary/matched_cross_level_observations.csv`, `outputs/neural_roi_summary/matched_cross_level_correlations.csv`.
 - Paper inspection pack regenerated from the refreshed neural summary: `outputs/paper_inspection_v1/README.md`.
 
 ## Scientific Boundary
@@ -61,7 +66,15 @@ The neural layer is now a stronger local baseline, but still not a leaderboard r
 - Current neural outputs are one-subject, internal-split `subj01` results. They include older ROI500 spatial-mean diagnostics, a complete six-model matched full-image-count PRF visual ROI `flatten_pca` panel, and four full-image-count learned-readout provenance rows for DINOv2.
 - They are not Algonauts leaderboard-equivalent scores because the official challenge averages held-out visual-cortex vertices across subjects and hemispheres.
 - The matched `flatten_pca` panel is the primary evidence for cross-model neural comparisons. The four-ROI DINOv2 learned-readout rows are the strongest local single-backbone method result and should be treated as method provenance, not as matched-panel ranking rows.
-- The bridge tables are descriptive joins, not causal tests or robust cross-model correlations.
+- The matched cross-level correlation tables are now the primary descriptive cross-axis evidence, but they are still small-n one-subject model-level analyses, not causal tests.
+- The legacy bridge and leader-overlap tables remain descriptive continuity diagnostics.
+
+Paper 1 should be held to these publication gates before strong top-venue claims:
+
+- Full-image matched representational geometry must exist for the same six-model x four-ROI panel.
+- Cross-axis results must report uncertainty and sensitivity, especially bootstrap intervals, leave-one-model-out behavior, and exact model counts.
+- Claims must be framed as descriptive convergence/dissociation, not causal attention intervention.
+- At least one nontrivial dissociation or convergence pattern must survive sensitivity checks; otherwise Paper 1 should be framed as a measurement framework, workshop paper, thesis chapter, or methods note.
 
 ## Current Behavioral Status
 
@@ -84,7 +97,8 @@ Current interpretation:
 - The old static2000 protocol failure has been resolved for the corrected outputs.
 - DeepGaze now beats center bias across all three datasets under the corrected point/task-point protocol.
 - DINOv2 gradient is a strong attribution/fixation-similarity row, especially on SALICON and CAT2000.
-- The behavioral layer is strong enough to serve as one axis in the broader alignment study. It should not be expanded into a larger leaderboard before the neural axis is upgraded.
+- The behavioral layer is strong enough to serve as one axis in the broader alignment study. It should not be expanded into a larger leaderboard before the matched geometry and uncertainty axes are implemented.
+- Later behavioral upgrades should prioritize human/interobserver ceilings, DeepGaze MSDB or another modern fixation reference, and a task-specific COCO-Search18 baseline. Broad scanpath/video expansion belongs after Paper 1 unless the paper explicitly shifts away from static-image dissociation.
 
 ## Current Neural Status
 
@@ -98,6 +112,9 @@ Current neural summary:
 - Behavioral bridge CSV: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
 - Efficiency CSV: not provided in the latest summary.
 - Feature-reduction rows: `92` spatial-mean diagnostic rows, `24` validation-selected full-image-count matched-panel `flatten_pca` rows, and `4` full-image-count learned spatial readout rows.
+- Matched cross-level analysis rows: `315` correlation/regression groups, with `210` complete and `105` marked `insufficient_models`.
+- Matched cross-level datasets remain separate: `105` groups each for SALICON, CAT2000, and COCO-Search18.
+- New paper-pack artifacts: `outputs/paper_inspection_v1/tables/table9_matched_cross_level_correlations.md` and `outputs/paper_inspection_v1/figures/figure5_matched_cross_level_correlations.png`.
 - Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `289620` rows are `benchmark_style_noise_normalized` and `120` rows are intentionally left `benchmark_style_non_noise_normalized`.
 - Matched-panel reporting is now implemented separately from the mixed-scope neural ranking. The full-image-count validation-selected `flatten_pca` panel is now complete for all six planned model families across all four PRF visual ROIs: `resnet50`, `convnext_tiny`, `deit_small_patch16_224`, `vit_base_patch16_224`, `vit_small_patch14_dinov2`, and `vit_base_patch16_clip_224`.
 - Completed `resnet50` full matched-panel results:
@@ -158,11 +175,18 @@ Full learned spatial readout `vit_small_patch14_dinov2` result:
 - Output paths: `C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_{v1,v2,v3,hv4}_learned_spatial_readout_full_180ep/`.
 - The learned rows are included in regenerated `outputs/neural_roi_summary/` and `outputs/paper_inspection_v1/`.
 
-Current bridge readout:
+Matched cross-level readout:
 
-- Overall behavior-to-encoding leader match rate: `0.587`.
-- Overall behavior-to-RSA leader match rate: `0.000`.
-- Evidence-sensitivity rows and most internal-routing rows account for the observed encoding leader matches; class-localization rows do not match the encoding or RSA leader in the current descriptive table, and no behavioral family matches the current RSA leader.
+- The new matched cross-level table uses only the six-model full-image `flatten_pca` panel and excludes learned-readout, ROI500, spatial-mean, and rejected voxel-specific rows.
+- Across-ROI mean NSS versus mean noise-normalized encoding Spearman correlations:
+  - CAT2000 attention rollout: `0.400` across `4` matched transformer rows; OLS noise-normalized R2 `0.588`.
+  - CAT2000 vanilla gradient: `0.486` across `6` matched rows; OLS noise-normalized R2 `0.132`.
+  - COCO-Search18 attention rollout: `0.800` across `4` matched transformer rows; OLS noise-normalized R2 `0.281`.
+  - COCO-Search18 vanilla gradient: `0.314` across `6` matched rows; OLS noise-normalized R2 `0.061`.
+  - SALICON attention rollout: `0.000` across `4` matched transformer rows; OLS noise-normalized R2 `0.020`.
+  - SALICON vanilla gradient: `0.486` across `6` matched rows; OLS noise-normalized R2 `0.138`.
+- Grad-CAM across-ROI NSS groups are marked `insufficient_models` because only `resnet50` and `convnext_tiny` have matched Grad-CAM behavioral rows in the six-model panel.
+- Lower-is-better behavioral metrics such as KL are sign-aligned before correlation while retaining the raw behavioral mean in the observation table.
 
 Interpretation:
 
@@ -173,25 +197,39 @@ Interpretation:
 
 ## Global Direction Rationale
 
-The project direction remains a multi-axis NeuroAI alignment study, not a saliency-map leaderboard or a local Algonauts score chase. The target scientific question is now explicit: test whether human-like fixation alignment, model attribution/routing, neural encoding, representational geometry, and computational efficiency converge or dissociate across model families, ROIs, subjects, and viewing regimes.
+The project direction remains a multi-axis NeuroAI alignment study, not a saliency-map leaderboard or a local Algonauts score chase. The target scientific question is now explicit:
 
-The current behavioral layer is mature enough to serve as the fixation-alignment axis, but it is not the main claim. The current neural layer now has a complete matched full-image-count local encoding panel for six model families across `subj01` PRF visual ROIs. It is still local and one-subject, but it is finally suitable for the first model-level convergence/dissociation analysis. The failed full V1 voxel-specific decision run closes the current DINOv2-only readout search. The next implementation work should build matched cross-model and cross-metric tests instead of adding more single-backbone capacity.
+> Do models that better match human fixation behavior also better align with human visual cortex in encoding and representational geometry, or do these alignment axes dissociate across architecture, attribution family, ROI, and viewing regime?
 
-The immediate engineering priority is now matched cross-level analysis. The voxel-specific low-rank branch was scientifically useful as a control: it improved the small smoke but failed on full V1, so it should be treated as a rejected DINOv2-only readout variant, not as a protocol to expand. The project should now optimize validity of the central convergence/dissociation test, not the absolute DINOv2 local score.
+The current behavioral layer is mature enough to serve as the fixation-alignment axis, but it is not the main claim. The current neural layer now has a complete matched full-image-count local encoding panel for six model families across `subj01` PRF visual ROIs, and the first matched behavior-versus-encoding correlation/regression tables are implemented. It is still local and one-subject, but it is now suitable for the first descriptive convergence/dissociation analysis. The failed full V1 voxel-specific decision run closes the current DINOv2-only readout search. The next implementation work should add a matched representational-geometry axis instead of adding more single-backbone capacity.
 
-The next priority is to make the central correlation test valid: model-level correlations/regressions between corrected behavioral fixation metrics and the matched neural panel, then scalable representational geometry, uncertainty estimates, subject expansion, and eventual adaptive-attention intervention. Broad model-zoo expansion, Brain-Score-style positioning, and alignment-per-compute claims should wait until the matched cross-level analysis is implemented.
+The immediate engineering priority is now scalable representational geometry for the same matched full-image panel. The voxel-specific low-rank branch was scientifically useful as a control: it improved the small smoke but failed on full V1, so it should be treated as a rejected DINOv2-only readout variant, not as a protocol to expand. The project should now optimize validity of the central convergence/dissociation matrix, not the absolute DINOv2 local score.
+
+The global milestone order for Paper 1 is:
+
+1. Freeze the accepted behavioral and matched neural encoding assets.
+2. Add matched full-image representational geometry for the same six-model, four-ROI panel.
+3. Add uncertainty and sensitivity analyses across images, targets, geometry subsets, ROIs, and model leave-one-out splits.
+4. Add essential controls: human/interobserver fixation ceilings if data allow, DeepGaze MSDB or comparable modern fixation reference, task-specific COCO-Search18 baseline if feasible, and Chefer/AttnLRP-style transformer attribution before attention-specific claims.
+5. Add subject robustness before broad model-zoo expansion. If full subject expansion is too expensive, use a reduced confirmatory panel with DINOv2, CLIP ViT, ResNet-50, and one weaker transformer baseline.
+6. Add efficiency profiles only after the central behavior-encoding-geometry matrix is stable.
+7. Split causal adaptive-attention interventions into Paper 2 unless Paper 1 exposes a very clear intervention target.
+
+Broad model-zoo expansion, Brain-Score-style positioning, scanpath/video analysis, and alignment-per-compute claims should wait until the matched behavior, encoding, and geometry matrix has uncertainty estimates and a defensible dissociation story.
 
 Current methodological gap to SOTA:
 
 - The current strongest local results use a learned target-wise spatial readout for all four PRF visual ROIs, but only for one subject and one backbone. A low-rank voxel-specific DINOv2 variant was tested and rejected on full V1, so stronger RetinaMapper-style heads remain a SOTA gap but are no longer the next local milestone.
 - Current full-image-count runs cover `subj01` PRF visual ROIs only. SOTA scores use broader visual-cortex vertex sets across subjects and hemispheres.
-- Current ridge alpha selection is per-layer/ROI, not per-target. Per-target alpha and richer voxel-specific heads may improve later, but should wait until after the matched backbone comparison and cross-level analysis are working.
+- Current ridge alpha selection is per-layer/ROI, not per-target. Per-target alpha and richer voxel-specific heads may improve later, but should wait until after matched representational geometry and uncertainty estimates are working.
 - Current reporting keeps a mixed-scope ranking for continuity, but matched-panel tables now separately restrict to `subj01`, `9841` images, `flatten_pca`, validation-selected final rows, and PRF ROIs `V1`/`V2`/`V3`/`hV4`. Cross-model neural claims should use the matched-panel tables, not the mixed-scope ranking.
 - Current scoring now supports validation-selected single-layer `flatten_pca` and fixed-layer learned spatial readout. SOTA methods go further with multi-layer fusion, learned layer selection, subject-specific heads, voxel-specific spatial readouts, and ensembles.
 - Current RSA is still ROI500-scale for most reporting; the strongest full-image-count encoding rows do not yet have matched scalable RSA, CKA, or other representational-geometry metrics.
-- Current bridge tables report leader overlap only. They are useful diagnostics, but they are not yet a statistically defensible fixation-versus-fMRI correlation analysis.
+- Current matched cross-level tables now report model-level Spearman correlations and simple OLS regressions between corrected behavioral rows and the matched neural encoding panel.
+- Legacy bridge tables still report leader overlap only and should be treated as continuity diagnostics, not the main cross-axis evidence.
 - Current behavioral SOTA controls include DeepGaze IIE and center bias, but do not yet include DeepGaze MSDB, scanpath-level references, human inter-observer ceilings, or task-trained COCO-Search18 search models.
 - Current transformer attention evidence relies mostly on gradients and attention rollout. Add Chefer-style attribution or AttnLRP before making claims about transformer attention as human-like evidence.
+- Current cross-axis correlations are descriptive because they use `n=6` matched models or `n=4` transformer-only rows. Treat p-values as weak, report exact `n`, and prefer rank stability, sign consistency, permutation checks, and leave-one-model-out sensitivity.
 
 Relevant SOTA references:
 
@@ -220,7 +258,7 @@ SSL/multimodal candidate inventory:
 - Complete pretrained debug candidates: `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, `resnet50_clip`
 - Not yet run pretrained debug candidates: `vit_base_patch14_dinov2`, `vit_small_patch16_dinov3`, `vit_base_patch16_dinov3`, `vit_base_patch16_siglip_224`, `eva02_base_patch16_clip_224`
 
-The voxel-specific readout decision is complete and the matched neural panel is complete. Do not expand this inventory again before matched cross-level analysis is implemented and interpreted. The next model-family comparison should remain narrow and methodologically matched, not a broad model zoo.
+The voxel-specific readout decision is complete and the matched neural panel is complete. Do not expand this inventory again before matched full-image geometry, uncertainty, and the first dissociation analysis are implemented and interpreted. The next model-family comparison should remain narrow and methodologically matched, not a broad model zoo.
 
 ## What Is Already Built
 
@@ -241,13 +279,13 @@ Neural infrastructure:
 - Frozen-backbone learned spatial readout with target-wise spatial pooling, target-wise channel weights, inner-validation early stopping, and summary-compatible output rows.
 - Cross-validated ridge alpha selection on an inner split of training images.
 - RSA over model and neural response RDMs.
-- ROI500 summaries, full-image-count PRF ROI summaries, model rankings, ROI winners, and descriptive behavior-neural bridge tables.
+- ROI500 summaries, full-image-count PRF ROI summaries, model rankings, ROI winners, matched cross-level behavior-neural tables, and legacy descriptive behavior-neural bridge tables.
 
 Reporting infrastructure:
 
 - Corrected behavioral aggregate and merged SSL/VLM aggregate.
 - Neural ROI summary tables.
-- Paper inspection pack with behavior, neural, bridge, SSL/VLM candidate, benchmark sanity tables, and an academic SOTA context section comparing the current figures against MIT/Tuebingen saliency, DeepGaze IIE SALICON, COCO-Search18 task-search, and Algonauts 2023 evaluation references.
+- Paper inspection pack with behavior, neural, matched cross-level, legacy bridge, SSL/VLM candidate, benchmark sanity tables, and an academic SOTA context section comparing the current figures against MIT/Tuebingen saliency, DeepGaze IIE SALICON, COCO-Search18 task-search, and Algonauts 2023 evaluation references.
 - Paper inspection README now explicitly distinguishes mixed-scope diagnostics from the complete six-model matched full-image-count PRF ROI `flatten_pca` panel, and includes the four DINOv2 learned spatial readout rows only as method-provenance context.
 
 ## Superseded Or Historical Outputs
@@ -261,13 +299,16 @@ Do not use for current claims:
 - Any aggregate row without `fixation_protocol=points` or `task_points`.
 - Any pre-2026-05-20 static2000 NSS/AUC result generated before point-fixation scoring was corrected.
 - Old claims that center bias beat DeepGaze under the static2000 protocol.
+- Legacy behavior-to-encoding or behavior-to-RSA leader-overlap rates as evidence for the main paper claim. They are continuity diagnostics only and are superseded for cross-axis reasoning by matched model-level tables.
+- ROI500 RSA rankings as headline representational-geometry evidence. Full-image matched CKA/subset RSA is required before making a geometry claim.
+- Any mixed-scope neural ranking as a cross-model headline. Use matched full-image `flatten_pca` rows for cross-model claims and learned-readout rows only as method provenance.
 - `C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_v1_learned_spatial_readout_layer_selection_full_180ep/` should be treated as diagnostic provenance only. It selected the same layer and produced the same held-out score as the accepted fixed-layer V1 learned-readout run, so it should not be added as an extra accepted baseline row in the current neural summary.
 
 Current corrected outputs have replaced those rows.
 
 ## Current Implementation Progress
 
-Updated: 2026-05-27
+Updated: 2026-05-31
 
 Benchmark-Style Neural Scoring V1 is implemented for the current one-subject local neural scope. It is reliability-aware and Algonauts-inspired, but it is not official leaderboard-equivalent because subject, split, target scope, and cortex coverage differ.
 
@@ -304,7 +345,8 @@ Full regeneration status:
 - Feature-reduction rows: `92` spatial-mean diagnostic rows, `24` validation-selected full-image-count matched-panel `flatten_pca` rows, and `4` full-image-count learned spatial readout rows.
 - `outputs/neural_roi_summary/neural_model_rankings.csv` keeps the mixed-scope ranking for continuity and ranks DINOv2 learned spatial readout first by mean valid-target noise-normalized score.
 - `outputs/neural_roi_summary/matched_full_panel_model_rankings.csv` is the accepted cross-model neural ranking table for this milestone.
-- `outputs/paper_inspection_v1/README.md` uses the complete matched panel for the neural encoding headline and keeps DINOv2 learned-readout rows as method provenance.
+- `outputs/neural_roi_summary/matched_cross_level_observations.csv` and `outputs/neural_roi_summary/matched_cross_level_correlations.csv` are the accepted matched cross-axis evidence tables for behavior-versus-encoding analysis.
+- `outputs/paper_inspection_v1/README.md` uses the complete matched panel for the neural encoding headline, surfaces matched cross-level correlations, and keeps DINOv2 learned-readout rows as method provenance.
 
 Matched panel final ranking:
 
@@ -365,7 +407,7 @@ Full verification:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Latest full result after matched-panel implementation: `210 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+Latest full result before matched cross-level implementation: `210 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
 
 Latest focused reporting result:
 
@@ -373,23 +415,33 @@ Latest focused reporting result:
 .\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py
 ```
 
-Result: `31 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+Result after matched cross-level implementation: `36 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+
+Latest broader neural/reporting result:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_paper_inspection_pack.py
+```
+
+Result after matched cross-level implementation: `85 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
 
 ## Next Concrete Milestone
 
-Priority: **Matched Cross-Level Analysis V1**.
+Priority: **Scalable Representational Geometry V1**.
 
-Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, adaptive token pruning, foveation, scanpaths, video, subject expansion, or a broad model zoo. The matched full-image-count neural panel is complete, so the next implementation should replace leader-overlap bridge summaries with model-level correlations/regressions between corrected behavioral fixation metrics and matched neural encoding metrics.
+Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, adaptive token pruning, foveation, scanpaths, video, subject expansion, or a broad model zoo. Matched cross-level behavior-versus-encoding correlations now exist, so the next implementation should add a matched representational-geometry axis that is compatible with the full-image neural panel without allocating full `9841 x 9841` RDMs.
 
 Next acceptance target:
 
-- Add cross-level analysis outputs that join corrected behavioral rows to the matched full-panel neural rows only.
-- Use only neural rows with `feature_reduction=flatten_pca`, `metadata_num_items=9841`, `subject_id=subj01`, ROIs `V1`/`V2`/`V3`/`hV4`, validation-selected final rows, and the six completed model families.
-- Keep `vit_small_patch14_dinov2` learned spatial readout rows as method-provenance rows only. Do not use learned-readout rows in the matched cross-model correlation.
-- Keep COCO-Search18 separate from free-viewing SALICON/CAT2000 in cross-level analysis.
-- Report behavior-neural relationships by dataset, behavioral metric, saliency method/family, ROI, and across-ROI model mean.
-- Include rank-based and value-based analyses, at minimum Spearman correlations and simple OLS-style regressions across the matched models where the small sample size is stated clearly.
-- Regenerate `outputs/neural_roi_summary/`, regenerate `outputs/paper_inspection_v1/`, and update this file with correlation/regression results and remaining limitations.
+- Add a small `paper1_config` artifact or equivalent constants file that freezes the accepted model panel, ROIs, behavior aggregate, neural summary inputs, geometry subset seeds, and exclusion rules for Paper 1.
+- Add tractable full-image-count representational geometry for the same six-model matched panel and `subj01` PRF ROIs.
+- Avoid full all-pairs RSA allocation; implement linear CKA first, then deterministic subset RSA if feasible. Record centering, subset size, seed, feature source, and neural response source.
+- Write per-run `geometry_scores.csv` beside `encoding_scores.csv`, then summary-level `matched_geometry_scores.csv`, `matched_geometry_model_rankings.csv`, and `matched_geometry_roi_rankings.csv`.
+- Keep ROI500 RSA outputs for continuity, but do not use them as the headline matched representational-geometry evidence.
+- Join the new matched representational-geometry rows into the cross-level reporting so behavior, encoding, and geometry can be compared under the same six-model panel.
+- Preserve COCO-Search18 separation from SALICON/CAT2000 in any behavior-geometry reporting.
+- Acceptance requires all `24` matched model x ROI cells to have valid geometry rows, at least one scalable geometry method to run for all cells, and clear reporting of whether CKA/subset RSA rankings are stable or disagree.
+- Regenerate `outputs/neural_roi_summary/`, regenerate `outputs/paper_inspection_v1/`, and update this file with geometry results, sensitivity gaps, and remaining limitations.
 
 Completed milestone sequence:
 
@@ -401,32 +453,35 @@ Completed milestone sequence:
 - Learned spatial readout: completed DINOv2 four-ROI fixed-layer learned-readout runs; this is the strongest local single-backbone method result.
 - Learned-readout diagnostics: V1 learned-layer selection matched the fixed-layer result, multi-layer smoke was inconclusive, and full V1 voxel-specific low-rank readout was rejected.
 - Matched small-model neural panel: completed all `24` full-image-count validation-selected `flatten_pca` cells for the six planned model families and included them in the refreshed summaries and paper inspection pack.
+- Matched cross-level analysis: implemented model-level Spearman correlations and simple OLS regressions between corrected behavioral rows and the matched full-image `flatten_pca` neural panel; regenerated neural summary and paper inspection outputs.
 
 Implementation order for the next Codex sessions:
 
-1. Inspect the existing bridge generation in `src/hma/experiments/summarize_neural_roi_results.py` and the behavior summary tables used by `scripts/create_paper_inspection_pack.py`.
-2. Add a matched cross-level table that starts from `matched_full_panel_model_rankings.csv` and ROI-level `matched_full_panel_encoding_scores.csv`, then joins to behavioral model rows from `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`.
-3. Normalize model identifiers carefully so matched neural models join to behavioral rows for comparable backbones and saliency method families.
-4. Compute model-level Spearman correlations and simple regression summaries by dataset, behavioral metric, saliency method/family, ROI, and across-ROI neural mean.
-5. Keep mixed-scope leader-overlap bridge tables for continuity, but label them as descriptive diagnostics and make the new matched cross-level tables the headline cross-axis evidence.
-6. Update `scripts/create_paper_inspection_pack.py` so the README and tables expose the matched cross-level results without implying official Algonauts or saliency-leaderboard equivalence.
-7. Run focused reporting tests, regenerate outputs, and update this file with the new tables and interpretation.
+1. Inspect the current ROI500 RSA path in `src/hma/neural/rsa.py`, the selected-layer metadata in the matched `flatten_pca` runs, and the full-image RSA-disabled config policy in the neural full-panel configs.
+2. Add or define a Paper 1 frozen scope artifact listing the accepted behavior CSV, accepted neural run directories, six models, four ROIs, subject, feature-reduction policy, and geometry subset seeds.
+3. Implement scalable linear CKA in a new geometry module or in the existing neural geometry/RSA area. Use centered representations and avoid materializing full `9841 x 9841` matrices.
+4. Add deterministic subset RSA as a second method if feasible. Use fixed subset sizes such as `512`, `1024`, and `2048`; if only one method fits the session, leave the second as the next focused task with explicit metadata hooks already in place.
+5. Write `geometry_scores.csv` with `model_name`, `roi`, `subject`, `num_images_total`, `num_images_used`, `geometry_method`, `subset_seed`, `subset_size`, `model_feature_source`, `neural_response_source`, `score`, and `valid`.
+6. Extend `summarize_neural_roi_results.py` to write matched geometry tables separately from legacy ROI500 RSA.
+7. Extend matched cross-level reporting to compare behavior versus encoding, behavior versus geometry, and encoding versus geometry under the same six-model panel. Report exact `n`, mark `n=4` transformer-only rows clearly, and keep COCO-Search18 separate.
+8. Update `scripts/create_paper_inspection_pack.py` with compact geometry/cross-level tables and cautious README language that frames results as descriptive until uncertainty is implemented.
+9. Add focused tests for geometry scoring, summary table filtering, and paper-pack compatibility.
+10. Regenerate outputs, run focused neural/reporting tests plus new geometry tests, and update this file with the new geometry results and whether the results change the dissociation story.
 
 ## Later Milestones
 
 Proceed in phases that map directly to the research question.
 
-1. **Matched cross-level analysis.** Replace leader-overlap-only bridge summaries with correlations/regressions across models and saliency families: fixation metrics versus noise-normalized encoding, fixation metrics versus RSA/CKA when available, encoding versus representational geometry, and all axes by ROI and dataset. Treat COCO-Search18 separately from free-viewing SALICON/CAT2000.
-2. **Scalable representational geometry.** Keep ROI500 RSA for continuity, then add tractable full-image subset RSA plus CKA or a Procrustes-style metric so the representational-space claim is not dependent on one Spearman RSA implementation.
-3. **Uncertainty.** Bootstrap or otherwise estimate confidence intervals over images, targets, and eventually subjects. Cross-level claims should report uncertainty, not only rankings.
-4. **Subject expansion.** Add more NSD/Algonauts subjects before broadening the model zoo. Subject replication is higher priority than another saliency method now that the matched model panel exists.
-5. **Target-scope expansion.** Move beyond PRF V1/V2/V3/hV4 to broader visual-cortex vertices and higher-level visual ROIs if local data supports it.
+1. **Freeze and geometry.** Freeze the accepted Paper 1 scope, keep ROI500 RSA for continuity, and add tractable full-image CKA plus subset RSA so the representational-space claim is not dependent on one legacy Spearman RSA implementation.
+2. **Uncertainty and sensitivity.** Estimate intervals over images, neural targets, and geometry subsets; add leave-one-model-out, leave-one-ROI-out, Kendall tau, and model-label permutation checks. Cross-level claims should report uncertainty, not only rankings.
+3. **Cross-axis decision gate.** Decide whether Paper 1 has a robust dissociation/convergence story. Continue toward a top venue only if geometry changes or clarifies the story and sensitivity checks survive; otherwise frame the work as a measurement framework or workshop/thesis chapter and shift effort toward Paper 2.
+4. **Subject expansion.** Add more NSD/Algonauts subjects before broadening the model zoo. If full replication is too expensive, run a reduced confirmatory panel with DINOv2, CLIP ViT, ResNet-50, and one weaker transformer baseline.
+5. **Behavioral SOTA controls.** Add human inter-observer ceilings, DeepGaze MSDB or a comparable modern fixation reference, and a task-trained COCO-Search18 baseline before writing strong fixation-SOTA comparisons. Keep scanpath/video analysis later unless the paper explicitly shifts to adaptive sequential attention.
 6. **Transformer attribution depth.** Add Chefer-style attribution or AttnLRP before making claims about transformer attention, and keep gradients, Grad-CAM, rollout, perturbation, LRP-style methods, and token routing as distinct explanation families.
-7. **Behavioral SOTA controls.** Add human inter-observer ceilings, DeepGaze MSDB or a comparable modern fixation reference, and a task-trained COCO-Search18 baseline before writing strong fixation-SOTA comparisons. Keep scanpath/video analysis later unless the paper explicitly shifts to adaptive sequential attention.
-8. **Efficiency.** Add FLOPs, latency, token count, and retained-patch statistics for the matched model panel, then regenerate alignment-per-compute summaries.
-9. **Brain-Score or Brain-Score-style external positioning.** Use it as context and sanity checking, not as a substitute for the local fixation/fMRI cross-level tests.
-10. **One causal adaptive-attention intervention.** After the descriptive cross-level matrix is stable, test one controlled intervention such as gaze-guided token masking, foveated input, adaptive patch selection, or fixation-regularized token routing. The intervention should ask whether changing computation allocation changes fixation alignment, neural encoding, representational geometry, and efficiency together or separately.
-11. **Publication split.** Treat the first paper as a static-image cross-level convergence/dissociation study. Treat adaptive scanpaths, video, or foveated recurrent policies as a second paper unless the first matrix exposes a very clear intervention target.
+7. **Target-scope expansion.** Move beyond PRF V1/V2/V3/hV4 to broader visual-cortex vertices and higher-level visual ROIs only after the Paper 1 matrix and robustness checks are stable.
+8. **Efficiency.** Add FLOPs, latency, token count, retained-patch statistics, and memory footprint for the matched model panel, then regenerate alignment-per-compute summaries. Keep efficiency exploratory unless it produces a clean dissociation or tradeoff.
+9. **Brain-Score or Brain-Score-style external positioning.** Use it as context and sanity checking, not as a substitute for the local fixation/fMRI/geometry cross-level tests.
+10. **Publication split.** Treat Paper 1 as a static-image cross-level convergence/dissociation study. Treat causal adaptive attention, foveation, adaptive token routing, scanpaths, video, or recurrent policies as Paper 2 unless Paper 1 exposes a sharply defined intervention target.
 
 ## Code Pointers
 
@@ -481,13 +536,21 @@ Reporting:
 
 ## Verification Baseline
 
-For the neural reliability implementation, the focused verification command is:
+For the current neural/reporting implementation, the focused verification command is:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_nsd_algonauts_dataset.py
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py
 ```
 
-Latest focused result: `34 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+Latest focused result after matched cross-level implementation: `36 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+
+For broader confidence after neural/reporting changes, run:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_paper_inspection_pack.py
+```
+
+Latest broader result after matched cross-level implementation: `85 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
 
 Audit command:
 
@@ -527,19 +590,7 @@ Current neural summary target-scope verification:
 
 Latest regenerated target scope: `289740` rows total; `289620` `benchmark_style_noise_normalized`; `120` `benchmark_style_non_noise_normalized` due to hV4 zero-ceiling targets across ROI500, validation-selected full `flatten_pca`, and learned-readout rows.
 
-For the next reporting or cross-level-analysis implementation, run:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_paper_inspection_pack.py
-```
-
-For broader confidence after code changes:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest
-```
-
-Latest full result after matched-panel implementation: `210 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
+For the next scalable representational-geometry implementation, run the focused neural/reporting tests above plus any new geometry-specific tests.
 
 Current reporting compatibility check:
 
@@ -547,4 +598,12 @@ Current reporting compatibility check:
 .\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py
 ```
 
-Latest focused reporting result after matched-panel reporting implementation: `31 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+Latest focused reporting result after matched cross-level reporting implementation: `36 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+
+For full confidence after broad code changes:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Latest full result before matched cross-level implementation: `210 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.
