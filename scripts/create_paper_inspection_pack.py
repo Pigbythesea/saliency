@@ -106,6 +106,9 @@ def create_paper_inspection_pack(
     matched_cross_level_correlation_rows = _load_optional_csv_rows(
         neural_root / "matched_cross_level_correlations.csv"
     )
+    matched_geometry_model_ranking_rows = _load_optional_csv_rows(
+        neural_root / "matched_geometry_model_rankings.csv"
+    )
     candidate_rows = _load_csv_rows(neural_root / "ssl_multimodal_candidate_inventory.csv")
     learned_readout_comparison_rows = _load_optional_csv_rows(
         neural_root / "learned_readout_vs_flatten_pca.csv"
@@ -124,6 +127,9 @@ def create_paper_inspection_pack(
     )
     matched_cross_level_table = _matched_cross_level_correlation_table(
         matched_cross_level_correlation_rows
+    )
+    matched_geometry_table = _matched_geometry_ranking_table(
+        matched_geometry_model_ranking_rows
     )
 
     outputs: dict[str, Path] = {}
@@ -208,6 +214,15 @@ def create_paper_inspection_pack(
         tables_dir / "table9_matched_cross_level_correlations.md",
         matched_cross_level_table,
     )
+    outputs["matched_geometry_rankings_csv"] = _write_rows(
+        tables_dir / "table10_matched_geometry_model_rankings.csv",
+        matched_geometry_table,
+        list(matched_geometry_table[0]) if matched_geometry_table else [],
+    )
+    outputs["matched_geometry_rankings_md"] = _write_markdown_table(
+        tables_dir / "table10_matched_geometry_model_rankings.md",
+        matched_geometry_table,
+    )
 
     outputs.update(
         _plot_behavior_nss(static_nss_rows, figures_dir / "figure1_behavior_static2000_nss")
@@ -239,6 +254,7 @@ def create_paper_inspection_pack(
         sanity_table=sanity_table,
         learned_readout_table=learned_readout_table,
         matched_cross_level_table=matched_cross_level_table,
+        matched_geometry_table=matched_geometry_table,
         outputs=outputs,
         behavioral_csv=behavioral_path,
     )
@@ -490,6 +506,41 @@ def _matched_cross_level_correlation_table(
             "ols_raw_encoding_r2": _fmt(row.get("ols_raw_encoding_r2"))
             if row.get("ols_raw_encoding_r2")
             else "",
+            "geometry_method": row.get("geometry_method", ""),
+            "spearman_geometry": _fmt(row.get("spearman_behavior_vs_geometry"))
+            if row.get("spearman_behavior_vs_geometry")
+            else "",
+            "ols_geometry_r2": _fmt(row.get("ols_geometry_r2"))
+            if row.get("ols_geometry_r2")
+            else "",
+            "spearman_encoding_geometry": _fmt(row.get("spearman_encoding_vs_geometry"))
+            if row.get("spearman_encoding_vs_geometry")
+            else "",
+        }
+        for row in ordered
+    ]
+
+
+def _matched_geometry_ranking_table(
+    rows: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            row.get("geometry_method", ""),
+            int(row.get("rank_mean_geometry") or 999),
+            row.get("model", ""),
+        ),
+    )
+    return [
+        {
+            "model": MODEL_LABELS.get(row.get("model", ""), row.get("model", "")),
+            "geometry_method": row.get("geometry_method", ""),
+            "num_rois": row.get("num_geometry_rois", ""),
+            "mean_geometry_score": _fmt(row.get("mean_geometry_score")),
+            "geometry_rank": row.get("rank_mean_geometry", ""),
+            "rois": row.get("rois", ""),
+            "scope": row.get("interpretation_scope", ""),
         }
         for row in ordered
     ]
@@ -721,6 +772,7 @@ def _write_readme(
     learned_readout_table: list[dict[str, Any]] | None = None,
     matched_panel_table: list[dict[str, Any]] | None = None,
     matched_cross_level_table: list[dict[str, Any]] | None = None,
+    matched_geometry_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     best_behavior = behavior_table[0] if behavior_table else {}
     matched_rows = matched_panel_table or []
@@ -746,6 +798,16 @@ def _write_readme(
         1 for row in learned_readout_rows if _float(row.get("raw_delta")) > 0.0
     )
     matched_cross_level_rows = matched_cross_level_table or []
+    matched_geometry_rows = matched_geometry_table or []
+    top_geometry = next(
+        (
+            row
+            for row in matched_geometry_rows
+            if row.get("geometry_method") == "linear_cka"
+            and row.get("geometry_rank") == "1"
+        ),
+        matched_geometry_rows[0] if matched_geometry_rows else {},
+    )
     complete_cross_level_rows = [
         row for row in matched_cross_level_rows if row.get("status") == "complete"
     ]
@@ -777,6 +839,13 @@ def _write_readme(
         ),
         f"- Raw neural RSA leader: {best_neural_rsa.get('model', '')}, mean RSA={best_neural_rsa.get('mean_rsa', '')}.",
         (
+            "- Matched representational-geometry leader: "
+            f"{top_geometry.get('model', '')}, method={top_geometry.get('geometry_method', '')}, "
+            f"mean score={top_geometry.get('mean_geometry_score', '')}."
+            if matched_geometry_rows
+            else "- Matched representational-geometry table is not available in this pack."
+        ),
+        (
             "- Matched full-image `flatten_pca` panel is complete and used for the encoding headline."
             if matched_panel_complete
             else f"- Matched full-image `flatten_pca` panel rows available: {len(matched_rows)}; mixed-scope ranking remains the headline until all expected model/ROI cells are complete."
@@ -805,7 +874,7 @@ def _write_readme(
         "## Figures",
         "",
         "- `figures/figure1_behavior_static2000_nss.png`: top static2000 NSS rows by dataset.",
-        "- `figures/figure2_neural_model_rankings.png`: noise-normalized encoding, raw encoding, RSA, and latency-normalized RSA scores.",
+        "- `figures/figure2_neural_model_rankings.png`: noise-normalized encoding, raw encoding, legacy RSA, and latency-normalized RSA scores.",
         "- `figures/figure3_roi_heatmaps.png`: best noise-normalized encoding/RSA layers and scores by model and ROI.",
         "- `figures/figure4_behavior_neural_leader_overlap.png`: descriptive leader-overlap rates.",
         "- `figures/figure5_matched_cross_level_correlations.png`: matched model-level NSS correlations where available.",
@@ -821,6 +890,7 @@ def _write_readme(
         "- `tables/table7_learned_readout_vs_flatten_pca.md`",
         "- `tables/table8_matched_full_panel_model_rankings.md`",
         "- `tables/table9_matched_cross_level_correlations.md`",
+        "- `tables/table10_matched_geometry_model_rankings.md`",
         "",
         "## Academic SOTA Context",
         "",
@@ -836,7 +906,8 @@ def _write_readme(
         "",
         "## Interpretation Boundary",
         "",
-        "Treat this pack as a paper-style inspection layer, not final evidence. The neural side is one subject with mixed ROI500 diagnostics and validation-selected full-image-count PRF ROI baselines. Matched cross-level correlations are model-level summaries over a small six-model panel, not causal tests.",
+        "Treat this pack as a paper-style inspection layer, not final evidence. The neural side is one subject with legacy ROI500 RSA diagnostics, validation-selected full-image-count PRF ROI encoding baselines, and matched scalable geometry when `table10` is present. Matched cross-level correlations are model-level summaries over a small six-model panel, not causal tests.",
+        "Use matched geometry tables for representational-geometry claims; keep ROI500 RSA as continuity diagnostics only.",
         "Use the matched full-image `flatten_pca` table for cross-model encoding comparisons once all expected model/ROI cells are complete. Use leader-overlap tables only as descriptive continuity diagnostics.",
         "",
     ]

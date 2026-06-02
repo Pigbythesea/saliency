@@ -401,6 +401,77 @@ Learned spatial readout status:
 - Multi-layer learned-readout smoke was wired but inconclusive; do not prioritize a full multi-layer run now.
 - Voxel-specific low-rank learned-readout smoke improved slightly, but the full V1 decision run was worse than the accepted fixed-layer learned readout. Treat `voxel_specific_spatial_readout` outputs as rejected method provenance and do not include them in accepted summaries.
 
+Scalable representational geometry status:
+
+- Frozen Paper 1 scope artifact: `configs/paper1_config.yaml`.
+- Geometry implementation: `src/hma/neural/geometry.py` exposes scalable `linear_cka` and deterministic `subset_rsa` helpers. `linear_cka` avoids full `9841 x 9841` image-kernel/RDM allocation by using centered cross-products.
+- Posthoc generation script: `scripts/compute_matched_geometry.py`.
+- Future-run compatibility: `neural.geometry.enabled` is supported in `src/hma/experiments/neural_alignment.py` and writes `geometry_scores.csv` when enabled.
+- Accepted matched geometry rows: `24` valid `linear_cka` rows, covering all six matched models x four PRF ROIs.
+- Summary artifacts:
+  - `outputs/neural_roi_summary/matched_geometry_scores.csv`
+  - `outputs/neural_roi_summary/matched_geometry_model_rankings.csv`
+  - `outputs/neural_roi_summary/matched_geometry_roi_rankings.csv`
+- Paper inspection artifacts:
+  - `outputs/paper_inspection_v1/tables/table10_matched_geometry_model_rankings.csv`
+  - `outputs/paper_inspection_v1/tables/table10_matched_geometry_model_rankings.md`
+- Matched geometry model ranking by across-ROI mean `linear_cka`:
+  1. `vit_small_patch14_dinov2`: `0.229035`
+  2. `convnext_tiny`: `0.210549`
+  3. `resnet50`: `0.209893`
+  4. `deit_small_patch16_224`: `0.202786`
+  5. `vit_base_patch16_clip_224`: `0.187853`
+  6. `vit_base_patch16_224`: `0.103863`
+- Cross-level reporting now carries geometry columns for behavior-versus-geometry and encoding-versus-geometry summaries under the same six-model panel. Current regenerated `matched_cross_level_correlations.csv` has `315` rows, with `210` complete rows containing `linear_cka` geometry fields where model counts are sufficient.
+- Deterministic subset RSA is implemented as a utility and metadata-compatible scoring path, but full-panel subset RSA at sizes `512`, `1024`, and `2048` is too slow for the current posthoc milestone. Treat it as the next sensitivity task, not a blocker for the accepted scalable geometry V1 result.
+
+Session progress summary:
+
+- This session implemented the first matched full-image geometry axis and moved the project from "missing representational geometry" to "has one valid but preliminary geometry metric."
+- New code/artifacts added:
+  - `src/hma/neural/geometry.py` with `linear_cka`, deterministic subset index selection, and `subset_rsa`.
+  - `scripts/compute_matched_geometry.py` for posthoc geometry generation from existing matched `flatten_pca` activations.
+  - `configs/paper1_config.yaml` freezing the Paper 1 model panel, ROIs, behavior CSV, matched neural output dirs, geometry methods, and exclusions.
+  - Optional `neural.geometry.enabled` support in `src/hma/experiments/neural_alignment.py`.
+  - Geometry loading, matched geometry rankings, and geometry cross-level columns in `src/hma/experiments/summarize_neural_roi_results.py`.
+  - Paper inspection table 10 in `scripts/create_paper_inspection_pack.py`.
+- Current accepted geometry output quality:
+  - `24/24` matched cells have valid full-image `linear_cka` rows.
+  - Every ROI has six valid model rows: `V1`, `V2`, `V3`, and `hV4`.
+  - The geometry result is internally matched to the accepted six-model x four-ROI encoding panel.
+- Current scientific quality:
+  - The result is not SOTA and not paper-headline proof.
+  - It is a valid internal geometry baseline that exposes a useful pattern: DINOv2 leads both encoding and CKA, but CKA-versus-encoding model-rank agreement is weak across all six models.
+  - This creates a plausible cross-axis dissociation target, but it needs RSA/CKA agreement checks and sensitivity analysis before it can be trusted.
+- Verification:
+  - Focused geometry/reporting tests passed with `83 passed` using a fresh `--basetemp`.
+  - The ordinary `.pytest_tmp` path can be locked by Windows permissions; use a fresh `--basetemp` when rerunning focused tests.
+
+Outcome assessment:
+
+- Validity: the result is a valid matched-panel geometry baseline, not a complete representational-geometry claim. It uses the same six models, same four `subj01` PRF ROIs, same full-image count, and same validation-selected `flatten_pca` feature rows as the accepted encoding panel. This makes it internally comparable to the matched encoding results.
+- Method status: linear CKA is a standard representational-comparison method and the implementation avoids the memory failure mode that blocked full `9841 x 9841` RSA. The current implementation is therefore standardizable as a scalable first-pass geometry axis.
+- Main limitation: the current geometry result has only one geometry method, one subject, one feature-reduction policy, and no uncertainty. It should not be described as definitive representational alignment or as a novel metric.
+- Novelty status: the method itself is not novel. The publishable contribution, if it survives sensitivity checks, is the matched cross-axis dissociation analysis: fixation alignment, neural encoding, and full-image representational geometry evaluated on the same controlled panel.
+- Current signal: DINOv2 leads the across-ROI `linear_cka` ranking and also leads the matched noise-normalized encoding ranking, but the full six-model geometry-versus-encoding Spearman correlation is only about `0.257`. This suggests partial convergence at the leader level but weak rank-level equivalence across the panel.
+- Interpretation: this is scientifically useful because it prevents the paper from relying only on encoding and legacy ROI500 RSA. It is not yet strong enough for a headline claim until subset-RSA/rank-stability and leave-one-out sensitivity are implemented.
+- Standardization path: freeze the Paper 1 config, keep `geometry_scores.csv` as the per-run contract, keep summary-level geometry tables separate from legacy `rsa_scores.csv`, and require every future geometry method to report method, centering, subset/image count, seed, feature source, response source, validity, and status.
+
+Figure and SOTA-alignment assessment:
+
+- Bottom line: the current figures do not match academic SOTA numeric performance or main-paper evidence standards. They are useful diagnostic figures for a controlled internal analysis, not SOTA result figures.
+- Local behavioral numbers are below saliency SOTA. `figure1_behavior_static2000_nss.png` reports local DeepGaze IIE NSS of `1.838` on CAT2000, `1.743` on SALICON, and `1.745` on COCO-Search18. Current MIT/Tuebingen CAT2000 reference values are higher: official CAT2000 DeepGaze IIE NSS `2.1122`, DeepGaze MSDB NSS `2.5127`, leave-one-subject-out gold standard NSS `2.4878`, and joint gold standard NSS `2.7429`. Therefore the local CAT2000 figure is below current saliency benchmark standard and should not be interpreted as SOTA.
+- Local center-bias numbers also indicate benchmark mismatch. Local CAT2000 center-bias NSS is `1.619`, while the MIT/Tuebingen CAT2000 center-bias row reports NSS `2.0870`. This means the local evaluation protocol, preprocessing, reference maps, or image handling are not identical to the official benchmark, even though the relative sanity ordering DeepGaze > center bias > attribution maps is reasonable.
+- Local attribution/fixation rows are far below dedicated fixation models. The strongest local attribution rows are CAT2000 ResNet-50 Grad-CAM NSS `0.882`, SALICON DINOv2 gradient NSS `0.736`, and COCO-Search18 ResNet-50 Grad-CAM NSS `0.955`. These are not competitive with dedicated saliency/search models and should be described only as explanation-map-to-fixation similarity.
+- COCO-Search18 is especially far from task-specific SOTA. Local COCO-Search18 DeepGaze IIE NSS is `1.745` and the best local attribution row is `0.955`, while a task-trained COCO-Search18 CNN report gives NSS `4.64`, AUC-Judd `0.95`, sAUC `0.84`, CC `0.72`, SIM `0.54`, and IG `2.59`. The local COCO figure is therefore a diagnostic free-viewing/reference transfer result, not task-search SOTA.
+- Local neural encoding numbers are not Algonauts SOTA-comparable. `figure2_neural_model_rankings.png` reports a best matched-panel mean noise-normalized score of `0.591` (`59.11` on x100 scale) for DINOv2 over one subject and four PRF ROIs. Algonauts 2023 leaderboard scores are mean noise-normalized encoding accuracy across held-out vertices of all subjects and hemispheres; the public top score is `70.8473`, with many leaderboard entries in the `58-63` range. Because the scope differs, the local `59.11` should not be called SOTA even though the magnitude overlaps mid-leaderboard values.
+- The local matched geometry numbers have no direct SOTA benchmark. `table10_matched_geometry_model_rankings.md` reports DINOv2 `linear_cka=0.229`, ConvNeXt-T `0.211`, ResNet-50 `0.210`, DeiT-S `0.203`, CLIP ViT-B/16 `0.188`, and ViT-B/16 `0.104`. CKA is standard for representation comparison, but absolute CKA values are not portable SOTA scores across datasets, feature reductions, ROIs, dimensionalities, and centering policies. These numbers are valid only as within-study relative rankings.
+- The current cross-level figure/table is not main-paper standard yet. `table9_matched_cross_level_correlations.md` includes many high Spearman values, but these are small-`n` model-level correlations (`n=4` or `n=6`) without leave-one-model-out, permutation, bootstrap, or subject replication. The academic-standard version should show model-labeled scatter plots and sensitivity intervals, not only rank-correlation tables.
+- `figure3_roi_heatmaps.png` is field-compatible as a model x ROI heatmap for encoding, but its RSA panels should be treated as legacy continuity diagnostics. The accepted geometry axis is now full-image `linear_cka` in `table10`, not ROI500 RSA. A paper-facing update should replace or supplement the RSA heatmap with a matched CKA/RSA geometry heatmap.
+- `figure4_behavior_neural_leader_overlap.png` is diagnostic rather than field-standard headline evidence. Leader-overlap rates are too coarse for a paper claim and should move to supplement unless paired with model-level scatter plots and uncertainty.
+- `figure5_matched_cross_level_correlations.png` is closest to the intended Paper 1 claim, but it still does not meet the normal standard for a NeuroAI/vision paper result figure. The paper needs labeled scatter plots for behavior-vs-encoding, behavior-vs-geometry, and encoding-vs-geometry, with exact `n`, leave-one-model-out sensitivity, and uncertainty/permutation context.
+- CKA/RSA standard: CKA is a recognized representation-comparison method, but a paper-quality geometry result should either show agreement between CKA and subset RSA or explicitly report metric dependence. Legacy ROI500 RSA does not satisfy this requirement because its item scope is not matched to the full-image CKA/encoding panel.
+
 Full verification:
 
 ```cmd
@@ -417,6 +488,14 @@ Latest focused reporting result:
 
 Result after matched cross-level implementation: `36 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
 
+Latest geometry-focused reporting result:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py --basetemp=D:\Git\saliency\.pytest_tmp_fresh
+```
+
+Result after scalable representational geometry V1 implementation: `83 passed`.
+
 Latest broader neural/reporting result:
 
 ```cmd
@@ -427,21 +506,38 @@ Result after matched cross-level implementation: `85 passed`; Windows `.pytest_c
 
 ## Next Concrete Milestone
 
-Priority: **Scalable Representational Geometry V1**.
+Priority: **Geometry Sensitivity And Cross-Axis Uncertainty V1**.
 
-Do this before adding more behavioral datasets, more saliency methods, Brain-Score integration, adaptive token pruning, foveation, scanpaths, video, subject expansion, or a broad model zoo. Matched cross-level behavior-versus-encoding correlations now exist, so the next implementation should add a matched representational-geometry axis that is compatible with the full-image neural panel without allocating full `9841 x 9841` RDMs.
+Scalable Representational Geometry V1 is now implemented for the accepted six-model x four-ROI matched panel using full-image linear CKA. Do not broaden the behavioral datasets, model zoo, subject set, scanpath/video scope, or adaptive-attention interventions before checking whether the new geometry axis is stable enough to support a Paper 1 dissociation claim.
+
+Planning improvements over the previous plan:
+
+- Prioritize output quality over adding more outputs. The current figures are diagnostic and below SOTA standards; the next work should improve evidence quality, not merely add more rows.
+- Treat saliency, encoding, and geometry as three different benchmark regimes. Do not compare local numbers to SOTA without matching protocol, subject/image scope, and metric definitions.
+- Separate "field-standard method" from "SOTA result." CKA and RSA are standard methods, but current absolute CKA/RSA values are not SOTA scores.
+- Make RSA/CKA agreement the immediate geometry gate. If subset RSA disagrees with full-image CKA, the paper must report metric dependence rather than claim a single representational-geometry ranking.
+- Replace or supplement inspection-pack figures with paper-facing figures: behavior benchmark context, model-labeled cross-axis scatter plots, matched CKA/RSA geometry heatmaps, and sensitivity panels.
+- Add a decision gate before subject expansion or model-zoo expansion. If leave-one-model-out or RSA/CKA checks collapse the story, Paper 1 should be framed as a measurement framework or workshop/thesis chapter rather than a strong top-venue dissociation claim.
 
 Next acceptance target:
 
-- Add a small `paper1_config` artifact or equivalent constants file that freezes the accepted model panel, ROIs, behavior aggregate, neural summary inputs, geometry subset seeds, and exclusion rules for Paper 1.
-- Add tractable full-image-count representational geometry for the same six-model matched panel and `subj01` PRF ROIs.
-- Avoid full all-pairs RSA allocation; implement linear CKA first, then deterministic subset RSA if feasible. Record centering, subset size, seed, feature source, and neural response source.
-- Write per-run `geometry_scores.csv` beside `encoding_scores.csv`, then summary-level `matched_geometry_scores.csv`, `matched_geometry_model_rankings.csv`, and `matched_geometry_roi_rankings.csv`.
-- Keep ROI500 RSA outputs for continuity, but do not use them as the headline matched representational-geometry evidence.
-- Join the new matched representational-geometry rows into the cross-level reporting so behavior, encoding, and geometry can be compared under the same six-model panel.
-- Preserve COCO-Search18 separation from SALICON/CAT2000 in any behavior-geometry reporting.
-- Acceptance requires all `24` matched model x ROI cells to have valid geometry rows, at least one scalable geometry method to run for all cells, and clear reporting of whether CKA/subset RSA rankings are stable or disagree.
-- Regenerate `outputs/neural_roi_summary/`, regenerate `outputs/paper_inspection_v1/`, and update this file with geometry results, sensitivity gaps, and remaining limitations.
+- Add paper-facing figure upgrades before further science expansion:
+  - benchmark-context behavioral figure with local DeepGaze/center-bias values shown against official SOTA/reference values where comparison is valid;
+  - matched geometry heatmap by model x ROI for `linear_cka`;
+  - model-labeled cross-axis scatter matrix for behavior-vs-encoding, behavior-vs-CKA, and encoding-vs-CKA;
+  - placeholders or completed panels for leave-one-model-out and RSA/CKA agreement.
+- Add a tractable subset-RSA sensitivity pass. Start with one model x one ROI profiling at subset sizes `128`, `256`, and `512`; scale to all `24` cells only after runtime is measured. Record subset size, seed, feature source, response source, validity, and runtime.
+- Add geometry rank-stability summaries comparing full-image linear CKA against subset RSA when subset RSA is available. Report Spearman/Kendall agreement by ROI and across-ROI mean.
+- Freeze explicit method labels before running subset RSA:
+  - current CKA rows should be reported as `linear_cka_full9841` in paper-facing tables/figures;
+  - subset RSA rows should use labels such as `subset_rsa_corr_rdm_spearman_size128_seed123`.
+- For subset RSA, define the RDM policy in `configs/paper1_config.yaml`: model RDM metric `correlation`, neural RDM metric `correlation`, RDM comparison `spearman`, deterministic sorted subset indices, subset sizes, and seeds.
+- Add leave-one-model-out and leave-one-ROI-out sensitivity for behavior-versus-encoding, behavior-versus-geometry, and encoding-versus-geometry correlations. Treat any result that flips sign or collapses under one omitted model as descriptive only.
+- Add model-label permutation checks for cross-axis correlations. With `n=6`, use these as calibration and robustness diagnostics, not as strong null-hypothesis claims.
+- Add uncertainty where it is cheap and well-defined: target bootstrap for encoding summaries and subset/image bootstrap for geometry. Do not delay the project on expensive full-image bootstrap if subset-based uncertainty is enough to decide whether the story is stable.
+- Add a compact decision table that classifies each cross-axis relationship as `stable_convergence`, `stable_dissociation`, `unstable`, or `insufficient_models`.
+- Keep COCO-Search18 separate from SALICON/CAT2000 in all behavior-geometry reporting.
+- Regenerate `outputs/neural_roi_summary/`, regenerate `outputs/paper_inspection_v1/`, and update this file with stability results and whether the geometry axis strengthens or weakens the dissociation story.
 
 Completed milestone sequence:
 
@@ -454,19 +550,22 @@ Completed milestone sequence:
 - Learned-readout diagnostics: V1 learned-layer selection matched the fixed-layer result, multi-layer smoke was inconclusive, and full V1 voxel-specific low-rank readout was rejected.
 - Matched small-model neural panel: completed all `24` full-image-count validation-selected `flatten_pca` cells for the six planned model families and included them in the refreshed summaries and paper inspection pack.
 - Matched cross-level analysis: implemented model-level Spearman correlations and simple OLS regressions between corrected behavioral rows and the matched full-image `flatten_pca` neural panel; regenerated neural summary and paper inspection outputs.
+- Scalable representational geometry V1: implemented full-image linear CKA for all `24` matched cells, regenerated matched geometry summaries and paper inspection table 10, and added geometry fields to matched cross-level reporting. Subset RSA remains a sensitivity follow-up because full-panel subset sizes were too slow for the current posthoc pass.
 
 Implementation order for the next Codex sessions:
 
-1. Inspect the current ROI500 RSA path in `src/hma/neural/rsa.py`, the selected-layer metadata in the matched `flatten_pca` runs, and the full-image RSA-disabled config policy in the neural full-panel configs.
-2. Add or define a Paper 1 frozen scope artifact listing the accepted behavior CSV, accepted neural run directories, six models, four ROIs, subject, feature-reduction policy, and geometry subset seeds.
-3. Implement scalable linear CKA in a new geometry module or in the existing neural geometry/RSA area. Use centered representations and avoid materializing full `9841 x 9841` matrices.
-4. Add deterministic subset RSA as a second method if feasible. Use fixed subset sizes such as `512`, `1024`, and `2048`; if only one method fits the session, leave the second as the next focused task with explicit metadata hooks already in place.
-5. Write `geometry_scores.csv` with `model_name`, `roi`, `subject`, `num_images_total`, `num_images_used`, `geometry_method`, `subset_seed`, `subset_size`, `model_feature_source`, `neural_response_source`, `score`, and `valid`.
-6. Extend `summarize_neural_roi_results.py` to write matched geometry tables separately from legacy ROI500 RSA.
-7. Extend matched cross-level reporting to compare behavior versus encoding, behavior versus geometry, and encoding versus geometry under the same six-model panel. Report exact `n`, mark `n=4` transformer-only rows clearly, and keep COCO-Search18 separate.
-8. Update `scripts/create_paper_inspection_pack.py` with compact geometry/cross-level tables and cautious README language that frames results as descriptive until uncertainty is implemented.
-9. Add focused tests for geometry scoring, summary table filtering, and paper-pack compatibility.
-10. Regenerate outputs, run focused neural/reporting tests plus new geometry tests, and update this file with the new geometry results and whether the results change the dissociation story.
+1. Fix the paper inspection pack to report figure-quality evidence rather than only diagnostic rankings:
+   - add local-versus-reference behavioral benchmark table/plot;
+   - add matched `linear_cka` model x ROI heatmap;
+   - add model-labeled cross-axis scatter matrix.
+2. Add runtime profiling to `scripts/compute_matched_geometry.py` or a companion script, then benchmark subset RSA on `vit_small_patch14_dinov2` and `resnet50` for `V1` at subset sizes `128`, `256`, and `512`.
+3. Freeze the subset-RSA method contract in `configs/paper1_config.yaml`: RDM metric, comparison metric, subset sizes, seeds, and naming convention.
+4. Choose one feasible subset-RSA protocol and run it across all `24` matched cells with at least three deterministic seeds if runtime allows; otherwise run one seed and record the limitation.
+5. Extend `summarize_neural_roi_results.py` with geometry-method agreement tables, including CKA-versus-subset-RSA rank correlation by ROI and across-ROI mean.
+6. Add leave-one-model-out and leave-one-ROI-out cross-axis sensitivity tables for encoding, geometry, and behavior relationships.
+7. Add model-label permutation summaries for the small-`n` model-level correlations.
+8. Extend `scripts/create_paper_inspection_pack.py` with compact sensitivity and decision-gate tables.
+9. Regenerate outputs, run focused tests with a fresh `--basetemp`, and update this file with a decision: proceed toward Paper 1 dissociation claim, frame as measurement framework, or pause Paper 1 expansion.
 
 ## Later Milestones
 

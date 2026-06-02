@@ -5,6 +5,7 @@ from scripts.create_paper_inspection_pack import (
     _learned_readout_comparison_table,
     _load_optional_csv_rows,
     _matched_cross_level_correlation_table,
+    _matched_geometry_ranking_table,
     _neural_ranking_table,
     _top_behavior_rows,
     _write_readme,
@@ -270,6 +271,27 @@ def test_matched_cross_level_table_formats_rows():
     assert rows[0]["saliency_method"] == "Grad-CAM"
     assert rows[0]["spearman_noise_normalized"] == "0.333"
     assert rows[0]["ols_raw_encoding_r2"] == "0.625"
+
+
+def test_matched_geometry_table_formats_rows():
+    rows = _matched_geometry_ranking_table(
+        [
+            {
+                "model": "vit_small_patch14_dinov2",
+                "geometry_method": "linear_cka",
+                "num_geometry_rois": "4",
+                "mean_geometry_score": "0.321",
+                "rank_mean_geometry": "1",
+                "rois": "V1;V2;V3;hV4",
+                "interpretation_scope": "matched_full_image_flatten_pca_geometry",
+            }
+        ]
+    )
+
+    assert rows[0]["model"] == MODEL_LABELS["vit_small_patch14_dinov2"]
+    assert rows[0]["geometry_method"] == "linear_cka"
+    assert rows[0]["mean_geometry_score"] == "0.321"
+    assert rows[0]["geometry_rank"] == "1"
 
 
 def test_readme_reports_matched_cross_level_and_descriptive_overlap(tmp_path):

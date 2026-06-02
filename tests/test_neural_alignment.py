@@ -8,6 +8,7 @@ from hma.experiments.neural_alignment import run_neural_alignment
 from hma.neural import (
     benchmark_encoding_target_scores,
     compare_rdms,
+    deterministic_subset_indices,
     compute_rdm,
     evaluate_encoding,
     fit_spatial_readout,
@@ -17,6 +18,8 @@ from hma.neural import (
     predict_spatial_readout,
     predict_ridge_encoding,
     save_activations,
+    linear_cka,
+    subset_rsa,
     SpatialReadoutConfig,
 )
 
@@ -141,6 +144,49 @@ def test_rdm_shape_symmetry_and_comparison():
     assert euclidean.shape == (6, 6)
     assert np.isfinite(similarity)
     assert similarity > 0.99
+
+
+def test_linear_cka_scores_identical_representations_near_one():
+    rng = np.random.default_rng(3)
+    features = rng.normal(size=(24, 6))
+
+    result = linear_cka(features, features.copy())
+
+    assert result.valid is True
+    assert result.status == "ok"
+    assert result.score == pytest.approx(1.0)
+
+
+def test_linear_cka_marks_constant_inputs_invalid():
+    features = np.ones((12, 4))
+    responses = np.arange(36, dtype=float).reshape(12, 3)
+
+    result = linear_cka(features, responses)
+
+    assert result.valid is False
+    assert result.score == ""
+    assert result.status == "constant_features"
+
+
+def test_linear_cka_rejects_mismatched_image_counts():
+    with pytest.raises(ValueError, match="same number of rows"):
+        linear_cka(np.ones((4, 2)), np.ones((5, 2)))
+
+
+def test_subset_rsa_uses_deterministic_subset_and_scores():
+    rng = np.random.default_rng(4)
+    features = rng.normal(size=(32, 5))
+    responses = features @ rng.normal(size=(5, 4))
+
+    first_indices = deterministic_subset_indices(32, subset_size=12, seed=123)
+    second_indices = deterministic_subset_indices(32, subset_size=12, seed=123)
+    result = subset_rsa(features, responses, subset_size=12, seed=123)
+
+    assert np.array_equal(first_indices, second_indices)
+    assert result.valid is True
+    assert result.status == "ok"
+    assert result.num_images_used == 12
+    assert np.isfinite(result.score)
 
 
 def test_save_activations_writes_npz(tmp_path):

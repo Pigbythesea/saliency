@@ -1331,6 +1331,127 @@ def test_summarize_neural_roi_results_writes_matched_panel_rankings(tmp_path):
     assert "Matched full-image `flatten_pca` panel models complete in summary: 1" in note
 
 
+def test_summarize_neural_roi_results_writes_matched_geometry_tables(tmp_path):
+    paths = [
+        (tmp_path / "outputs" / "resnet50", "resnet50", 0.2),
+        (tmp_path / "outputs" / "convnext_tiny", "convnext_tiny", 0.4),
+    ]
+    for path, model, score in paths:
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "metadata.json").write_text(
+            json.dumps({"num_items": 9841, "config_path": f"{model}.yaml"}),
+            encoding="utf-8",
+        )
+        _write_csv(
+            path / "encoding_scores.csv",
+            [
+                {
+                    "dataset": f"{model}_v1",
+                    "model": model,
+                    "subject_id": "subj01",
+                    "roi": "V1",
+                    "layer": "layer1",
+                    "metric": "correlation",
+                    "metric_scope": "benchmark_style_noise_normalized",
+                    "n_train": 7873,
+                    "n_test": 1968,
+                    "num_targets": 2,
+                    "mean_score": 0.5,
+                    "median_score": 0.5,
+                    "std_score": 0.0,
+                    "mean_noise_normalized_score": score,
+                    "median_noise_normalized_score": score,
+                    "valid_noise_ceiling_targets": 2,
+                    "zero_noise_ceiling_targets": 0,
+                    "invalid_noise_ceiling_targets": 0,
+                    "selected_ridge_alpha": 1.0,
+                    "alpha_selection_mode": "selection_validation",
+                    "split_seed": 123,
+                    "feature_reduction": "flatten_pca",
+                }
+            ],
+            [
+                "dataset",
+                "model",
+                "subject_id",
+                "roi",
+                "layer",
+                "metric",
+                "metric_scope",
+                "n_train",
+                "n_test",
+                "num_targets",
+                "mean_score",
+                "median_score",
+                "std_score",
+                "mean_noise_normalized_score",
+                "median_noise_normalized_score",
+                "valid_noise_ceiling_targets",
+                "zero_noise_ceiling_targets",
+                "invalid_noise_ceiling_targets",
+                "selected_ridge_alpha",
+                "alpha_selection_mode",
+                "split_seed",
+                "feature_reduction",
+            ],
+        )
+        _write_csv(
+            path / "geometry_scores.csv",
+            [
+                {
+                    "dataset": f"{model}_v1",
+                    "model": model,
+                    "subject_id": "subj01",
+                    "roi": "V1",
+                    "layer": "layer1",
+                    "geometry_method": "linear_cka",
+                    "score": score,
+                    "valid": "true",
+                    "status": "ok",
+                    "num_images_total": 9841,
+                    "num_images_used": 9841,
+                    "subset_seed": "",
+                    "subset_size": "",
+                    "model_feature_source": "activations.npz",
+                    "neural_response_source": "dataset_roi_responses",
+                    "centering": "image_centered_columns",
+                    "model_feature_reduction": "flatten_pca",
+                    "response_metric": "raw_roi_responses",
+                }
+            ],
+            [
+                "dataset",
+                "model",
+                "subject_id",
+                "roi",
+                "layer",
+                "geometry_method",
+                "score",
+                "valid",
+                "status",
+                "num_images_total",
+                "num_images_used",
+                "subset_seed",
+                "subset_size",
+                "model_feature_source",
+                "neural_response_source",
+                "centering",
+                "model_feature_reduction",
+                "response_metric",
+            ],
+        )
+
+    outputs = summarize_neural_roi_results([path for path, _model, _score in paths], tmp_path / "summary")
+
+    matched_rows = _read_csv(outputs["matched_geometry_scores"])
+    ranking_rows = _read_csv(outputs["matched_geometry_model_rankings"])
+    roi_rows = _read_csv(outputs["matched_geometry_roi_rankings"])
+    assert len(matched_rows) == 2
+    assert ranking_rows[0]["model"] == "convnext_tiny"
+    assert ranking_rows[0]["rank_mean_geometry"] == "1"
+    assert roi_rows[0]["rank_within_roi"] == "1"
+
+
 def test_audit_matched_neural_panel_reports_complete_missing_and_skipped(tmp_path):
     config_dir = tmp_path / "configs"
     output_dir = tmp_path / "outputs" / "resnet50_v1_flatten_pca_validation_selection_full"

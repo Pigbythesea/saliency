@@ -15,11 +15,19 @@ from hma.neural.learned_readout import (
     predict_spatial_readout,
 )
 from hma.neural.rsa import compare_rdms, compute_rdm
+from hma.neural.geometry import (
+    GeometryResult,
+    deterministic_subset_indices,
+    linear_cka,
+    subset_rsa,
+)
 
 __all__ = [
     "compare_rdms",
     "compute_rdm",
+    "GeometryResult",
     "benchmark_encoding_target_scores",
+    "deterministic_subset_indices",
     "evaluate_encoding",
     "extract_activations",
     "fit_ridge_encoding",
@@ -29,5 +37,7 @@ __all__ = [
     "predict_ridge_encoding",
     "predict_spatial_readout",
     "save_activations",
+    "linear_cka",
+    "subset_rsa",
     "SpatialReadoutConfig",
 ]

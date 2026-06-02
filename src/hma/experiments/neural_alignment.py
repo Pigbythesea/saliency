@@ -22,9 +22,11 @@ from hma.neural import (
     fit_ridge_encoding,
     fit_spatial_readout,
     fuse_spatial_feature_layers,
+    linear_cka,
     predict_ridge_encoding,
     predict_spatial_readout,
     save_activations,
+    subset_rsa,
 )
 from hma.preprocessing import preprocess_image_for_model
 from hma.utils.config import load_experiment_config
@@ -237,6 +239,31 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         rsa_path = output_dir / "rsa_scores.csv"
         _write_rsa_rows(rsa_path, rsa_rows)
 
+    geometry_config = dict(neural_config.get("geometry", {}))
+    geometry_rows: list[dict[str, Any]] = []
+    geometry_path: Path | None = None
+    if bool(geometry_config.get("enabled", False)):
+        geometry_layers = (
+            [str(selection_result["selected_candidate"]["layer"])]
+            if selection_result
+            else list(reduced_features_by_layer)
+        )
+        geometry_rows = _compute_geometry_rows(
+            reduced_features_by_layer,
+            responses,
+            layers=geometry_layers,
+            methods=[str(method) for method in geometry_config.get("methods", ["linear_cka"])],
+            subset_sizes=[int(size) for size in geometry_config.get("subset_sizes", [])],
+            subset_seed=int(geometry_config.get("subset_seed", seed)),
+            row_context=_score_row_context(config, item_metadata),
+            model_feature_reduction=feature_reduction_metadata.get(
+                "feature_reduction",
+                feature_reduction,
+            ),
+        )
+        geometry_path = output_dir / "geometry_scores.csv"
+        _write_geometry_rows(geometry_path, geometry_rows)
+
     metadata = {
         "config_path": str(config_path),
         "dataset": config.get("dataset", {}).get("label") or config.get("dataset", {}).get("name"),
@@ -275,6 +302,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "encoding_scores": str(scores_path),
         "encoding_target_scores": str(target_scores_path),
         "rsa_scores": str(rsa_path) if rsa_path is not None else None,
+        "geometry_scores": str(geometry_path) if geometry_path is not None else None,
         "selection_enabled": bool(selection_enabled),
         "selection_artifact": "",
         "selection_candidates": "",
@@ -333,6 +361,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "score_rows": score_rows,
         "target_score_rows": target_score_rows,
         "rsa_rows": rsa_rows,
+        "geometry_rows": geometry_rows,
     }
 
 
@@ -1680,6 +1709,71 @@ def _compute_rsa_rows(
     return rows
 
 
+def _compute_geometry_rows(
+    features_by_layer: dict[str, np.ndarray],
+    responses: np.ndarray,
+    *,
+    layers: list[str],
+    methods: list[str],
+    subset_sizes: list[int],
+    subset_seed: int,
+    row_context: dict[str, Any],
+    model_feature_reduction: str,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for layer in layers:
+        features = features_by_layer[layer]
+        for method in methods:
+            if method == "linear_cka":
+                result = linear_cka(features, responses)
+                rows.append(
+                    _geometry_row(
+                        result.as_row(),
+                        row_context=row_context,
+                        layer=layer,
+                        model_feature_reduction=model_feature_reduction,
+                    )
+                )
+            elif method == "subset_rsa":
+                for subset_size in subset_sizes:
+                    result = subset_rsa(
+                        features,
+                        responses,
+                        subset_size=subset_size,
+                        seed=subset_seed,
+                    )
+                    rows.append(
+                        _geometry_row(
+                            result.as_row(),
+                            row_context=row_context,
+                            layer=layer,
+                            model_feature_reduction=model_feature_reduction,
+                        )
+                    )
+            else:
+                raise ValueError("neural.geometry.methods must contain 'linear_cka' or 'subset_rsa'")
+    return rows
+
+
+def _geometry_row(
+    result_row: dict[str, Any],
+    *,
+    row_context: dict[str, Any],
+    layer: str,
+    model_feature_reduction: str,
+) -> dict[str, Any]:
+    return {
+        **row_context,
+        "layer": layer,
+        **result_row,
+        "model_feature_source": "activations.npz",
+        "neural_response_source": "dataset_roi_responses",
+        "centering": "image_centered_columns",
+        "model_feature_reduction": model_feature_reduction,
+        "response_metric": "raw_roi_responses",
+    }
+
+
 def _optional_float_list(values: Any) -> list[float] | None:
     if values is None:
         return None
@@ -1942,6 +2036,33 @@ def _write_rsa_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "compare_method",
         "n_items",
         "score",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_geometry_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    fieldnames = [
+        "dataset",
+        "model",
+        "subject_id",
+        "roi",
+        "layer",
+        "geometry_method",
+        "score",
+        "valid",
+        "status",
+        "num_images_total",
+        "num_images_used",
+        "subset_seed",
+        "subset_size",
+        "model_feature_source",
+        "neural_response_source",
+        "centering",
+        "model_feature_reduction",
+        "response_metric",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)

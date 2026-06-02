@@ -14,6 +14,7 @@ from hma.utils.paths import ensure_dir
 ENCODING_FILE = "encoding_scores.csv"
 ENCODING_TARGET_FILE = "encoding_target_scores.csv"
 RSA_FILE = "rsa_scores.csv"
+GEOMETRY_FILE = "geometry_scores.csv"
 METADATA_FILE = "metadata.json"
 STATIC_SUFFIX = "_static2000"
 BRIDGE_METHODS = {"vanilla_gradient", "gradcam", "attention_rollout"}
@@ -42,7 +43,7 @@ def summarize_neural_roi_results(
         raise ValueError("At least one neural output directory is required")
 
     output = ensure_dir(output_dir)
-    encoding_rows, encoding_target_rows, rsa_rows = _load_neural_rows(dirs)
+    encoding_rows, encoding_target_rows, rsa_rows, geometry_rows = _load_neural_rows(dirs)
     _annotate_target_noise_validity(encoding_target_rows)
     encoding_rows = _attach_noise_normalized_aggregates(
         encoding_rows,
@@ -60,6 +61,10 @@ def summarize_neural_roi_results(
         "neural_model_rankings": output / "neural_model_rankings.csv",
         "matched_panel_encoding_scores": output / "matched_full_panel_encoding_scores.csv",
         "matched_panel_model_rankings": output / "matched_full_panel_model_rankings.csv",
+        "combined_geometry_scores": output / "combined_geometry_scores.csv",
+        "matched_geometry_scores": output / "matched_geometry_scores.csv",
+        "matched_geometry_model_rankings": output / "matched_geometry_model_rankings.csv",
+        "matched_geometry_roi_rankings": output / "matched_geometry_roi_rankings.csv",
         "learned_readout_vs_flatten_pca": output / "learned_readout_vs_flatten_pca.csv",
         "summary_note": output / "neural_roi_summary.md",
         "multimodel_interpretation_note": output / "multimodel_interpretation_note.md",
@@ -75,6 +80,9 @@ def summarize_neural_roi_results(
     matched_panel_ranking_rows = _neural_model_rankings(matched_best_rows, efficiency_csv)
     for row in matched_panel_ranking_rows:
         row["interpretation_scope"] = "matched_full_image_flatten_pca"
+    matched_geometry_rows = _matched_geometry_rows(geometry_rows)
+    matched_geometry_model_ranking_rows = _matched_geometry_model_rankings(matched_geometry_rows)
+    matched_geometry_roi_ranking_rows = _matched_geometry_roi_rankings(matched_geometry_rows)
     learned_readout_comparison_rows = _learned_readout_vs_flatten_pca_rows(encoding_rows)
     _write_rows(outputs["combined_encoding_scores"], encoding_rows, ENCODING_FIELDNAMES)
     if encoding_target_rows:
@@ -108,6 +116,22 @@ def summarize_neural_roi_results(
         matched_panel_ranking_rows,
         NEURAL_RANKING_FIELDNAMES,
     )
+    _write_rows(outputs["combined_geometry_scores"], geometry_rows, GEOMETRY_FIELDNAMES)
+    _write_rows(
+        outputs["matched_geometry_scores"],
+        matched_geometry_rows,
+        GEOMETRY_FIELDNAMES,
+    )
+    _write_rows(
+        outputs["matched_geometry_model_rankings"],
+        matched_geometry_model_ranking_rows,
+        GEOMETRY_MODEL_RANKING_FIELDNAMES,
+    )
+    _write_rows(
+        outputs["matched_geometry_roi_rankings"],
+        matched_geometry_roi_ranking_rows,
+        GEOMETRY_ROI_RANKING_FIELDNAMES,
+    )
     _write_rows(
         outputs["learned_readout_vs_flatten_pca"],
         learned_readout_comparison_rows,
@@ -133,6 +157,8 @@ def summarize_neural_roi_results(
             behavioral_csv,
             matched_encoding_rows,
             matched_panel_ranking_rows,
+            matched_geometry_rows,
+            matched_geometry_model_ranking_rows,
         )
         matched_cross_level_correlation_rows = _matched_cross_level_correlations(
             matched_cross_level_observation_rows,
@@ -195,6 +221,8 @@ def summarize_neural_roi_results(
         matched_cross_level_correlation_rows=matched_cross_level_correlation_rows,
         learned_readout_comparison_rows=learned_readout_comparison_rows,
         matched_panel_ranking_rows=matched_panel_ranking_rows,
+        matched_geometry_rows=matched_geometry_rows,
+        matched_geometry_model_ranking_rows=matched_geometry_model_ranking_rows,
         input_dirs=dirs,
         behavioral_csv=behavioral_csv,
         efficiency_csv=efficiency_csv,
@@ -219,10 +247,16 @@ def summarize_neural_roi_results(
 
 def _load_neural_rows(
     dirs: list[Path],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
     encoding_rows: list[dict[str, Any]] = []
     encoding_target_rows: list[dict[str, Any]] = []
     rsa_rows: list[dict[str, Any]] = []
+    geometry_rows: list[dict[str, Any]] = []
     for directory in dirs:
         if not directory.is_dir():
             raise FileNotFoundError(f"Neural output directory not found: {directory}")
@@ -241,7 +275,11 @@ def _load_neural_rows(
         rsa_path = directory / RSA_FILE
         if rsa_path.is_file():
             rsa_rows.extend(_load_csv_with_context(rsa_path, directory, metadata))
-    return encoding_rows, encoding_target_rows, rsa_rows
+
+        geometry_path = directory / GEOMETRY_FILE
+        if geometry_path.is_file():
+            geometry_rows.extend(_load_csv_with_context(geometry_path, directory, metadata))
+    return encoding_rows, encoding_target_rows, rsa_rows, geometry_rows
 
 
 def _load_metadata(path: Path) -> dict[str, Any]:
@@ -498,6 +536,103 @@ def _matched_panel_encoding_rows(
         if alpha_mode not in {"selection_validation", "cv_inner_validation"}:
             continue
         rows.append({**row, "interpretation_scope": "matched_full_image_flatten_pca"})
+    return rows
+
+
+def _matched_geometry_rows(geometry_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return geometry rows eligible for the matched full-image panel."""
+    rows = []
+    for row in geometry_rows:
+        if str(row.get("model", "")) not in MATCHED_PANEL_MODELS:
+            continue
+        if str(row.get("subject_id", "")) != "subj01":
+            continue
+        if str(row.get("roi", "")) not in MATCHED_PANEL_ROIS:
+            continue
+        if str(row.get("model_feature_reduction", "")) != "flatten_pca":
+            continue
+        metadata_items = _optional_float(row.get("metadata_num_items"))
+        if metadata_items is not None and int(metadata_items) != 9841:
+            continue
+        if str(row.get("valid", "")).lower() != "true":
+            continue
+        updated = {**row, "interpretation_scope": "matched_full_image_flatten_pca_geometry"}
+        rows.append(updated)
+    return rows
+
+
+def _matched_geometry_model_rankings(
+    geometry_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in geometry_rows:
+        grouped.setdefault(
+            (str(row.get("model", "")), str(row.get("geometry_method", ""))),
+            [],
+        ).append(row)
+
+    rows: list[dict[str, Any]] = []
+    for (model, method), group in sorted(grouped.items()):
+        scores = [_float(row.get("score")) for row in group if _optional_float(row.get("score")) is not None]
+        rows.append(
+            {
+                "model": model,
+                "geometry_method": method,
+                "num_geometry_rois": len({str(row.get("roi", "")) for row in group}),
+                "mean_geometry_score": _mean(scores) if scores else "",
+                "rank_mean_geometry": "",
+                "rois": ";".join(sorted({str(row.get("roi", "")) for row in group})),
+                "interpretation_scope": "matched_full_image_flatten_pca_geometry",
+            }
+        )
+    for method in sorted({str(row.get("geometry_method", "")) for row in rows}):
+        _add_rank_column(
+            [row for row in rows if row.get("geometry_method") == method],
+            "mean_geometry_score",
+            "rank_mean_geometry",
+        )
+    return rows
+
+
+def _matched_geometry_roi_rankings(
+    geometry_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for row in geometry_rows:
+        rows.append(
+            {
+                "model": row.get("model", ""),
+                "subject_id": row.get("subject_id", ""),
+                "roi": row.get("roi", ""),
+                "layer": row.get("layer", ""),
+                "geometry_method": row.get("geometry_method", ""),
+                "geometry_score": row.get("score", ""),
+                "rank_within_roi": "",
+                "num_images_used": row.get("num_images_used", ""),
+                "subset_seed": row.get("subset_seed", ""),
+                "subset_size": row.get("subset_size", ""),
+                "source_dir": row.get("source_dir", ""),
+                "interpretation_scope": "matched_full_image_flatten_pca_geometry",
+            }
+        )
+    for key in sorted({(row["roi"], row["geometry_method"]) for row in rows}):
+        _add_rank_column(
+            [
+                row
+                for row in rows
+                if (row.get("roi"), row.get("geometry_method")) == key
+            ],
+            "geometry_score",
+            "rank_within_roi",
+        )
+    rows.sort(
+        key=lambda row: (
+            str(row.get("geometry_method", "")),
+            str(row.get("roi", "")),
+            int(row.get("rank_within_roi") or 999),
+            str(row.get("model", "")),
+        )
+    )
     return rows
 
 
@@ -980,8 +1115,12 @@ def _matched_cross_level_observations(
     behavioral_csv: str | Path,
     matched_encoding_rows: list[dict[str, Any]],
     matched_panel_ranking_rows: list[dict[str, Any]],
+    matched_geometry_rows: list[dict[str, Any]] | None = None,
+    matched_geometry_model_ranking_rows: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Join corrected behavioral rows to the matched full-image neural panel."""
+    matched_geometry_rows = matched_geometry_rows or []
+    matched_geometry_model_ranking_rows = matched_geometry_model_ranking_rows or []
     matched_models = {
         str(row.get("model", ""))
         for row in matched_panel_ranking_rows
@@ -1007,6 +1146,17 @@ def _matched_cross_level_observations(
         str(row.get("model", "")): row
         for row in matched_panel_ranking_rows
         if row.get("model")
+    }
+    primary_geometry_method = _primary_geometry_method(matched_geometry_model_ranking_rows)
+    geometry_roi_by_model_roi = {
+        (str(row.get("model", "")), str(row.get("roi", ""))): row
+        for row in matched_geometry_rows
+        if str(row.get("geometry_method", "")) == primary_geometry_method
+    }
+    geometry_mean_by_model = {
+        str(row.get("model", "")): row
+        for row in matched_geometry_model_ranking_rows
+        if str(row.get("geometry_method", "")) == primary_geometry_method
     }
 
     rows: list[dict[str, Any]] = []
@@ -1041,6 +1191,11 @@ def _matched_cross_level_observations(
                         "mean_noise_normalized_score",
                         "",
                     ),
+                    "geometry_method": primary_geometry_method,
+                    "geometry_score": geometry_roi_by_model_roi.get(
+                        (model, str(neural.get("roi", ""))),
+                        {},
+                    ).get("score", ""),
                 }
             )
         mean_row = mean_rows_by_model.get(model)
@@ -1053,6 +1208,11 @@ def _matched_cross_level_observations(
                     "neural_mean_encoding_raw": mean_row.get("mean_encoding_score", ""),
                     "neural_mean_noise_normalized": mean_row.get(
                         "mean_noise_normalized_score",
+                        "",
+                    ),
+                    "geometry_method": primary_geometry_method,
+                    "geometry_score": geometry_mean_by_model.get(model, {}).get(
+                        "mean_geometry_score",
                         "",
                     ),
                 }
@@ -1070,10 +1230,17 @@ def _matched_cross_level_observations(
     return rows
 
 
+def _primary_geometry_method(rows: list[dict[str, Any]]) -> str:
+    methods = [str(row.get("geometry_method", "")) for row in rows if row.get("geometry_method")]
+    if "linear_cka" in methods:
+        return "linear_cka"
+    return sorted(set(methods))[0] if methods else ""
+
+
 def _matched_cross_level_correlations(
     observation_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str, str, str, str, str, str], list[dict[str, Any]]] = {}
+    grouped: dict[tuple[str, str, str, str, str, str, str], list[dict[str, Any]]] = {}
     for row in observation_rows:
         key = (
             str(row.get("behavior_dataset", "")),
@@ -1082,6 +1249,7 @@ def _matched_cross_level_correlations(
             str(row.get("behavior_saliency_family", "")),
             str(row.get("neural_scope", "")),
             str(row.get("roi_or_mean", "")),
+            str(row.get("geometry_method", "")),
         )
         grouped.setdefault(key, []).append(row)
 
@@ -1098,6 +1266,11 @@ def _matched_cross_level_correlations(
             if _optional_float(row.get("behavior_score_aligned")) is not None
             and _optional_float(row.get("neural_mean_encoding_raw")) is not None
         ]
+        geometry_usable = [
+            row
+            for row in model_rows.values()
+            if _optional_float(row.get("geometry_score")) is not None
+        ]
         n_models = len(usable)
         base = {
             "behavior_dataset": key[0],
@@ -1107,6 +1280,7 @@ def _matched_cross_level_correlations(
             "behavior_saliency_family": key[3],
             "neural_scope": key[4],
             "roi_or_mean": key[5],
+            "geometry_method": key[6],
             "n_models": n_models,
             "models": ";".join(sorted(str(row.get("model", "")) for row in usable)),
         }
@@ -1128,6 +1302,27 @@ def _matched_cross_level_correlations(
         raw_spearman = _spearman(behavior_values, raw_values)
         normalized_spearman: float | None = None
         normalized_ols: dict[str, float] | None = None
+        geometry_spearman: float | None = None
+        geometry_ols: dict[str, float] | None = None
+        encoding_geometry_spearman: float | None = None
+        if len(geometry_usable) >= 3:
+            geometry_x = [_float(row.get("behavior_score_aligned")) for row in geometry_usable]
+            geometry_y = [_float(row.get("geometry_score")) for row in geometry_usable]
+            geometry_spearman = _spearman(geometry_x, geometry_y)
+            geometry_ols = _ols_summary(geometry_x, geometry_y)
+            encoding_geometry_pairs = [
+                (
+                    _float(row.get("neural_mean_noise_normalized")),
+                    _float(row.get("geometry_score")),
+                )
+                for row in geometry_usable
+                if _optional_float(row.get("neural_mean_noise_normalized")) is not None
+            ]
+            if len(encoding_geometry_pairs) >= 3:
+                encoding_geometry_spearman = _spearman(
+                    [pair[0] for pair in encoding_geometry_pairs],
+                    [pair[1] for pair in encoding_geometry_pairs],
+                )
         if len(normalized_pairs) >= 3:
             normalized_x = [pair[0] for pair in normalized_pairs]
             normalized_y = [pair[1] for pair in normalized_pairs]
@@ -1161,6 +1356,19 @@ def _matched_cross_level_correlations(
                     raw_ols["intercept"] if raw_ols is not None else ""
                 ),
                 "ols_raw_encoding_r2": raw_ols["r2"] if raw_ols is not None else "",
+                "spearman_behavior_vs_geometry": (
+                    geometry_spearman if geometry_spearman is not None else ""
+                ),
+                "ols_geometry_slope": geometry_ols["slope"] if geometry_ols is not None else "",
+                "ols_geometry_intercept": (
+                    geometry_ols["intercept"] if geometry_ols is not None else ""
+                ),
+                "ols_geometry_r2": geometry_ols["r2"] if geometry_ols is not None else "",
+                "spearman_encoding_vs_geometry": (
+                    encoding_geometry_spearman
+                    if encoding_geometry_spearman is not None
+                    else ""
+                ),
             }
         )
     return rows
@@ -1309,6 +1517,8 @@ def _write_summary_note(
     matched_cross_level_correlation_rows: list[dict[str, Any]],
     learned_readout_comparison_rows: list[dict[str, Any]],
     matched_panel_ranking_rows: list[dict[str, Any]],
+    matched_geometry_rows: list[dict[str, Any]],
+    matched_geometry_model_ranking_rows: list[dict[str, Any]],
     input_dirs: list[Path],
     behavioral_csv: str | Path | None,
     efficiency_csv: str | Path | None,
@@ -1326,10 +1536,12 @@ def _write_summary_note(
         f"- Encoding rows: {len(encoding_rows)}.",
         f"- Encoding target rows: {len(encoding_target_rows)}.",
         f"- RSA rows: {len(rsa_rows)}.",
+        f"- Geometry rows: {len(matched_geometry_rows)} matched rows.",
         f"- Behavioral bridge CSV: {behavioral_csv if behavioral_csv else 'not provided'}.",
         f"- Efficiency CSV: {efficiency_csv if efficiency_csv else 'not provided'}.",
         f"- Benchmark-style encoding scope: {_benchmark_target_scope_note(encoding_target_rows)}.",
         f"- Matched full-image `flatten_pca` panel models complete in summary: {len(matched_panel_ranking_rows)}.",
+        f"- Matched geometry model-ranking rows: {len(matched_geometry_model_ranking_rows)}.",
         "",
         "## Best Encoding Layers",
         "",
@@ -1948,6 +2160,8 @@ MATCHED_CROSS_LEVEL_OBSERVATION_FIELDNAMES = [
     "behavior_score_aligned",
     "neural_mean_encoding_raw",
     "neural_mean_noise_normalized",
+    "geometry_method",
+    "geometry_score",
     "n_behavior",
     "fixation_protocol",
 ]
@@ -1960,6 +2174,7 @@ MATCHED_CROSS_LEVEL_CORRELATION_FIELDNAMES = [
     "behavior_saliency_family",
     "neural_scope",
     "roi_or_mean",
+    "geometry_method",
     "n_models",
     "models",
     "status",
@@ -1971,6 +2186,61 @@ MATCHED_CROSS_LEVEL_CORRELATION_FIELDNAMES = [
     "ols_raw_encoding_slope",
     "ols_raw_encoding_intercept",
     "ols_raw_encoding_r2",
+    "spearman_behavior_vs_geometry",
+    "ols_geometry_slope",
+    "ols_geometry_intercept",
+    "ols_geometry_r2",
+    "spearman_encoding_vs_geometry",
+]
+
+GEOMETRY_FIELDNAMES = [
+    "dataset",
+    "model",
+    "subject_id",
+    "roi",
+    "layer",
+    "geometry_method",
+    "score",
+    "valid",
+    "status",
+    "num_images_total",
+    "num_images_used",
+    "subset_seed",
+    "subset_size",
+    "model_feature_source",
+    "neural_response_source",
+    "centering",
+    "model_feature_reduction",
+    "response_metric",
+    "source_dir",
+    "metadata_num_items",
+    "metadata_config_path",
+    "interpretation_scope",
+]
+
+GEOMETRY_MODEL_RANKING_FIELDNAMES = [
+    "model",
+    "geometry_method",
+    "num_geometry_rois",
+    "mean_geometry_score",
+    "rank_mean_geometry",
+    "rois",
+    "interpretation_scope",
+]
+
+GEOMETRY_ROI_RANKING_FIELDNAMES = [
+    "model",
+    "subject_id",
+    "roi",
+    "layer",
+    "geometry_method",
+    "geometry_score",
+    "rank_within_roi",
+    "num_images_used",
+    "subset_seed",
+    "subset_size",
+    "source_dir",
+    "interpretation_scope",
 ]
 
 EFFICIENCY_FIELDNAMES = [
