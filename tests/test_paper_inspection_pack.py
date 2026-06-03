@@ -2,11 +2,14 @@ from scripts.create_paper_inspection_pack import (
     MODEL_COLORS,
     MODEL_LABELS,
     _candidate_table,
+    _cross_axis_decision_table,
+    _geometry_agreement_table,
     _learned_readout_comparison_table,
     _load_optional_csv_rows,
     _matched_cross_level_correlation_table,
     _matched_geometry_ranking_table,
     _neural_ranking_table,
+    _sensitivity_table,
     _top_behavior_rows,
     _write_readme,
 )
@@ -278,7 +281,7 @@ def test_matched_geometry_table_formats_rows():
         [
             {
                 "model": "vit_small_patch14_dinov2",
-                "geometry_method": "linear_cka",
+                "geometry_method": "linear_cka_full9841",
                 "num_geometry_rois": "4",
                 "mean_geometry_score": "0.321",
                 "rank_mean_geometry": "1",
@@ -289,9 +292,59 @@ def test_matched_geometry_table_formats_rows():
     )
 
     assert rows[0]["model"] == MODEL_LABELS["vit_small_patch14_dinov2"]
-    assert rows[0]["geometry_method"] == "linear_cka"
+    assert rows[0]["geometry_method"] == "linear_cka_full9841"
     assert rows[0]["mean_geometry_score"] == "0.321"
     assert rows[0]["geometry_rank"] == "1"
+
+
+def test_geometry_agreement_and_sensitivity_tables_format_rows():
+    agreement = _geometry_agreement_table(
+        [
+            {
+                "roi_or_mean": "across_roi_mean",
+                "primary_geometry_method": "linear_cka_full9841",
+                "sensitivity_geometry_method": "subset_rsa_corr_rdm_spearman_size128_seed123",
+                "n_models": "6",
+                "spearman_rank_agreement": "0.8",
+                "kendall_rank_agreement": "0.6",
+                "status": "complete",
+            }
+        ]
+    )
+    decisions = _cross_axis_decision_table(
+        [
+            {
+                "behavior_dataset": "salicon_static2000",
+                "behavior_metric": "nss",
+                "behavior_saliency_method": "vanilla_gradient",
+                "roi_or_mean": "across_roi_mean",
+                "relationship": "behavior_vs_geometry",
+                "baseline_spearman": "0.5",
+                "min_leave_one_model_spearman": "0.4",
+                "max_leave_one_model_spearman": "0.7",
+                "decision_label": "stable_convergence",
+            }
+        ]
+    )
+    sensitivity = _sensitivity_table(
+        [
+            {
+                "behavior_dataset": "salicon_static2000",
+                "behavior_metric": "nss",
+                "behavior_saliency_method": "vanilla_gradient",
+                "roi_or_mean": "across_roi_mean",
+                "relationship": "behavior_vs_geometry",
+                "sensitivity_type": "leave_one_model",
+                "omitted_unit": "resnet50",
+                "sensitivity_spearman": "0.4",
+                "status": "complete",
+            }
+        ]
+    )
+
+    assert agreement[0]["spearman"] == "0.800"
+    assert decisions[0]["decision"] == "stable_convergence"
+    assert sensitivity[0]["omitted_unit"] == "resnet50"
 
 
 def test_readme_reports_matched_cross_level_and_descriptive_overlap(tmp_path):

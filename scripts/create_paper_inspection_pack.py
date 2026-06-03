@@ -106,8 +106,23 @@ def create_paper_inspection_pack(
     matched_cross_level_correlation_rows = _load_optional_csv_rows(
         neural_root / "matched_cross_level_correlations.csv"
     )
+    matched_cross_level_observation_rows = _load_optional_csv_rows(
+        neural_root / "matched_cross_level_observations.csv"
+    )
     matched_geometry_model_ranking_rows = _load_optional_csv_rows(
         neural_root / "matched_geometry_model_rankings.csv"
+    )
+    matched_geometry_score_rows = _load_optional_csv_rows(
+        neural_root / "matched_geometry_scores.csv"
+    )
+    matched_geometry_agreement_rows = _load_optional_csv_rows(
+        neural_root / "matched_geometry_method_agreement.csv"
+    )
+    matched_cross_axis_sensitivity_rows = _load_optional_csv_rows(
+        neural_root / "matched_cross_axis_sensitivity.csv"
+    )
+    matched_cross_axis_decision_rows = _load_optional_csv_rows(
+        neural_root / "matched_cross_axis_decisions.csv"
     )
     candidate_rows = _load_csv_rows(neural_root / "ssl_multimodal_candidate_inventory.csv")
     learned_readout_comparison_rows = _load_optional_csv_rows(
@@ -131,6 +146,9 @@ def create_paper_inspection_pack(
     matched_geometry_table = _matched_geometry_ranking_table(
         matched_geometry_model_ranking_rows
     )
+    geometry_agreement_table = _geometry_agreement_table(matched_geometry_agreement_rows)
+    cross_axis_decision_table = _cross_axis_decision_table(matched_cross_axis_decision_rows)
+    sensitivity_table = _sensitivity_table(matched_cross_axis_sensitivity_rows)
 
     outputs: dict[str, Path] = {}
     outputs["behavior_table_csv"] = _write_rows(
@@ -223,14 +241,53 @@ def create_paper_inspection_pack(
         tables_dir / "table10_matched_geometry_model_rankings.md",
         matched_geometry_table,
     )
+    outputs["geometry_method_agreement_csv"] = _write_rows(
+        tables_dir / "table11_geometry_method_agreement.csv",
+        geometry_agreement_table,
+        list(geometry_agreement_table[0]) if geometry_agreement_table else [],
+    )
+    outputs["geometry_method_agreement_md"] = _write_markdown_table(
+        tables_dir / "table11_geometry_method_agreement.md",
+        geometry_agreement_table,
+    )
+    outputs["cross_axis_decisions_csv"] = _write_rows(
+        tables_dir / "table12_cross_axis_decisions.csv",
+        cross_axis_decision_table,
+        list(cross_axis_decision_table[0]) if cross_axis_decision_table else [],
+    )
+    outputs["cross_axis_decisions_md"] = _write_markdown_table(
+        tables_dir / "table12_cross_axis_decisions.md",
+        cross_axis_decision_table,
+    )
+    outputs["cross_axis_sensitivity_csv"] = _write_rows(
+        tables_dir / "table13_cross_axis_sensitivity.csv",
+        sensitivity_table,
+        list(sensitivity_table[0]) if sensitivity_table else [],
+    )
+    outputs["cross_axis_sensitivity_md"] = _write_markdown_table(
+        tables_dir / "table13_cross_axis_sensitivity.md",
+        sensitivity_table,
+    )
 
     outputs.update(
         _plot_behavior_nss(static_nss_rows, figures_dir / "figure1_behavior_static2000_nss")
     )
     outputs.update(
+        _plot_behavior_benchmark_context(
+            sanity_table,
+            figures_dir / "figure1b_behavior_benchmark_context",
+        )
+    )
+    outputs.update(
         _plot_neural_rankings(model_rankings, figures_dir / "figure2_neural_model_rankings")
     )
     outputs.update(_plot_roi_heatmaps(roi_winners, figures_dir / "figure3_roi_heatmaps"))
+    outputs.update(
+        _plot_geometry_heatmap(
+            matched_geometry_score_rows,
+            figures_dir / "figure3b_matched_geometry_cka_heatmap",
+        )
+    )
     outputs.update(
         _plot_overlap_summary(
             overlap_table,
@@ -244,6 +301,18 @@ def create_paper_inspection_pack(
                 figures_dir / "figure5_matched_cross_level_correlations",
             )
         )
+    outputs.update(
+        _plot_cross_axis_scatter_matrix(
+            matched_cross_level_observation_rows,
+            figures_dir / "figure6_cross_axis_scatter_matrix",
+        )
+    )
+    outputs.update(
+        _plot_decision_summary(
+            cross_axis_decision_table,
+            figures_dir / "figure7_cross_axis_decision_summary",
+        )
+    )
     outputs["readme"] = _write_readme(
         output_root / "README.md",
         behavior_table=behavior_table,
@@ -255,6 +324,8 @@ def create_paper_inspection_pack(
         learned_readout_table=learned_readout_table,
         matched_cross_level_table=matched_cross_level_table,
         matched_geometry_table=matched_geometry_table,
+        geometry_agreement_table=geometry_agreement_table,
+        cross_axis_decision_table=cross_axis_decision_table,
         outputs=outputs,
         behavioral_csv=behavioral_path,
     )
@@ -546,6 +617,104 @@ def _matched_geometry_ranking_table(
     ]
 
 
+def _geometry_agreement_table(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            row.get("status") != "complete",
+            row.get("roi_or_mean", ""),
+            row.get("sensitivity_geometry_method", ""),
+        ),
+    )
+    return [
+        {
+            "roi_or_mean": row.get("roi_or_mean", ""),
+            "primary_method": row.get("primary_geometry_method", ""),
+            "sensitivity_method": row.get("sensitivity_geometry_method", ""),
+            "n_models": row.get("n_models", ""),
+            "spearman": _fmt(row.get("spearman_rank_agreement"))
+            if row.get("spearman_rank_agreement")
+            else "",
+            "kendall": _fmt(row.get("kendall_rank_agreement"))
+            if row.get("kendall_rank_agreement")
+            else "",
+            "status": row.get("status", ""),
+        }
+        for row in ordered[:80]
+    ]
+
+
+def _cross_axis_decision_table(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            row.get("decision_label", ""),
+            DATASET_LABELS.get(row.get("behavior_dataset", ""), row.get("behavior_dataset", "")),
+            row.get("behavior_metric", ""),
+            row.get("behavior_saliency_method", ""),
+            row.get("roi_or_mean", ""),
+            row.get("relationship", ""),
+        ),
+    )
+    return [
+        {
+            "dataset": DATASET_LABELS.get(row.get("behavior_dataset", ""), row.get("behavior_dataset", "")),
+            "metric": row.get("behavior_metric", ""),
+            "saliency_method": METHOD_LABELS.get(
+                row.get("behavior_saliency_method", ""),
+                row.get("behavior_saliency_method", ""),
+            ),
+            "roi_or_mean": row.get("roi_or_mean", ""),
+            "relationship": row.get("relationship", ""),
+            "baseline_spearman": _fmt(row.get("baseline_spearman"))
+            if row.get("baseline_spearman")
+            else "",
+            "min_leave_one_model": _fmt(row.get("min_leave_one_model_spearman"))
+            if row.get("min_leave_one_model_spearman")
+            else "",
+            "max_leave_one_model": _fmt(row.get("max_leave_one_model_spearman"))
+            if row.get("max_leave_one_model_spearman")
+            else "",
+            "decision": row.get("decision_label", ""),
+        }
+        for row in ordered[:120]
+    ]
+
+
+def _sensitivity_table(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            row.get("status") != "complete",
+            row.get("sensitivity_type", ""),
+            row.get("behavior_dataset", ""),
+            row.get("relationship", ""),
+        ),
+    )
+    return [
+        {
+            "dataset": DATASET_LABELS.get(row.get("behavior_dataset", ""), row.get("behavior_dataset", "")),
+            "metric": row.get("behavior_metric", ""),
+            "saliency_method": METHOD_LABELS.get(
+                row.get("behavior_saliency_method", ""),
+                row.get("behavior_saliency_method", ""),
+            ),
+            "roi_or_mean": row.get("roi_or_mean", ""),
+            "relationship": row.get("relationship", ""),
+            "sensitivity_type": row.get("sensitivity_type", ""),
+            "omitted_unit": row.get("omitted_unit", ""),
+            "sensitivity_spearman": _fmt(row.get("sensitivity_spearman"))
+            if row.get("sensitivity_spearman")
+            else "",
+            "permutation_p": _fmt(row.get("permutation_p_value"))
+            if row.get("permutation_p_value")
+            else "",
+            "status": row.get("status", ""),
+        }
+        for row in ordered[:160]
+    ]
+
+
 def _plot_behavior_nss(rows: list[dict[str, str]], output_stem: Path) -> dict[str, Path]:
     plt = _pyplot()
     _set_style(plt)
@@ -581,6 +750,58 @@ def _plot_behavior_nss(rows: list[dict[str, str]], output_stem: Path) -> dict[st
     )
     fig.tight_layout(rect=(0, 0.04, 1, 0.94))
     return _save_figure(fig, output_stem, plt, "behavior_nss")
+
+
+def _plot_behavior_benchmark_context(
+    rows: list[dict[str, Any]],
+    output_stem: Path,
+) -> dict[str, Path]:
+    display_rows = [row for row in rows if _is_finite(row.get("local_deepgaze_iie_nss"))]
+    if not display_rows:
+        return {}
+    plt = _pyplot()
+    _set_style(plt)
+    labels = [str(row.get("dataset", "")) for row in display_rows]
+    local_deepgaze = [_float(row.get("local_deepgaze_iie_nss")) for row in display_rows]
+    local_center = [_float(row.get("local_center_bias_nss")) for row in display_rows]
+    x_positions = list(range(len(display_rows)))
+    width = 0.34
+    fig, ax = plt.subplots(figsize=(8.8, 4.8))
+    ax.bar(
+        [x - width / 2 for x in x_positions],
+        local_deepgaze,
+        width=width,
+        color="#0f766e",
+        label="Local DeepGaze",
+    )
+    ax.bar(
+        [x + width / 2 for x in x_positions],
+        local_center,
+        width=width,
+        color="#4b5563",
+        label="Local center bias",
+    )
+    for x, row in zip(x_positions, display_rows):
+        reference = row.get("literature_deepgaze_iie_nss", "")
+        if _is_finite(reference):
+            ax.hlines(
+                _float(reference),
+                x - 0.42,
+                x + 0.42,
+                colors="#dc2626",
+                linestyles="dashed",
+                linewidth=1.2,
+            )
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("NSS")
+    ax.set_title("Behavioral Benchmark Context", loc="left", fontweight="bold")
+    ax.grid(axis="y", color="#e5e7eb", linewidth=0.8)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(frameon=False)
+    fig.tight_layout()
+    return _save_figure(fig, output_stem, plt, "behavior_benchmark_context")
 
 
 def _plot_neural_rankings(rows: list[dict[str, str]], output_stem: Path) -> dict[str, Path]:
@@ -664,6 +885,43 @@ def _plot_roi_heatmaps(rows: list[dict[str, str]], output_stem: Path) -> dict[st
     fig.suptitle("Best Layer Per Model And PRF Visual ROI", fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     return _save_figure(fig, output_stem, plt, "roi_heatmaps")
+
+
+def _plot_geometry_heatmap(
+    rows: list[dict[str, str]],
+    output_stem: Path,
+) -> dict[str, Path]:
+    display_rows = [
+        row
+        for row in rows
+        if row.get("geometry_method") in {"linear_cka_full9841", "linear_cka"}
+        and _is_finite(row.get("score"))
+    ]
+    if not display_rows:
+        return {}
+    models = sorted(
+        {row["model"] for row in display_rows},
+        key=lambda model: MODEL_LABELS.get(model, model),
+    )
+    plt = _pyplot()
+    _set_style(plt)
+    matrix = []
+    for model in models:
+        model_rows = {row["roi"]: row for row in display_rows if row["model"] == model}
+        matrix.append([_float(model_rows.get(roi, {}).get("score")) for roi in ROI_ORDER])
+    fig, ax = plt.subplots(figsize=(8.8, 5.8))
+    image = ax.imshow(matrix, cmap="magma", aspect="auto")
+    ax.set_xticks(range(len(ROI_ORDER)))
+    ax.set_xticklabels(ROI_ORDER)
+    ax.set_yticks(range(len(models)))
+    ax.set_yticklabels([MODEL_LABELS.get(model, model) for model in models])
+    ax.set_title("Matched Full-Image Linear CKA By ROI", loc="left", fontweight="bold")
+    for y, model in enumerate(models):
+        for x, roi in enumerate(ROI_ORDER):
+            ax.text(x, y, _fmt(matrix[y][x]), ha="center", va="center", color="white", fontsize=8)
+    fig.colorbar(image, ax=ax, shrink=0.8)
+    fig.tight_layout()
+    return _save_figure(fig, output_stem, plt, "matched_geometry_heatmap")
 
 
 def _plot_overlap_summary(rows: list[dict[str, Any]], output_stem: Path) -> dict[str, Path]:
@@ -759,6 +1017,115 @@ def _plot_matched_cross_level_correlations(
     return _save_figure(fig, output_stem, plt, "matched_cross_level_correlations")
 
 
+def _plot_cross_axis_scatter_matrix(
+    rows: list[dict[str, str]],
+    output_stem: Path,
+) -> dict[str, Path]:
+    display_rows = [
+        row
+        for row in rows
+        if row.get("behavior_metric") == "nss"
+        and row.get("roi_or_mean") == "across_roi_mean"
+        and row.get("geometry_method") in {"linear_cka_full9841", "linear_cka"}
+        and _is_finite(row.get("behavior_score_aligned"))
+        and _is_finite(row.get("neural_mean_noise_normalized"))
+        and _is_finite(row.get("geometry_score"))
+    ]
+    if not display_rows:
+        return {}
+    datasets = sorted({row.get("behavior_dataset", "") for row in display_rows})
+    relationships = [
+        ("behavior_score_aligned", "neural_mean_noise_normalized", "Behavior NSS", "Encoding"),
+        ("behavior_score_aligned", "geometry_score", "Behavior NSS", "CKA"),
+        ("neural_mean_noise_normalized", "geometry_score", "Encoding", "CKA"),
+    ]
+    plt = _pyplot()
+    _set_style(plt)
+    fig, axes = plt.subplots(
+        nrows=len(datasets),
+        ncols=len(relationships),
+        figsize=(12.2, max(3.2, 2.8 * len(datasets))),
+        squeeze=False,
+    )
+    for row_index, dataset in enumerate(datasets):
+        dataset_rows = [row for row in display_rows if row.get("behavior_dataset") == dataset]
+        # Keep one row per model per dataset, preferring vanilla gradient when present.
+        by_model: dict[str, dict[str, str]] = {}
+        for row in sorted(dataset_rows, key=lambda item: item.get("behavior_saliency_method") != "vanilla_gradient"):
+            by_model.setdefault(row.get("model", ""), row)
+        for col_index, (x_field, y_field, x_label, y_label) in enumerate(relationships):
+            ax = axes[row_index][col_index]
+            for model, row in by_model.items():
+                x_value = _float(row.get(x_field))
+                y_value = _float(row.get(y_field))
+                ax.scatter(
+                    [x_value],
+                    [y_value],
+                    color=MODEL_COLORS.get(model, "#6b7280"),
+                    s=36,
+                )
+                ax.text(
+                    x_value,
+                    y_value,
+                    MODEL_LABELS.get(model, model).replace(" ", "\n"),
+                    fontsize=6,
+                    ha="left",
+                    va="bottom",
+                )
+            ax.set_xlabel(x_label)
+            ax.set_ylabel(y_label)
+            ax.set_title(
+                f"{DATASET_LABELS.get(dataset, dataset)}: {x_label} vs {y_label}",
+                loc="left",
+                fontweight="bold",
+                fontsize=9,
+            )
+            ax.grid(color="#e5e7eb", linewidth=0.8)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+    fig.tight_layout()
+    return _save_figure(fig, output_stem, plt, "cross_axis_scatter_matrix")
+
+
+def _plot_decision_summary(
+    rows: list[dict[str, Any]],
+    output_stem: Path,
+) -> dict[str, Path]:
+    if not rows:
+        return {}
+    counts: dict[str, int] = {}
+    for row in rows:
+        label = str(row.get("decision", ""))
+        if label:
+            counts[label] = counts.get(label, 0) + 1
+    if not counts:
+        return {}
+    plt = _pyplot()
+    _set_style(plt)
+    labels = sorted(counts)
+    values = [counts[label] for label in labels]
+    colors = {
+        "stable_convergence": "#16a34a",
+        "stable_dissociation": "#2563eb",
+        "unstable": "#dc2626",
+        "insufficient_models": "#6b7280",
+    }
+    fig, ax = plt.subplots(figsize=(7.6, 4.4))
+    positions = list(range(len(labels)))
+    ax.bar(positions, values, color=[colors.get(label, "#6b7280") for label in labels])
+    ax.set_xticks(positions)
+    ax.set_xticklabels([label.replace("_", "\n") for label in labels])
+    ax.set_ylabel("Relationship count")
+    ax.set_title("Cross-Axis Stability Decisions", loc="left", fontweight="bold")
+    ax.grid(axis="y", color="#e5e7eb", linewidth=0.8)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    for x, value in zip(positions, values):
+        ax.text(x, value + 0.25, str(value), ha="center", fontsize=8)
+    fig.tight_layout()
+    return _save_figure(fig, output_stem, plt, "cross_axis_decision_summary")
+
+
 def _write_readme(
     path: Path,
     *,
@@ -773,6 +1140,8 @@ def _write_readme(
     matched_panel_table: list[dict[str, Any]] | None = None,
     matched_cross_level_table: list[dict[str, Any]] | None = None,
     matched_geometry_table: list[dict[str, Any]] | None = None,
+    geometry_agreement_table: list[dict[str, Any]] | None = None,
+    cross_axis_decision_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     best_behavior = behavior_table[0] if behavior_table else {}
     matched_rows = matched_panel_table or []
@@ -799,15 +1168,21 @@ def _write_readme(
     )
     matched_cross_level_rows = matched_cross_level_table or []
     matched_geometry_rows = matched_geometry_table or []
+    geometry_agreement_rows = geometry_agreement_table or []
+    cross_axis_decision_rows = cross_axis_decision_table or []
     top_geometry = next(
         (
             row
             for row in matched_geometry_rows
-            if row.get("geometry_method") == "linear_cka"
+            if row.get("geometry_method") in {"linear_cka_full9841", "linear_cka"}
             and row.get("geometry_rank") == "1"
         ),
         matched_geometry_rows[0] if matched_geometry_rows else {},
     )
+    decision_counts = _decision_counts(cross_axis_decision_rows)
+    decision_text = ", ".join(
+        f"{label}={count}" for label, count in sorted(decision_counts.items())
+    ) or "not available"
     complete_cross_level_rows = [
         row for row in matched_cross_level_rows if row.get("status") == "complete"
     ]
@@ -846,6 +1221,12 @@ def _write_readme(
             else "- Matched representational-geometry table is not available in this pack."
         ),
         (
+            f"- Geometry sensitivity rows available: {len(geometry_agreement_rows)} CKA/subset-RSA agreement rows."
+            if geometry_agreement_rows
+            else "- Geometry sensitivity rows are not available yet; subset RSA may still be profiling-limited."
+        ),
+        f"- Cross-axis decision labels: {decision_text}.",
+        (
             "- Matched full-image `flatten_pca` panel is complete and used for the encoding headline."
             if matched_panel_complete
             else f"- Matched full-image `flatten_pca` panel rows available: {len(matched_rows)}; mixed-scope ranking remains the headline until all expected model/ROI cells are complete."
@@ -874,10 +1255,14 @@ def _write_readme(
         "## Figures",
         "",
         "- `figures/figure1_behavior_static2000_nss.png`: top static2000 NSS rows by dataset.",
+        "- `figures/figure1b_behavior_benchmark_context.png`: local reference rows with literature benchmark context where numeric comparison is meaningful.",
         "- `figures/figure2_neural_model_rankings.png`: noise-normalized encoding, raw encoding, legacy RSA, and latency-normalized RSA scores.",
         "- `figures/figure3_roi_heatmaps.png`: best noise-normalized encoding/RSA layers and scores by model and ROI.",
+        "- `figures/figure3b_matched_geometry_cka_heatmap.png`: matched full-image linear CKA by model and ROI.",
         "- `figures/figure4_behavior_neural_leader_overlap.png`: descriptive leader-overlap rates.",
         "- `figures/figure5_matched_cross_level_correlations.png`: matched model-level NSS correlations where available.",
+        "- `figures/figure6_cross_axis_scatter_matrix.png`: model-labeled behavior/encoding/CKA scatter panels.",
+        "- `figures/figure7_cross_axis_decision_summary.png`: decision-label counts for sensitivity-tested relationships.",
         "",
         "## Tables",
         "",
@@ -891,6 +1276,9 @@ def _write_readme(
         "- `tables/table8_matched_full_panel_model_rankings.md`",
         "- `tables/table9_matched_cross_level_correlations.md`",
         "- `tables/table10_matched_geometry_model_rankings.md`",
+        "- `tables/table11_geometry_method_agreement.md`",
+        "- `tables/table12_cross_axis_decisions.md`",
+        "- `tables/table13_cross_axis_sensitivity.md`",
         "",
         "## Academic SOTA Context",
         "",
@@ -921,6 +1309,15 @@ def _candidate_status_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
     for row in rows:
         status = str(row.get("pretrained_status") or "not_run")
         counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+def _decision_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        label = str(row.get("decision", ""))
+        if label:
+            counts[label] = counts.get(label, 0) + 1
     return counts
 
 

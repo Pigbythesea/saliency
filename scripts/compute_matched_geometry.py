@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,14 @@ GEOMETRY_FIELDNAMES = [
     "num_images_used",
     "subset_seed",
     "subset_size",
+    "feature_rdm_metric",
+    "response_rdm_metric",
+    "rdm_compare_method",
+    "subset_index_policy",
+    "wall_time_sec",
+    "feature_shape",
+    "response_shape",
+    "estimated_rdm_bytes",
     "model_feature_source",
     "neural_response_source",
     "centering",
@@ -42,6 +51,10 @@ def compute_matched_geometry(
     config_path: str | Path = DEFAULT_CONFIG,
     *,
     methods_override: list[str] | None = None,
+    models: list[str] | None = None,
+    rois: list[str] | None = None,
+    subset_sizes_override: list[int] | None = None,
+    subset_seeds_override: list[int] | None = None,
     skip_existing: bool = False,
 ) -> list[Path]:
     """Compute geometry scores for every output directory in the Paper 1 scope."""
@@ -53,22 +66,43 @@ def compute_matched_geometry(
     methods = methods_override or [
         str(method) for method in geometry.get("methods", ["linear_cka"])
     ]
-    subset_sizes = [int(size) for size in geometry.get("subset_sizes", [])]
-    subset_seed = int(geometry.get("subset_seed", 123))
+    subset_sizes = subset_sizes_override or [
+        int(size) for size in geometry.get("subset_sizes", [])
+    ]
+    subset_seeds = subset_seeds_override or [
+        int(seed)
+        for seed in geometry.get("subset_seeds", [geometry.get("subset_seed", 123)])
+    ]
+    feature_rdm_metric = str(geometry.get("feature_rdm_metric", "correlation"))
+    response_rdm_metric = str(geometry.get("response_rdm_metric", "correlation"))
+    rdm_compare_method = str(geometry.get("rdm_compare_method", "spearman"))
+    model_filter = set(models or [])
+    roi_filter = set(rois or [])
 
     written: list[Path] = []
     response_cache: dict[tuple[str, str, str, str, str, int], tuple[list[str], np.ndarray]] = {}
     for raw_dir in scope.get("neural_output_dirs", []):
         output_dir = resolve_path(raw_dir)
+        metadata = _load_json(output_dir / "metadata.json")
+        model = str(metadata.get("model_name") or metadata.get("model", ""))
+        roi = _single(metadata.get("rois"))
+        if model_filter and model not in model_filter:
+            continue
+        if roi_filter and roi not in roi_filter:
+            continue
         path = output_dir / "geometry_scores.csv"
         if skip_existing and path.is_file():
             written.append(path)
             continue
         rows = _compute_output_geometry(
             output_dir,
+            metadata=metadata,
             methods=methods,
             subset_sizes=subset_sizes,
-            subset_seed=subset_seed,
+            subset_seeds=subset_seeds,
+            feature_rdm_metric=feature_rdm_metric,
+            response_rdm_metric=response_rdm_metric,
+            rdm_compare_method=rdm_compare_method,
             response_cache=response_cache,
         )
         _write_rows(path, rows)
@@ -79,12 +113,16 @@ def compute_matched_geometry(
 def _compute_output_geometry(
     output_dir: Path,
     *,
+    metadata: dict[str, Any] | None = None,
     methods: list[str],
     subset_sizes: list[int],
-    subset_seed: int,
+    subset_seeds: list[int],
+    feature_rdm_metric: str,
+    response_rdm_metric: str,
+    rdm_compare_method: str,
     response_cache: dict[tuple[str, str, str, str, str, int], tuple[list[str], np.ndarray]],
 ) -> list[dict[str, Any]]:
-    metadata = _load_json(output_dir / "metadata.json")
+    metadata = metadata or _load_json(output_dir / "metadata.json")
     activation_path = Path(metadata.get("activations") or output_dir / "activations.npz")
     if not activation_path.is_absolute():
         activation_path = output_dir / activation_path
@@ -116,28 +154,81 @@ def _compute_output_geometry(
         "centering": "image_centered_columns",
         "model_feature_reduction": metadata.get("feature_reduction", ""),
         "response_metric": "raw_roi_responses",
+        "feature_shape": _shape_text(features.shape),
+        "response_shape": _shape_text(responses.shape),
     }
 
     rows: list[dict[str, Any]] = []
     for method in methods:
-        if method == "linear_cka":
-            rows.append({**common, **linear_cka(features, responses).as_row()})
+        if method in {"linear_cka", "linear_cka_full9841"}:
+            row = _profiled_row(
+                lambda: linear_cka(features, responses),
+                estimated_rdm_bytes="0",
+            )
+            row["geometry_method"] = "linear_cka_full9841"
+            rows.append({**common, **row})
         elif method == "subset_rsa":
             for subset_size in subset_sizes:
-                rows.append(
-                    {
-                        **common,
-                        **subset_rsa(
+                for subset_seed in subset_seeds:
+                    row = _profiled_row(
+                        lambda subset_size=subset_size, subset_seed=subset_seed: subset_rsa(
                             features,
                             responses,
                             subset_size=subset_size,
                             seed=subset_seed,
-                        ).as_row(),
-                    }
-                )
+                            feature_rdm_metric=feature_rdm_metric,
+                            response_rdm_metric=response_rdm_metric,
+                            compare_method=rdm_compare_method,
+                        ),
+                        estimated_rdm_bytes=str(_estimated_two_rdm_bytes(subset_size)),
+                    )
+                    row["geometry_method"] = _subset_rsa_method_label(
+                        subset_size,
+                        subset_seed,
+                        feature_rdm_metric,
+                        response_rdm_metric,
+                        rdm_compare_method,
+                    )
+                    rows.append({**common, **row})
         else:
             raise ValueError(f"Unsupported geometry method: {method}")
     return rows
+
+
+def _profiled_row(callable_result: Any, *, estimated_rdm_bytes: str) -> dict[str, Any]:
+    start = time.perf_counter()
+    result = callable_result()
+    elapsed = time.perf_counter() - start
+    row = result.as_row()
+    row["wall_time_sec"] = f"{elapsed:.6f}"
+    row["estimated_rdm_bytes"] = estimated_rdm_bytes
+    return row
+
+
+def _subset_rsa_method_label(
+    subset_size: int,
+    subset_seed: int,
+    feature_rdm_metric: str,
+    response_rdm_metric: str,
+    compare_method: str,
+) -> str:
+    metric_label = (
+        "corr_rdm"
+        if feature_rdm_metric == response_rdm_metric == "correlation"
+        else f"{feature_rdm_metric}_{response_rdm_metric}_rdm"
+    )
+    return (
+        f"subset_rsa_{metric_label}_{compare_method}_"
+        f"size{subset_size}_seed{subset_seed}"
+    )
+
+
+def _estimated_two_rdm_bytes(subset_size: int) -> int:
+    return int(2 * subset_size * subset_size * np.dtype(np.float32).itemsize)
+
+
+def _shape_text(shape: tuple[int, ...]) -> str:
+    return "x".join(str(part) for part in shape)
 
 
 def _dataset_image_ids_and_responses(
@@ -223,11 +314,29 @@ def main() -> None:
         nargs="+",
         help="Optional geometry methods override, e.g. --methods linear_cka",
     )
+    parser.add_argument("--models", nargs="+", help="Optional model-name filter.")
+    parser.add_argument("--rois", nargs="+", help="Optional ROI filter.")
+    parser.add_argument(
+        "--subset-sizes",
+        nargs="+",
+        type=int,
+        help="Optional subset sizes override for subset RSA.",
+    )
+    parser.add_argument(
+        "--subset-seeds",
+        nargs="+",
+        type=int,
+        help="Optional subset seeds override for subset RSA.",
+    )
     parser.add_argument("--skip-existing", action="store_true")
     args = parser.parse_args()
     written = compute_matched_geometry(
         args.config,
         methods_override=args.methods,
+        models=args.models,
+        rois=args.rois,
+        subset_sizes_override=args.subset_sizes,
+        subset_seeds_override=args.subset_seeds,
         skip_existing=args.skip_existing,
     )
     print(f"Wrote {len(written)} geometry score files")

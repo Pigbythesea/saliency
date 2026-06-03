@@ -601,6 +601,22 @@ def test_matched_cross_level_analysis_uses_only_matched_panel_rows(tmp_path):
     )
     assert salicon_kl["behavior_metric_direction"] == "lower_is_better"
     assert float(salicon_kl["spearman_behavior_vs_noise_normalized"]) == 1.0
+    sensitivity_rows = _read_csv(outputs["matched_cross_axis_sensitivity"])
+    decision_rows = _read_csv(outputs["matched_cross_axis_decisions"])
+    assert any(row["sensitivity_type"] == "leave_one_model" for row in sensitivity_rows)
+    assert any(
+        row["sensitivity_type"] == "model_label_permutation"
+        for row in sensitivity_rows
+    )
+    assert any(
+        row["relationship"] == "behavior_vs_noise_normalized"
+        and row["decision_label"] in {
+            "stable_convergence",
+            "unstable",
+            "insufficient_models",
+        }
+        for row in decision_rows
+    )
 
 
 def test_matched_cross_level_analysis_marks_sparse_groups_insufficient(tmp_path):
@@ -1335,6 +1351,7 @@ def test_summarize_neural_roi_results_writes_matched_geometry_tables(tmp_path):
     paths = [
         (tmp_path / "outputs" / "resnet50", "resnet50", 0.2),
         (tmp_path / "outputs" / "convnext_tiny", "convnext_tiny", 0.4),
+        (tmp_path / "outputs" / "deit_small_patch16_224", "deit_small_patch16_224", 0.6),
     ]
     for path, model, score in paths:
         path.mkdir(parents=True, exist_ok=True)
@@ -1417,6 +1434,42 @@ def test_summarize_neural_roi_results_writes_matched_geometry_tables(tmp_path):
                     "centering": "image_centered_columns",
                     "model_feature_reduction": "flatten_pca",
                     "response_metric": "raw_roi_responses",
+                    "wall_time_sec": "0.01",
+                    "feature_shape": "9841x512",
+                    "response_shape": "9841x10",
+                    "estimated_rdm_bytes": "0",
+                    "feature_rdm_metric": "",
+                    "response_rdm_metric": "",
+                    "rdm_compare_method": "",
+                    "subset_index_policy": "",
+                },
+                {
+                    "dataset": f"{model}_v1",
+                    "model": model,
+                    "subject_id": "subj01",
+                    "roi": "V1",
+                    "layer": "layer1",
+                    "geometry_method": "subset_rsa_corr_rdm_spearman_size128_seed123",
+                    "score": score + 0.01,
+                    "valid": "true",
+                    "status": "ok",
+                    "num_images_total": 9841,
+                    "num_images_used": 128,
+                    "subset_seed": "123",
+                    "subset_size": "128",
+                    "model_feature_source": "activations.npz",
+                    "neural_response_source": "dataset_roi_responses",
+                    "centering": "image_centered_columns",
+                    "model_feature_reduction": "flatten_pca",
+                    "response_metric": "raw_roi_responses",
+                    "wall_time_sec": "0.02",
+                    "feature_shape": "9841x512",
+                    "response_shape": "9841x10",
+                    "estimated_rdm_bytes": "131072",
+                    "feature_rdm_metric": "correlation",
+                    "response_rdm_metric": "correlation",
+                    "rdm_compare_method": "spearman",
+                    "subset_index_policy": "deterministic_sorted_without_replacement",
                 }
             ],
             [
@@ -1433,6 +1486,14 @@ def test_summarize_neural_roi_results_writes_matched_geometry_tables(tmp_path):
                 "num_images_used",
                 "subset_seed",
                 "subset_size",
+                "feature_rdm_metric",
+                "response_rdm_metric",
+                "rdm_compare_method",
+                "subset_index_policy",
+                "wall_time_sec",
+                "feature_shape",
+                "response_shape",
+                "estimated_rdm_bytes",
                 "model_feature_source",
                 "neural_response_source",
                 "centering",
@@ -1446,10 +1507,14 @@ def test_summarize_neural_roi_results_writes_matched_geometry_tables(tmp_path):
     matched_rows = _read_csv(outputs["matched_geometry_scores"])
     ranking_rows = _read_csv(outputs["matched_geometry_model_rankings"])
     roi_rows = _read_csv(outputs["matched_geometry_roi_rankings"])
-    assert len(matched_rows) == 2
-    assert ranking_rows[0]["model"] == "convnext_tiny"
+    agreement_rows = _read_csv(outputs["matched_geometry_method_agreement"])
+    runtime_rows = _read_csv(outputs["matched_geometry_runtime_summary"])
+    assert len(matched_rows) == 6
+    assert ranking_rows[0]["model"] == "deit_small_patch16_224"
     assert ranking_rows[0]["rank_mean_geometry"] == "1"
     assert roi_rows[0]["rank_within_roi"] == "1"
+    assert agreement_rows[0]["status"] == "complete"
+    assert any(row["geometry_method"].startswith("subset_rsa_") for row in runtime_rows)
 
 
 def test_audit_matched_neural_panel_reports_complete_missing_and_skipped(tmp_path):

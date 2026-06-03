@@ -18,13 +18,21 @@ paper1_scope:
   expected_num_items: 9841
   geometry:
     methods:
-      - linear_cka
+      - linear_cka_full9841
       - subset_rsa
     subset_sizes:
+      - 128
+      - 256
       - 512
-      - 1024
-      - 2048
+    subset_seeds:
+      - 123
+      - 456
+      - 789
     subset_seed: 123
+    feature_rdm_metric: correlation
+    response_rdm_metric: correlation
+    rdm_compare_method: spearman
+    subset_index_policy: deterministic_sorted_without_replacement
     centering: image_centered_columns
     response_metric: raw_roi_responses
   exclusions:

@@ -75,6 +75,7 @@ def summarize_observer_controls(
         records,
         image_size=image_size,
         fixation_sigma=fixation_sigma,
+        max_observers_per_image=max_observers_per_image,
     )
     return [*mat_rows, *inline_rows]
 
@@ -84,16 +85,28 @@ def _summarize_inline_observer_controls(
     *,
     image_size: tuple[int, int],
     fixation_sigma: float,
+    max_observers_per_image: int | None,
 ) -> list[dict[str, Any]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in records:
         points = _parse_manifest_fixation_points(record)
         if points.size:
-            grouped[str(record.get("image_id", ""))].append({**record, "points": points})
+            grouped[str(record.get("image_id", ""))].append(
+                {
+                    **record,
+                    "points": _scale_inline_points(
+                        points,
+                        record=record,
+                        image_size=image_size,
+                    ),
+                }
+            )
 
     output = []
     height, width = image_size
     for image_id, image_records in sorted(grouped.items()):
+        if max_observers_per_image is not None and max_observers_per_image > 0:
+            image_records = image_records[:max_observers_per_image]
         if len(image_records) < 2:
             continue
         maps = [
@@ -137,6 +150,8 @@ def _summarize_mat_observer_controls(
 ) -> list[dict[str, Any]]:
     output = []
     for record in records:
+        if record.get("fixation_points"):
+            continue
         raw_path = record.get("fixation_points_path", "")
         if not raw_path:
             continue
@@ -309,6 +324,22 @@ def _parse_manifest_fixation_points(record: dict[str, str]) -> np.ndarray:
             return np.zeros((0, 2), dtype=np.float32)
         return points
     return np.zeros((0, 2), dtype=np.float32)
+
+
+def _scale_inline_points(
+    points: np.ndarray,
+    *,
+    record: dict[str, str],
+    image_size: tuple[int, int],
+) -> np.ndarray:
+    original_width = _optional_float(record.get("width"))
+    original_height = _optional_float(record.get("height"))
+    if original_width is None or original_height is None:
+        return points
+    scaled = np.asarray(points, dtype=np.float32).reshape(-1, 2).copy()
+    scaled[:, 0] *= image_size[1] / original_width
+    scaled[:, 1] *= image_size[0] / original_height
+    return scaled
 
 
 def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:

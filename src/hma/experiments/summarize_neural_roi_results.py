@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import itertools
 import json
 import math
 from pathlib import Path
@@ -65,6 +66,8 @@ def summarize_neural_roi_results(
         "matched_geometry_scores": output / "matched_geometry_scores.csv",
         "matched_geometry_model_rankings": output / "matched_geometry_model_rankings.csv",
         "matched_geometry_roi_rankings": output / "matched_geometry_roi_rankings.csv",
+        "matched_geometry_method_agreement": output / "matched_geometry_method_agreement.csv",
+        "matched_geometry_runtime_summary": output / "matched_geometry_runtime_summary.csv",
         "learned_readout_vs_flatten_pca": output / "learned_readout_vs_flatten_pca.csv",
         "summary_note": output / "neural_roi_summary.md",
         "multimodel_interpretation_note": output / "multimodel_interpretation_note.md",
@@ -83,6 +86,8 @@ def summarize_neural_roi_results(
     matched_geometry_rows = _matched_geometry_rows(geometry_rows)
     matched_geometry_model_ranking_rows = _matched_geometry_model_rankings(matched_geometry_rows)
     matched_geometry_roi_ranking_rows = _matched_geometry_roi_rankings(matched_geometry_rows)
+    matched_geometry_agreement_rows = _matched_geometry_method_agreement(matched_geometry_rows)
+    matched_geometry_runtime_rows = _matched_geometry_runtime_summary(matched_geometry_rows)
     learned_readout_comparison_rows = _learned_readout_vs_flatten_pca_rows(encoding_rows)
     _write_rows(outputs["combined_encoding_scores"], encoding_rows, ENCODING_FIELDNAMES)
     if encoding_target_rows:
@@ -133,6 +138,16 @@ def summarize_neural_roi_results(
         GEOMETRY_ROI_RANKING_FIELDNAMES,
     )
     _write_rows(
+        outputs["matched_geometry_method_agreement"],
+        matched_geometry_agreement_rows,
+        GEOMETRY_METHOD_AGREEMENT_FIELDNAMES,
+    )
+    _write_rows(
+        outputs["matched_geometry_runtime_summary"],
+        matched_geometry_runtime_rows,
+        GEOMETRY_RUNTIME_FIELDNAMES,
+    )
+    _write_rows(
         outputs["learned_readout_vs_flatten_pca"],
         learned_readout_comparison_rows,
         LEARNED_READOUT_COMPARISON_FIELDNAMES,
@@ -143,6 +158,8 @@ def summarize_neural_roi_results(
     leader_overlap_rows: list[dict[str, Any]] = []
     matched_cross_level_observation_rows: list[dict[str, Any]] = []
     matched_cross_level_correlation_rows: list[dict[str, Any]] = []
+    matched_cross_axis_sensitivity_rows: list[dict[str, Any]] = []
+    matched_cross_axis_decision_rows: list[dict[str, Any]] = []
     if behavioral_csv is not None:
         bridge_rows = _behavior_neural_bridge(behavioral_csv, best_rows)
         behavior_neural_alignment_rows = _behavior_neural_alignment_summary(
@@ -163,6 +180,14 @@ def summarize_neural_roi_results(
         matched_cross_level_correlation_rows = _matched_cross_level_correlations(
             matched_cross_level_observation_rows,
         )
+        matched_cross_axis_sensitivity_rows = _matched_cross_axis_sensitivity(
+            matched_cross_level_observation_rows,
+            matched_cross_level_correlation_rows,
+        )
+        matched_cross_axis_decision_rows = _matched_cross_axis_decisions(
+            matched_cross_level_correlation_rows,
+            matched_cross_axis_sensitivity_rows,
+        )
         outputs["behavior_neural_bridge"] = output / "behavior_neural_bridge.csv"
         outputs["behavior_neural_model_summary"] = output / "behavior_neural_model_summary.csv"
         outputs["behavior_neural_alignment_summary"] = (
@@ -174,6 +199,12 @@ def summarize_neural_roi_results(
         )
         outputs["matched_cross_level_correlations"] = (
             output / "matched_cross_level_correlations.csv"
+        )
+        outputs["matched_cross_axis_sensitivity"] = (
+            output / "matched_cross_axis_sensitivity.csv"
+        )
+        outputs["matched_cross_axis_decisions"] = (
+            output / "matched_cross_axis_decisions.csv"
         )
         _write_rows(outputs["behavior_neural_bridge"], bridge_rows, BRIDGE_FIELDNAMES)
         _write_rows(
@@ -200,6 +231,16 @@ def summarize_neural_roi_results(
             outputs["matched_cross_level_correlations"],
             matched_cross_level_correlation_rows,
             MATCHED_CROSS_LEVEL_CORRELATION_FIELDNAMES,
+        )
+        _write_rows(
+            outputs["matched_cross_axis_sensitivity"],
+            matched_cross_axis_sensitivity_rows,
+            MATCHED_CROSS_AXIS_SENSITIVITY_FIELDNAMES,
+        )
+        _write_rows(
+            outputs["matched_cross_axis_decisions"],
+            matched_cross_axis_decision_rows,
+            MATCHED_CROSS_AXIS_DECISION_FIELDNAMES,
         )
 
     if efficiency_csv is not None:
@@ -591,6 +632,13 @@ def _matched_geometry_model_rankings(
             "mean_geometry_score",
             "rank_mean_geometry",
         )
+    rows.sort(
+        key=lambda row: (
+            str(row.get("geometry_method", "")),
+            int(row.get("rank_mean_geometry") or 999),
+            str(row.get("model", "")),
+        )
+    )
     return rows
 
 
@@ -633,6 +681,111 @@ def _matched_geometry_roi_rankings(
             str(row.get("model", "")),
         )
     )
+    return rows
+
+
+def _matched_geometry_method_agreement(
+    geometry_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    primary_method = _primary_geometry_method(geometry_rows)
+    subset_methods = sorted(
+        {
+            str(row.get("geometry_method", ""))
+            for row in geometry_rows
+            if str(row.get("geometry_method", "")).startswith("subset_rsa_")
+        }
+    )
+    rows: list[dict[str, Any]] = []
+    for roi_or_mean in sorted(MATCHED_PANEL_ROIS | {"across_roi_mean"}):
+        primary_scores = _geometry_scores_by_model(geometry_rows, primary_method, roi_or_mean)
+        for subset_method in subset_methods:
+            subset_scores = _geometry_scores_by_model(geometry_rows, subset_method, roi_or_mean)
+            models = sorted(set(primary_scores) & set(subset_scores))
+            spearman: float | None = None
+            kendall: float | None = None
+            if len(models) >= 3:
+                primary_values = [primary_scores[model] for model in models]
+                subset_values = [subset_scores[model] for model in models]
+                spearman = _spearman(primary_values, subset_values)
+                kendall = _kendall_tau_b(primary_values, subset_values)
+            rows.append(
+                {
+                    "roi_or_mean": roi_or_mean,
+                    "primary_geometry_method": primary_method,
+                    "sensitivity_geometry_method": subset_method,
+                    "n_models": len(models),
+                    "models": ";".join(models),
+                    "spearman_rank_agreement": spearman if spearman is not None else "",
+                    "kendall_rank_agreement": kendall if kendall is not None else "",
+                    "status": (
+                        "complete"
+                        if spearman is not None and kendall is not None
+                        else "insufficient_models"
+                    ),
+                }
+            )
+    return rows
+
+
+def _geometry_scores_by_model(
+    geometry_rows: list[dict[str, Any]],
+    method: str,
+    roi_or_mean: str,
+) -> dict[str, float]:
+    grouped: dict[str, list[float]] = {}
+    for row in geometry_rows:
+        if str(row.get("geometry_method", "")) != method:
+            continue
+        if roi_or_mean != "across_roi_mean" and str(row.get("roi", "")) != roi_or_mean:
+            continue
+        score = _optional_float(row.get("score"))
+        model = str(row.get("model", ""))
+        if score is not None and model:
+            grouped.setdefault(model, []).append(score)
+    return {model: _mean(scores) for model, scores in grouped.items() if scores}
+
+
+def _matched_geometry_runtime_summary(
+    geometry_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    for row in geometry_rows:
+        key = (
+            str(row.get("geometry_method", "")),
+            str(row.get("subset_size", "")),
+            str(row.get("subset_seed", "")),
+        )
+        grouped.setdefault(key, []).append(row)
+
+    rows: list[dict[str, Any]] = []
+    for (method, subset_size, subset_seed), group in sorted(grouped.items()):
+        runtimes = [
+            value
+            for value in (_optional_float(row.get("wall_time_sec")) for row in group)
+            if value is not None
+        ]
+        valid_count = sum(1 for row in group if str(row.get("valid", "")).lower() == "true")
+        rows.append(
+            {
+                "geometry_method": method,
+                "subset_size": subset_size,
+                "subset_seed": subset_seed,
+                "num_rows": len(group),
+                "num_valid": valid_count,
+                "num_invalid": len(group) - valid_count,
+                "mean_wall_time_sec": _mean(runtimes) if runtimes else "",
+                "max_wall_time_sec": max(runtimes) if runtimes else "",
+                "estimated_rdm_bytes": next(
+                    (
+                        row.get("estimated_rdm_bytes", "")
+                        for row in group
+                        if row.get("estimated_rdm_bytes")
+                    ),
+                    "",
+                ),
+                "status": "complete" if valid_count == len(group) else "has_invalid_rows",
+            }
+        )
     return rows
 
 
@@ -1232,6 +1385,8 @@ def _matched_cross_level_observations(
 
 def _primary_geometry_method(rows: list[dict[str, Any]]) -> str:
     methods = [str(row.get("geometry_method", "")) for row in rows if row.get("geometry_method")]
+    if "linear_cka_full9841" in methods:
+        return "linear_cka_full9841"
     if "linear_cka" in methods:
         return "linear_cka"
     return sorted(set(methods))[0] if methods else ""
@@ -1374,10 +1529,396 @@ def _matched_cross_level_correlations(
     return rows
 
 
+def _matched_cross_axis_sensitivity(
+    observation_rows: list[dict[str, Any]],
+    correlation_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    observation_groups = _cross_axis_observation_groups(observation_rows)
+    rows: list[dict[str, Any]] = []
+    for correlation in correlation_rows:
+        if correlation.get("status") != "complete":
+            continue
+        key = _cross_axis_key(correlation)
+        group = observation_groups.get(key, [])
+        model_rows = _unique_model_rows(group)
+        for relationship, baseline_key in [
+            ("behavior_vs_noise_normalized", "spearman_behavior_vs_noise_normalized"),
+            ("behavior_vs_geometry", "spearman_behavior_vs_geometry"),
+            ("encoding_vs_geometry", "spearman_encoding_vs_geometry"),
+        ]:
+            baseline = _optional_float(correlation.get(baseline_key))
+            if baseline is None:
+                continue
+            rows.extend(
+                _leave_one_model_rows(correlation, model_rows, relationship, baseline)
+            )
+            permutation = _model_label_permutation_row(
+                correlation,
+                model_rows,
+                relationship,
+                baseline,
+            )
+            if permutation:
+                rows.append(permutation)
+        if str(correlation.get("roi_or_mean", "")) == "across_roi_mean":
+            rows.extend(_leave_one_roi_rows(correlation, observation_rows))
+    rows.sort(
+        key=lambda row: (
+            row["behavior_dataset"],
+            row["behavior_metric"],
+            row["behavior_saliency_method"],
+            row["roi_or_mean"],
+            row["relationship"],
+            row["sensitivity_type"],
+            row["omitted_unit"],
+        )
+    )
+    return rows
+
+
+def _matched_cross_axis_decisions(
+    correlation_rows: list[dict[str, Any]],
+    sensitivity_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    by_key: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+    for row in sensitivity_rows:
+        if row.get("sensitivity_type") != "leave_one_model":
+            continue
+        by_key.setdefault(_sensitivity_key(row), []).append(row)
+
+    rows: list[dict[str, Any]] = []
+    for correlation in correlation_rows:
+        for relationship, field in [
+            ("behavior_vs_noise_normalized", "spearman_behavior_vs_noise_normalized"),
+            ("behavior_vs_geometry", "spearman_behavior_vs_geometry"),
+            ("encoding_vs_geometry", "spearman_encoding_vs_geometry"),
+        ]:
+            baseline = _optional_float(correlation.get(field))
+            if correlation.get("status") != "complete" or baseline is None:
+                label = "insufficient_models"
+                min_value = ""
+                max_value = ""
+                n_sensitivity = 0
+            else:
+                key = _sensitivity_key({**correlation, "relationship": relationship})
+                values = [
+                    value
+                    for value in (
+                        _optional_float(row.get("sensitivity_spearman")) for row in by_key.get(key, [])
+                    )
+                    if value is not None
+                ]
+                n_sensitivity = len(values)
+                min_value = min(values) if values else ""
+                max_value = max(values) if values else ""
+                label = _decision_label(baseline, values)
+            rows.append(
+                {
+                    "behavior_dataset": correlation.get("behavior_dataset", ""),
+                    "behavior_metric": correlation.get("behavior_metric", ""),
+                    "behavior_saliency_method": correlation.get("behavior_saliency_method", ""),
+                    "neural_scope": correlation.get("neural_scope", ""),
+                    "roi_or_mean": correlation.get("roi_or_mean", ""),
+                    "geometry_method": correlation.get("geometry_method", ""),
+                    "relationship": relationship,
+                    "baseline_spearman": baseline if baseline is not None else "",
+                    "min_leave_one_model_spearman": min_value,
+                    "max_leave_one_model_spearman": max_value,
+                    "n_sensitivity_rows": n_sensitivity,
+                    "decision_label": label,
+                }
+            )
+    return rows
+
+
+def _cross_axis_observation_groups(
+    observation_rows: list[dict[str, Any]],
+) -> dict[tuple[str, ...], list[dict[str, Any]]]:
+    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+    for row in observation_rows:
+        grouped.setdefault(_cross_axis_key(row), []).append(row)
+    return grouped
+
+
+def _cross_axis_key(row: dict[str, Any]) -> tuple[str, ...]:
+    return (
+        str(row.get("behavior_dataset", "")),
+        str(row.get("behavior_metric", "")),
+        str(row.get("behavior_saliency_method", "")),
+        str(row.get("behavior_saliency_family", "")),
+        str(row.get("neural_scope", "")),
+        str(row.get("roi_or_mean", "")),
+        str(row.get("geometry_method", "")),
+    )
+
+
+def _sensitivity_key(row: dict[str, Any]) -> tuple[str, ...]:
+    return (
+        str(row.get("behavior_dataset", "")),
+        str(row.get("behavior_metric", "")),
+        str(row.get("behavior_saliency_method", "")),
+        str(row.get("neural_scope", "")),
+        str(row.get("roi_or_mean", "")),
+        str(row.get("geometry_method", "")),
+        str(row.get("relationship", "")),
+    )
+
+
+def _unique_model_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_model: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        model = str(row.get("model", ""))
+        if model:
+            by_model[model] = row
+    return [by_model[model] for model in sorted(by_model)]
+
+
+def _leave_one_model_rows(
+    correlation: dict[str, Any],
+    model_rows: list[dict[str, Any]],
+    relationship: str,
+    baseline: float,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for omitted in sorted(str(row.get("model", "")) for row in model_rows):
+        retained = [row for row in model_rows if str(row.get("model", "")) != omitted]
+        score = _relationship_spearman(retained, relationship)
+        rows.append(
+            _sensitivity_row(
+                correlation,
+                relationship,
+                "leave_one_model",
+                omitted,
+                baseline,
+                score,
+                len(retained),
+                "complete" if score is not None else "insufficient_models",
+            )
+        )
+    return rows
+
+
+def _leave_one_roi_rows(
+    correlation: dict[str, Any],
+    observation_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for relationship, field in [
+        ("behavior_vs_noise_normalized", "spearman_behavior_vs_noise_normalized"),
+        ("behavior_vs_geometry", "spearman_behavior_vs_geometry"),
+        ("encoding_vs_geometry", "spearman_encoding_vs_geometry"),
+    ]:
+        baseline = _optional_float(correlation.get(field))
+        if baseline is None:
+            continue
+        for omitted_roi in sorted(MATCHED_PANEL_ROIS):
+            retained = [
+                row
+                for row in observation_rows
+                if _matches_roi_sensitivity_group(row, correlation)
+                and row.get("roi_or_mean") != omitted_roi
+            ]
+            averaged = _average_observations_by_model(retained)
+            score = _relationship_spearman(averaged, relationship)
+            rows.append(
+                _sensitivity_row(
+                    correlation,
+                    relationship,
+                    "leave_one_roi",
+                    omitted_roi,
+                    baseline,
+                    score,
+                    len(averaged),
+                    "complete" if score is not None else "insufficient_models",
+                )
+            )
+    return rows
+
+
+def _matches_roi_sensitivity_group(row: dict[str, Any], correlation: dict[str, Any]) -> bool:
+    return (
+        row.get("behavior_dataset") == correlation.get("behavior_dataset")
+        and row.get("behavior_metric") == correlation.get("behavior_metric")
+        and row.get("behavior_saliency_method") == correlation.get("behavior_saliency_method")
+        and row.get("behavior_saliency_family") == correlation.get("behavior_saliency_family")
+        and row.get("neural_scope") == "roi"
+        and row.get("geometry_method") == correlation.get("geometry_method")
+        and row.get("roi_or_mean") in MATCHED_PANEL_ROIS
+    )
+
+
+def _average_observations_by_model(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        model = str(row.get("model", ""))
+        if model:
+            grouped.setdefault(model, []).append(row)
+    averaged: list[dict[str, Any]] = []
+    for model, group in sorted(grouped.items()):
+        merged = {**group[0], "model": model}
+        for field in [
+            "behavior_score_aligned",
+            "neural_mean_encoding_raw",
+            "neural_mean_noise_normalized",
+            "geometry_score",
+        ]:
+            values = [
+                value
+                for value in (_optional_float(row.get(field)) for row in group)
+                if value is not None
+            ]
+            merged[field] = _mean(values) if values else ""
+        averaged.append(merged)
+    return averaged
+
+
+def _model_label_permutation_row(
+    correlation: dict[str, Any],
+    model_rows: list[dict[str, Any]],
+    relationship: str,
+    baseline: float,
+) -> dict[str, Any] | None:
+    x_values, y_values = _relationship_values(model_rows, relationship)
+    if len(x_values) < 3 or len(x_values) != len(y_values):
+        return None
+    permutations = list(itertools.permutations(y_values))
+    if len(permutations) > 720:
+        permutations = permutations[:720]
+    valid_scores = [
+        score
+        for score in (_spearman(x_values, list(permutation)) for permutation in permutations)
+        if score is not None
+    ]
+    if not valid_scores:
+        return None
+    extreme = sum(1 for score in valid_scores if abs(score) >= abs(baseline))
+    p_value = (extreme + 1) / (len(valid_scores) + 1)
+    return _sensitivity_row(
+        correlation,
+        relationship,
+        "model_label_permutation",
+        "model_labels",
+        baseline,
+        "",
+        len(x_values),
+        "complete",
+        permutation_p_value=p_value,
+        num_permutations=len(valid_scores),
+    )
+
+
+def _relationship_spearman(rows: list[dict[str, Any]], relationship: str) -> float | None:
+    x_values, y_values = _relationship_values(rows, relationship)
+    if len(x_values) < 3 or len(x_values) != len(y_values):
+        return None
+    return _spearman(x_values, y_values)
+
+
+def _relationship_values(
+    rows: list[dict[str, Any]],
+    relationship: str,
+) -> tuple[list[float], list[float]]:
+    fields = {
+        "behavior_vs_noise_normalized": (
+            "behavior_score_aligned",
+            "neural_mean_noise_normalized",
+        ),
+        "behavior_vs_geometry": ("behavior_score_aligned", "geometry_score"),
+        "encoding_vs_geometry": ("neural_mean_noise_normalized", "geometry_score"),
+    }[relationship]
+    pairs = [
+        (_optional_float(row.get(fields[0])), _optional_float(row.get(fields[1])))
+        for row in rows
+    ]
+    usable = [(x, y) for x, y in pairs if x is not None and y is not None]
+    return [x for x, _ in usable], [y for _, y in usable]
+
+
+def _sensitivity_row(
+    correlation: dict[str, Any],
+    relationship: str,
+    sensitivity_type: str,
+    omitted_unit: str,
+    baseline: float,
+    score: float | str | None,
+    n_models: int,
+    status: str,
+    *,
+    permutation_p_value: float | str = "",
+    num_permutations: int | str = "",
+) -> dict[str, Any]:
+    return {
+        "behavior_dataset": correlation.get("behavior_dataset", ""),
+        "behavior_metric": correlation.get("behavior_metric", ""),
+        "behavior_saliency_method": correlation.get("behavior_saliency_method", ""),
+        "neural_scope": correlation.get("neural_scope", ""),
+        "roi_or_mean": correlation.get("roi_or_mean", ""),
+        "geometry_method": correlation.get("geometry_method", ""),
+        "relationship": relationship,
+        "sensitivity_type": sensitivity_type,
+        "omitted_unit": omitted_unit,
+        "baseline_spearman": baseline,
+        "sensitivity_spearman": score if score is not None else "",
+        "n_models": n_models,
+        "permutation_p_value": permutation_p_value,
+        "num_permutations": num_permutations,
+        "status": status,
+    }
+
+
+def _decision_label(baseline: float, sensitivity_values: list[float]) -> str:
+    if not sensitivity_values:
+        return "insufficient_models"
+    signs = {_compare_sign(value, 0.0) for value in sensitivity_values if value != 0.0}
+    baseline_sign = _compare_sign(baseline, 0.0)
+    if baseline_sign == 0 or any(sign != baseline_sign for sign in signs):
+        return "unstable"
+    if min(abs(value) for value in sensitivity_values) < 0.2:
+        return "unstable"
+    return "stable_convergence" if baseline_sign > 0 else "stable_dissociation"
+
+
 def _spearman(x_values: list[float], y_values: list[float]) -> float | None:
     if len(x_values) != len(y_values) or len(x_values) < 2:
         return None
     return _pearson(_average_ranks(x_values), _average_ranks(y_values))
+
+
+def _kendall_tau_b(x_values: list[float], y_values: list[float]) -> float | None:
+    if len(x_values) != len(y_values) or len(x_values) < 2:
+        return None
+    concordant = 0
+    discordant = 0
+    ties_x = 0
+    ties_y = 0
+    for i in range(len(x_values) - 1):
+        for j in range(i + 1, len(x_values)):
+            dx = _compare_sign(x_values[i], x_values[j])
+            dy = _compare_sign(y_values[i], y_values[j])
+            if dx == 0 and dy == 0:
+                continue
+            if dx == 0:
+                ties_x += 1
+            elif dy == 0:
+                ties_y += 1
+            elif dx == dy:
+                concordant += 1
+            else:
+                discordant += 1
+    denominator = math.sqrt(
+        (concordant + discordant + ties_x) * (concordant + discordant + ties_y)
+    )
+    if denominator == 0.0:
+        return None
+    return (concordant - discordant) / denominator
+
+
+def _compare_sign(first: float, second: float) -> int:
+    if first < second:
+        return -1
+    if first > second:
+        return 1
+    return 0
 
 
 def _average_ranks(values: list[float]) -> list[float]:
@@ -2207,6 +2748,14 @@ GEOMETRY_FIELDNAMES = [
     "num_images_used",
     "subset_seed",
     "subset_size",
+    "feature_rdm_metric",
+    "response_rdm_metric",
+    "rdm_compare_method",
+    "subset_index_policy",
+    "wall_time_sec",
+    "feature_shape",
+    "response_shape",
+    "estimated_rdm_bytes",
     "model_feature_source",
     "neural_response_source",
     "centering",
@@ -2218,6 +2767,30 @@ GEOMETRY_FIELDNAMES = [
     "interpretation_scope",
 ]
 
+GEOMETRY_METHOD_AGREEMENT_FIELDNAMES = [
+    "roi_or_mean",
+    "primary_geometry_method",
+    "sensitivity_geometry_method",
+    "n_models",
+    "models",
+    "spearman_rank_agreement",
+    "kendall_rank_agreement",
+    "status",
+]
+
+GEOMETRY_RUNTIME_FIELDNAMES = [
+    "geometry_method",
+    "subset_size",
+    "subset_seed",
+    "num_rows",
+    "num_valid",
+    "num_invalid",
+    "mean_wall_time_sec",
+    "max_wall_time_sec",
+    "estimated_rdm_bytes",
+    "status",
+]
+
 GEOMETRY_MODEL_RANKING_FIELDNAMES = [
     "model",
     "geometry_method",
@@ -2226,6 +2799,39 @@ GEOMETRY_MODEL_RANKING_FIELDNAMES = [
     "rank_mean_geometry",
     "rois",
     "interpretation_scope",
+]
+
+MATCHED_CROSS_AXIS_SENSITIVITY_FIELDNAMES = [
+    "behavior_dataset",
+    "behavior_metric",
+    "behavior_saliency_method",
+    "neural_scope",
+    "roi_or_mean",
+    "geometry_method",
+    "relationship",
+    "sensitivity_type",
+    "omitted_unit",
+    "baseline_spearman",
+    "sensitivity_spearman",
+    "n_models",
+    "permutation_p_value",
+    "num_permutations",
+    "status",
+]
+
+MATCHED_CROSS_AXIS_DECISION_FIELDNAMES = [
+    "behavior_dataset",
+    "behavior_metric",
+    "behavior_saliency_method",
+    "neural_scope",
+    "roi_or_mean",
+    "geometry_method",
+    "relationship",
+    "baseline_spearman",
+    "min_leave_one_model_spearman",
+    "max_leave_one_model_spearman",
+    "n_sensitivity_rows",
+    "decision_label",
 ]
 
 GEOMETRY_ROI_RANKING_FIELDNAMES = [

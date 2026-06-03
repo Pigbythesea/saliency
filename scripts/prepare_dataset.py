@@ -413,9 +413,11 @@ def _resolve_annotation_image_path(root: Path, annotation: dict) -> Path:
 
     target_category = _first_present(annotation, ["target_category", "target", "category", "task"])
     if target_category is not None:
-        categorized = (root / "images" / str(target_category) / candidate).resolve()
-        if categorized.is_file():
-            return categorized
+        image_roots = ["images", "coco_search18_images_TA"]
+        for image_root in image_roots:
+            categorized = (root / image_root / str(target_category) / candidate).resolve()
+            if categorized.is_file():
+                return categorized
 
     return direct
 

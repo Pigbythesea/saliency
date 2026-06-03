@@ -22,6 +22,7 @@ from hma.neural import (
     subset_rsa,
     SpatialReadoutConfig,
 )
+from scripts.compute_matched_geometry import _subset_rsa_method_label
 
 
 def _read_csv(path):
@@ -186,7 +187,18 @@ def test_subset_rsa_uses_deterministic_subset_and_scores():
     assert result.valid is True
     assert result.status == "ok"
     assert result.num_images_used == 12
+    assert result.feature_rdm_metric == "correlation"
+    assert result.response_rdm_metric == "correlation"
+    assert result.rdm_compare_method == "spearman"
+    assert result.subset_index_policy == "deterministic_sorted_without_replacement"
+    assert result.as_row()["feature_rdm_metric"] == "correlation"
     assert np.isfinite(result.score)
+
+
+def test_subset_rsa_method_label_freezes_protocol_name():
+    label = _subset_rsa_method_label(128, 123, "correlation", "correlation", "spearman")
+
+    assert label == "subset_rsa_corr_rdm_spearman_size128_seed123"
 
 
 def test_save_activations_writes_npz(tmp_path):

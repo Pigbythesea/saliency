@@ -22,6 +22,10 @@ class GeometryResult:
     num_images_used: int
     subset_seed: int | str = ""
     subset_size: int | str = ""
+    feature_rdm_metric: str = ""
+    response_rdm_metric: str = ""
+    rdm_compare_method: str = ""
+    subset_index_policy: str = ""
 
     def as_row(self) -> dict[str, Any]:
         return {
@@ -33,6 +37,10 @@ class GeometryResult:
             "num_images_used": self.num_images_used,
             "subset_seed": self.subset_seed,
             "subset_size": self.subset_size,
+            "feature_rdm_metric": self.feature_rdm_metric,
+            "response_rdm_metric": self.response_rdm_metric,
+            "rdm_compare_method": self.rdm_compare_method,
+            "subset_index_policy": self.subset_index_policy,
         }
 
 
@@ -71,15 +79,50 @@ def subset_rsa(
     total = int(x.shape[0])
     if subset_size <= 1:
         return GeometryResult(
-            "subset_rsa", "", False, "subset_size_too_small", total, 0, seed, subset_size
+            "subset_rsa",
+            "",
+            False,
+            "subset_size_too_small",
+            total,
+            0,
+            seed,
+            subset_size,
+            feature_rdm_metric,
+            response_rdm_metric,
+            compare_method,
+            "deterministic_sorted_without_replacement",
         )
     if subset_size > total:
         return GeometryResult(
-            "subset_rsa", "", False, "subset_size_exceeds_items", total, 0, seed, subset_size
+            "subset_rsa",
+            "",
+            False,
+            "subset_size_exceeds_items",
+            total,
+            0,
+            seed,
+            subset_size,
+            feature_rdm_metric,
+            response_rdm_metric,
+            compare_method,
+            "deterministic_sorted_without_replacement",
         )
     status = _invalid_status(x, y)
     if status is not None:
-        return GeometryResult("subset_rsa", "", False, status, total, 0, seed, subset_size)
+        return GeometryResult(
+            "subset_rsa",
+            "",
+            False,
+            status,
+            total,
+            0,
+            seed,
+            subset_size,
+            feature_rdm_metric,
+            response_rdm_metric,
+            compare_method,
+            "deterministic_sorted_without_replacement",
+        )
 
     indices = deterministic_subset_indices(total, subset_size=subset_size, seed=seed)
     x_subset = x[indices]
@@ -90,14 +133,47 @@ def subset_rsa(
         score = compare_rdms(feature_rdm, response_rdm, method=compare_method)
     except ValueError as exc:
         return GeometryResult(
-            "subset_rsa", "", False, f"invalid_rdm: {exc}", total, int(subset_size), seed, subset_size
+            "subset_rsa",
+            "",
+            False,
+            f"invalid_rdm: {exc}",
+            total,
+            int(subset_size),
+            seed,
+            subset_size,
+            feature_rdm_metric,
+            response_rdm_metric,
+            compare_method,
+            "deterministic_sorted_without_replacement",
         )
     if not np.isfinite(score):
         return GeometryResult(
-            "subset_rsa", "", False, "nonfinite_score", total, int(subset_size), seed, subset_size
+            "subset_rsa",
+            "",
+            False,
+            "nonfinite_score",
+            total,
+            int(subset_size),
+            seed,
+            subset_size,
+            feature_rdm_metric,
+            response_rdm_metric,
+            compare_method,
+            "deterministic_sorted_without_replacement",
         )
     return GeometryResult(
-        "subset_rsa", float(score), True, "ok", total, int(subset_size), seed, subset_size
+        "subset_rsa",
+        float(score),
+        True,
+        "ok",
+        total,
+        int(subset_size),
+        seed,
+        subset_size,
+        feature_rdm_metric,
+        response_rdm_metric,
+        compare_method,
+        "deterministic_sorted_without_replacement",
     )
 
 

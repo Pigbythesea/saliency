@@ -37,6 +37,11 @@ def _make_fake_coco_search18_root(tmp_path):
     root = tmp_path / "coco_search18"
     _write_image(root / "images" / "train" / "000001.jpg", (20, 10), 64)
     _write_image(root / "images" / "train" / "000002.jpg", (16, 8), 128)
+    _write_image(
+        root / "coco_search18_images_TA" / "chair" / "000003.jpg",
+        (12, 6),
+        192,
+    )
     annotations = [
         {
             "image_id": "000001",
@@ -49,11 +54,10 @@ def _make_fake_coco_search18_root(tmp_path):
             "fixation_points": [[10, 5], [12, 6]],
         },
         {
-            "image_id": "000002",
-            "image_path": "images/train/000002.jpg",
+            "name": "000003.jpg",
             "split": "train",
             "target": "chair",
-            "task": "absent",
+            "condition": "absent",
             "subject": "S2",
             "trial": "T2",
             "X": [4, 8],
@@ -86,6 +90,8 @@ def test_build_coco_search18_manifest_preserves_task_fields(tmp_path):
     assert rows[0]["subject_id"] == "S1"
     assert rows[0]["trial_id"] == "T1"
     assert json.loads(rows[0]["fixation_points"]) == [[10.0, 5.0], [12.0, 6.0]]
+    assert rows[1]["image_path"] == "coco_search18_images_TA/chair/000003.jpg"
+    assert rows[1]["task"] == "absent"
 
 
 def test_coco_search18_dataset_loads_points_map_and_metadata(tmp_path):

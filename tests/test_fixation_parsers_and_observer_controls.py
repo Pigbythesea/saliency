@@ -96,3 +96,50 @@ def test_summarize_observer_controls_uses_salicon_mat_fixations(tmp_path):
     assert len(rows) == 2
     assert {row["control_type"] for row in rows} == {"leave_one_observer_out"}
     assert all(np.isfinite(row["inter_observer_nss"]) for row in rows)
+
+
+def test_summarize_observer_controls_scales_inline_fixations(tmp_path):
+    manifest = tmp_path / "coco_manifest.csv"
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "image_id",
+                "fixation_points",
+                "subject_id",
+                "trial_id",
+                "width",
+                "height",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "image_id": "image_001",
+                "fixation_points": "[[100.0, 50.0]]",
+                "subject_id": "S1",
+                "trial_id": "T1",
+                "width": "200",
+                "height": "100",
+            }
+        )
+        writer.writerow(
+            {
+                "image_id": "image_001",
+                "fixation_points": "[[120.0, 50.0]]",
+                "subject_id": "S2",
+                "trial_id": "T2",
+                "width": "200",
+                "height": "100",
+            }
+        )
+
+    rows = summarize_observer_controls(
+        manifest,
+        dataset="coco_search18",
+        image_size=(10, 20),
+        fixation_sigma=1.0,
+    )
+
+    assert len(rows) == 2
+    assert all(np.isfinite(row["inter_observer_nss"]) for row in rows)
