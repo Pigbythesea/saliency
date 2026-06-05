@@ -1,0 +1,163 @@
+version: paper1_experiment_v1
+status: planned
+claim:
+  short: fixation_encoding_geometry_dissociation
+  text: >
+    Human-like fixation alignment, neural encoding, and latent representational
+    geometry are related but non-equivalent axes of visual alignment; the V1
+    experiment tests whether these axes converge or dissociate after expanding
+    subj01 beyond PRF-only visual ROIs.
+baseline_inputs:
+  current_diagnostic_scope_config: configs/paper1_config.yaml
+  behavioral_csv: outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv
+  neural_summary_dir: outputs/neural_roi_summary
+  matched_encoding_ranking: outputs/neural_roi_summary/matched_full_panel_model_rankings.csv
+  matched_geometry_ranking: outputs/neural_roi_summary/matched_geometry_model_rankings.csv
+  matched_cross_level_correlations: outputs/neural_roi_summary/matched_cross_level_correlations.csv
+  salicon_observer_controls: outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv
+  coco_search18_observer_controls: outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv
+discovery_matrix:
+  subject_id: subj01
+  output_root: outputs/paper1_experiment_v1/neural_subj01_roi_expanded
+  config_root: configs/experiments/paper1_experiment_v1/neural_subj01_roi_expanded
+  summary_output_dir: outputs/paper1_experiment_v1/summary
+  models:
+    - resnet50
+    - vit_base_patch16_224
+    - vit_small_patch14_dinov2
+    - vit_base_patch16_clip_224
+  roi_groups:
+    prf_visualrois:
+      roi_class: prf-visualrois
+      manifest_path: data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv
+      rois:
+        - V1
+        - V2
+        - V3
+        - hV4
+    streams:
+      roi_class: streams
+      manifest_path: data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv
+      mapping_path: data/raw/nsd_algonauts/subj01/roi_masks/mapping_streams.npy
+      rois:
+        - midventral
+        - midlateral
+        - midparietal
+        - ventral
+        - lateral
+        - parietal
+  expected_cells:
+    models: 4
+    rois: 10
+    model_roi_cells: 40
+  max_items: 9841
+confirmatory_matrix:
+  subjects:
+    - subj02
+    - subj03
+    - subj04
+  trigger: Run only after ROI-expanded subj01 produces a candidate convergence or dissociation pattern.
+  reduced_models:
+    - resnet50
+    - vit_base_patch16_224
+    - vit_small_patch14_dinov2
+    - vit_base_patch16_clip_224
+behavioral_controls:
+  datasets:
+    free_viewing:
+      - SALICON
+      - CAT2000
+    task_search:
+      - COCO-Search18
+  required_inputs:
+    - outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv
+    - outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv
+    - outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv
+  method_object_types:
+    - dedicated_fixation_model
+    - center_prior
+    - posthoc_attribution
+    - perturbation_sensitivity
+    - random_control
+  separation_rules:
+    - Keep SALICON and CAT2000 free-viewing claims separate from COCO-Search18 task-search claims.
+    - Interpret NSS and AUC-style metrics only for point or task-point protocols.
+    - Label rollout as attention rollout attribution, not attention.
+encoding:
+  method: flatten_pca
+  response_key: roi_responses
+  full_image_count: true
+  validation_selected_layer: true
+  pca_components: 512
+  pca_solver: randomized
+  pca_whiten: false
+  ridge_alphas:
+    - 0.001
+    - 0.01
+    - 0.1
+    - 1.0
+    - 10.0
+    - 100.0
+    - 1000.0
+    - 10000.0
+    - 100000.0
+    - 1000000.0
+    - 10000000.0
+  validation_fraction: 0.2
+  selection_primary_score: mean_noise_normalized_score
+  excluded_headline_methods:
+    - learned_spatial_readout
+    - voxel_specific_spatial_readout
+    - roi500_rsa
+geometry:
+  methods:
+    - linear_cka_full9841
+    - subset_rsa
+  subset_sizes:
+    - 512
+    - 1024
+    - 2048
+  subset_seeds:
+    - 123
+    - 456
+    - 789
+  feature_rdm_metric: correlation
+  response_rdm_metric: correlation
+  rdm_compare_method: spearman
+  subset_index_policy: deterministic_sorted_without_replacement
+  centering: image_centered_columns
+  response_metric: raw_roi_responses
+accepted_tables:
+  - outputs/paper1_experiment_v1/summary/roi_expanded_encoding_model_rankings.csv
+  - outputs/paper1_experiment_v1/summary/roi_expanded_encoding_roi_rankings.csv
+  - outputs/paper1_experiment_v1/summary/roi_expanded_geometry_model_rankings.csv
+  - outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_agreement.csv
+  - outputs/paper1_experiment_v1/summary/roi_expanded_cross_level_observations.csv
+  - outputs/paper1_experiment_v1/summary/roi_expanded_cross_level_correlations.csv
+  - outputs/paper1_experiment_v1/summary/roi_expanded_cross_axis_decisions.csv
+  - outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv
+  - outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv
+failure_criteria:
+  - No nontrivial behavior-neural, behavior-geometry, or encoding-geometry convergence/dissociation pattern appears after ROI expansion.
+  - Any apparent pattern depends on one model, one ROI, or one geometry method.
+  - Free-viewing and task-search behavior cannot be kept separate in the accepted cross-axis tables.
+  - Observer-control integration invalidates the current behavioral alignment interpretation.
+  - Required accepted artifacts are incomplete or unreproducible from this config.
+implementation_sequence:
+  - Validate current accepted diagnostic inputs and observer-control files.
+  - Generate subj01 stream-ROI manifests from mapping_streams.npy.
+  - Generate ROI-expanded full-image flatten_pca configs for the four-model panel.
+  - Run one smoke cell before the full ROI-expanded run.
+  - Run the full subj01 ROI-expanded matrix.
+  - Compute linear_cka_full9841 and deterministic subset_rsa for completed cells.
+  - Summarize encoding, geometry, behavior-encoding, behavior-geometry, and encoding-geometry tables.
+  - Apply failure criteria before subject replication or model expansion.
+do_not_do:
+  - Add a broad model zoo before the ROI-expanded subj01 discovery matrix exists.
+  - Treat attention rollout as evidence of human-like attention.
+  - Use learned spatial readout as a cross-model ranking row unless the same readout protocol exists for all compared models.
+  - Mix SALICON/CAT2000 free-viewing claims with COCO-Search18 task-search claims.
+  - Run subject replication before the ROI-expanded subj01 pattern is inspected.
+  - Add fLOC category ROIs, DeepGaze MSDB, task-trained COCO-Search18 baselines, efficiency, or stronger transformer relevance in V1 unless this spec is revised.
+  - Shift this milestone into Paper 2 causal adaptive-attention intervention work.
+

@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-06-02
+Updated: 2026-06-05
 
 ## Purpose And Codex Operating Contract
 
@@ -108,6 +108,12 @@ Diagnostics/provenance:
 - Corrected SSL/VLM behavioral aggregate before merge: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`.
 - Full neural ROI summary directory, including learned-readout provenance rows: `outputs/neural_roi_summary/`.
 - Paper inspection pack: `outputs/paper_inspection_v1/README.md`.
+
+Experiment-definition artifacts:
+
+- Paper-grade experiment specification V1: `docs/paper1_experiment_spec_v1.md`.
+- Forward-looking experiment contract: `configs/paper1_experiment_v1.yaml`.
+- Scope decision table: `outputs/planning/paper1_experiment_scope_decisions.csv`.
 
 ## Scientific Boundary
 
@@ -473,7 +479,7 @@ Reporting infrastructure:
 
 ## Current Implementation Progress
 
-Updated: 2026-06-02
+Updated: 2026-06-05
 
 Current implementation state:
 
@@ -482,92 +488,96 @@ Current implementation state:
 - The matched geometry axis is complete for all `24` expected cells using full-image `linear_cka`; it is useful diagnostic evidence but still not a complete geometry claim without method/seed stability.
 - The DINOv2 learned spatial readout rows are retained as method provenance because the readout is not method-matched across all backbones.
 - The current paper inspection figures are diagnostic figures, not final main-paper figures. They should be replaced or supplemented after the paper-grade experiment spec defines the actual accepted evidence tables.
+- Paper-Grade Experiment Definition V1 is now complete as a planning milestone. The new spec fixes the next falsifiable matrix as `subj01`, four method-matched models, PRF ROIs plus stream ROIs, full-image `flatten_pca` encoding, and `linear_cka_full9841` plus deterministic `subset_rsa` geometry.
+- The V1 config is a forward-looking experiment contract, not a replacement for `configs/paper1_config.yaml`, which remains the scope file for the current diagnostic PRF-only results.
+- The new validation test `tests/test_paper1_experiment_spec.py` locks required model names, ROI names, accepted artifact paths, exclusion rules, and cmd-only verification-command documentation.
+
+Latest session report:
+
+1. `Scientific change`: no new empirical evidence was produced; the scientific scope decision changed from an underspecified "define a paper-grade experiment" milestone to a concrete ROI-expanded `subj01` discovery matrix.
+2. `Accepted artifact`: `docs/paper1_experiment_spec_v1.md`, `configs/paper1_experiment_v1.yaml`, and `outputs/planning/paper1_experiment_scope_decisions.csv`.
+3. `Claim impact`: neutral on the Paper 1 claim as evidence, but positive for claim testability because it defines the next matrix capable of testing convergence/dissociation beyond PRF-only diagnostics.
+4. `Reviewer risk reduced`: reduces the "PRF-only / one narrow anatomical scope" and "self-reinforcing diagnostic matrix" risks by forcing the next implementation toward broader brain-region coverage before model-zoo expansion.
+5. `Next decisive step`: generate and validate the `subj01` stream-ROI manifest/config path for the V1 experiment.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
 ## Next Concrete Milestone
 
-Priority: **Paper-Grade Experiment Definition V1**.
+Priority: **Enable Paper 1 V1 ROI-Expanded Matrix Execution**.
 
-The next milestone is not to reinforce the current diagnostic matrix. The current six-model/subj01/V1–hV4 matrix validates that the pipeline can produce behavioral, neural, and geometry measurements. It does not yet define a top-venue paper.
+The previous milestone, Paper-Grade Experiment Definition V1, is complete. Do not keep editing the spec unless a concrete implementation blocker is discovered. The next milestone is to make the V1 matrix runnable without hand-written configs or ambiguous ROI handling.
 
-The next milestone is to design the first experiment whose scope is actually capable of supporting the Paper 1 claim.
+The next decisive implementation task is to generate and validate the `subj01` stream-ROI manifest/config path required by `configs/paper1_experiment_v1.yaml`.
 
 ### Required outcome
 
-By the end of this milestone, the project should produce a concrete experiment specification:
+By the end of this milestone, the project should produce executable planning infrastructure for the V1 discovery matrix:
 
-- Path target: `docs/paper1_experiment_spec_v1.md`
-- Supporting config target: `configs/paper1_experiment_v1.yaml`
-- Optional planning table: `outputs/planning/paper1_experiment_scope_decisions.csv`
+- Stream ROI manifest target: `data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv`.
+- ROI-expanded config directory target: `configs/experiments/paper1_experiment_v1/neural_subj01_roi_expanded/`.
+- Optional manifest/config audit target: `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`.
+- Focused tests for stream ROI manifest/config generation and V1 config validity.
 
-### Required contents of `paper1_experiment_spec_v1.md`
+### Required implementation work
 
-The spec must include:
+The next Codex session should implement:
 
-1. **Paper claim being tested**
+1. **Generalized ROI manifest support**
 
-   State the exact claim in one paragraph.
+   Use `scripts/create_algonauts_manifest.py` in ROI-manifest mode with `roi_class=streams`, bilateral hemispheres, and stream ROI labels from `data/raw/nsd_algonauts/subj01/roi_masks/mapping_streams.npy`.
 
-2. **Why current results are insufficient**
+2. **Stream ROI manifest generation**
 
-   Explain why the current six-model/subj01/V1–hV4 matrix is diagnostic only.
+   Generate `data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv` for `subj01` with the six stream ROIs in the V1 experiment: `midventral`, `midlateral`, `midparietal`, `ventral`, `lateral`, and `parietal`.
 
-3. **Minimum paper-grade scope**
+3. **Manifest validation**
 
-   Define:
+   Confirm all six stream ROIs exist, all selected response dimensions are nonzero, image ordering matches the existing PRF full manifest for `subj01`, and bounded file validation passes without touching every response file unnecessarily.
 
-   - model panel;
-   - subject set;
-   - ROI / brain-region set;
-   - behavioral datasets;
-   - behavioral baselines;
-   - attribution methods;
-   - encoding method;
-   - geometry methods;
-   - efficiency variables, if included.
+4. **Generalized ROI-expanded config generation**
 
-4. **Accepted evidence table list**
+   Extend `scripts/create_neural_roi500_configs.py` or add a narrowly scoped V1 generator so it can emit full-image `flatten_pca` validation-selection configs for arbitrary ROI labels and manifest paths, not only hardcoded PRF `V1`/`V2`/`V3`/`hV4`.
 
-   List every table that must exist before Paper 1 can make a claim.
+5. **V1 config emission**
 
-5. **Failure criteria**
+   Generate the four-model x ten-ROI config set under `configs/experiments/paper1_experiment_v1/neural_subj01_roi_expanded/`, using the model panel and encoding settings from `configs/paper1_experiment_v1.yaml`.
 
-   Define when Paper 1 should be demoted to a methods/workshop paper.
+6. **Smoke-run readiness only**
 
-6. **Implementation sequence**
-
-   Give the exact run order Codex should follow.
-
-7. **Do-not-do list**
-
-   Explicitly ban tasks that expand implementation without strengthening the experiment.
+   Do not run the full matrix in this milestone. At most, prepare one smoke config/cell and document the exact cmd command for a future smoke run.
 
 ### Scope decision rules
 
-The upgraded experiment should follow these rules:
+The implementation should follow these rules:
 
-- Prefer broader brain-region/anatomical coverage over adding many more generic models.
-- Prefer ROI/brain-region expansion before subject replication; use `subj02`-`subj04` only after the ROI-expanded `subj01` pattern exists.
-- Prefer stronger behavioral controls over more weak attribution rows.
-- Prefer accepted transformer relevance methods over rollout-only transformer claims.
-- Prefer matched readout protocols over mixing learned-readout and flatten-PCA rows.
-- Keep current diagnostic results as baselines, not as the final paper object.
+- Prefer a small reusable generator over hand-writing `40` configs.
+- Keep `configs/paper1_config.yaml` unchanged as the diagnostic PRF-only result scope.
+- Keep V1 fLOC category ROIs out of scope unless `docs/paper1_experiment_spec_v1.md` is explicitly revised.
+- Do not run subject replication before the ROI-expanded `subj01` pattern exists.
+- Do not add new models, new behavioral baselines, efficiency, or stronger attribution before the V1 stream-ROI manifest/config path is validated.
+- Use cmd-form commands in any docs or handoff text.
 
 ### Acceptance criteria
 
 This milestone is complete only if:
 
-- `docs/paper1_experiment_spec_v1.md` exists;
-- the spec clearly states why current results are insufficient;
-- the next run matrix is concrete enough for Codex to implement without inventing direction;
-- every proposed run is tied to a paper claim or reviewer risk;
-- the spec defines what result would make Paper 1 worth continuing;
-- the spec defines what result would force a pivot to Paper 2.
+- `data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv` exists and contains all six stream ROIs.
+- The stream manifest has the same `subj01` image ordering as the PRF full manifest for matching image rows.
+- Every stream ROI has nonzero response dimensionality.
+- The generated config directory contains the expected `40` full-image `flatten_pca` validation-selection configs: four models x ten ROIs.
+- A test or audit verifies the required models and ROIs come from `configs/paper1_experiment_v1.yaml`.
+- No full V1 neural matrix run is started before manifest/config audit passes.
 
 ### Stop condition
 
-If a proposed task does not help define or run the paper-grade experiment, do not do it.
+If stream ROI manifests cannot be generated from the available local masks, stop and document the blocker in this file instead of falling back to model expansion or PRF-only robustness.
+
+Suggested focused verification command:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_paper1_experiment_spec.py tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py
+```
 
 ## Data/control readiness update:
 
@@ -578,18 +588,19 @@ If a proposed task does not help define or run the paper-grade experiment, do no
   - `data/manifests/nsd_algonauts_subj04_prf_visualrois_full_manifest.csv`: `35116` rows; response dimensions V1 `2328`, V2 `2474`, V3 `2146`, hV4 `1190`.
 - Combined four-subject audit manifest: `data/manifests/nsd_algonauts_subj01-04_prf_visualrois_full_manifest.csv`, `150172` rows.
 - Per-ROI bounded validation passed for `subj02`-`subj04` using `25` sampled rows per subject/ROI. Full all-row validation is intentionally avoided because it touches more than `100k` response files and is slow on Windows.
+- `subj01` has local ROI masks for PRF visual ROIs, streams, and fLOC category maps under `data/raw/nsd_algonauts/subj01/roi_masks/`. V1 should use `streams` next; fLOC category maps are deferred.
 - COCO-Search18 target-absent data is integrated. `data/manifests/coco_search18_manifest.csv` now has `74646` rows: `49760` target-present and `24886` target-absent rows. The V2 static manifest now has `2000` validation rows: `1338` target-present and `662` target-absent.
 - SALICON official JSON annotations are integrated. `data/manifests/salicon_observer_annotations_manifest.csv` has `893854` worker-level rows with explicit `worker_id`; the V2 subset `data/manifests/v2/salicon_static2000_observer_annotations_manifest.csv` has `125874` rows over `2000` images.
 - Observer-control outputs are generated:
   - `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`: `1867` rows.
   - `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`: `20000` rows using at most `10` workers per image.
 
-Post-spec implementation priorities:
+Current post-spec implementation priorities:
 
-These are not the current milestone. They should be sequenced only after `docs/paper1_experiment_spec_v1.md` and `configs/paper1_experiment_v1.yaml` define the falsifiable paper-grade matrix.
+The V1 spec and config now define the falsifiable paper-grade matrix. The immediate work is to make that matrix executable, starting with stream ROI manifests and configs.
 
 - Add ROI/brain-region expansion before expanding the model zoo or prioritizing subject replication:
-  - build manifests/configs for broader Algonauts visual ROI groups and higher-level ROIs available in the existing ROI masks;
+  - build and validate `subj01` stream ROI manifests/configs first;
   - start on `subj01` so ROI-expanded behavior/encoding/geometry results are directly comparable to the current matched panel;
   - start with `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, `resnet50`, and `vit_base_patch16_224`;
   - keep the same `flatten_pca`, CKA, subset-RSA, and cross-axis summary contracts so results are comparable.
