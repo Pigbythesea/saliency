@@ -209,7 +209,11 @@ def _create_roi_manifest(
     rows: list[dict[str, str]] = []
     roi_dims: dict[str, int] = {}
     for roi_name in roi_names:
-        label_values = _roi_label_values(roi_name, label_to_value)
+        label_values = _roi_label_values(
+            roi_name,
+            label_to_value,
+            roi_class=roi_class,
+        )
         selected_columns = {
             hemi: np.flatnonzero(np.isin(data["mask"], label_values))
             for hemi, data in hemisphere_data.items()
@@ -318,8 +322,16 @@ def _load_label_to_value(mapping_path: Path) -> dict[str, int]:
     return {str(label): int(value) for value, label in mapping.items() if int(value) != 0}
 
 
-def _roi_label_values(roi_name: str, label_to_value: dict[str, int]) -> list[int]:
-    labels = resolve_prf_visual_roi_labels(roi_name)
+def _roi_label_values(
+    roi_name: str,
+    label_to_value: dict[str, int],
+    *,
+    roi_class: str = "prf-visualrois",
+) -> list[int]:
+    if roi_class == "prf-visualrois":
+        labels = resolve_prf_visual_roi_labels(roi_name)
+    else:
+        labels = {roi_name.strip()}
     missing = sorted(label for label in labels if label not in label_to_value)
     if missing:
         raise ValueError(f"Unknown ROI label(s) for {roi_name}: {missing}")

@@ -58,10 +58,7 @@ def compute_matched_geometry(
     skip_existing: bool = False,
 ) -> list[Path]:
     """Compute geometry scores for every output directory in the Paper 1 scope."""
-    scope = load_yaml(config_path).get("paper1_scope", {})
-    if not isinstance(scope, dict):
-        raise ValueError("configs/paper1_config.yaml must contain a paper1_scope mapping")
-
+    scope = _geometry_scope(config_path)
     geometry = dict(scope.get("geometry", {}))
     methods = methods_override or [
         str(method) for method in geometry.get("methods", ["linear_cka"])
@@ -76,6 +73,10 @@ def compute_matched_geometry(
     feature_rdm_metric = str(geometry.get("feature_rdm_metric", "correlation"))
     response_rdm_metric = str(geometry.get("response_rdm_metric", "correlation"))
     rdm_compare_method = str(geometry.get("rdm_compare_method", "spearman"))
+    expected_num_items = int(scope.get("expected_num_items") or 0)
+    expected_feature_reduction = str(scope.get("feature_reduction", "flatten_pca"))
+    expected_models = set(str(model) for model in scope.get("models", []))
+    expected_rois = set(str(roi) for roi in scope.get("rois", []))
     model_filter = set(models or [])
     roi_filter = set(rois or [])
 
@@ -83,6 +84,13 @@ def compute_matched_geometry(
     response_cache: dict[tuple[str, str, str, str, str, int], tuple[list[str], np.ndarray]] = {}
     for raw_dir in scope.get("neural_output_dirs", []):
         output_dir = resolve_path(raw_dir)
+        _validate_output_dir(
+            output_dir,
+            expected_models=expected_models,
+            expected_rois=expected_rois,
+            expected_num_items=expected_num_items,
+            expected_feature_reduction=expected_feature_reduction,
+        )
         metadata = _load_json(output_dir / "metadata.json")
         model = str(metadata.get("model_name") or metadata.get("model", ""))
         roi = _single(metadata.get("rois"))
@@ -108,6 +116,87 @@ def compute_matched_geometry(
         _write_rows(path, rows)
         written.append(path)
     return written
+
+
+def _geometry_scope(config_path: str | Path) -> dict[str, Any]:
+    """Return a legacy paper1_scope or V1 discovery_matrix geometry scope."""
+    config = load_yaml(config_path)
+    legacy_scope = config.get("paper1_scope")
+    if isinstance(legacy_scope, dict):
+        return legacy_scope
+
+    discovery = config.get("discovery_matrix")
+    if not isinstance(discovery, dict):
+        raise ValueError(
+            f"{config_path} must contain either a paper1_scope or discovery_matrix mapping"
+        )
+    geometry = config.get("geometry", {})
+    if not isinstance(geometry, dict):
+        raise ValueError(f"{config_path} must contain a geometry mapping")
+    encoding = config.get("encoding", {})
+    if not isinstance(encoding, dict):
+        raise ValueError(f"{config_path} must contain an encoding mapping")
+
+    config_root = resolve_path(discovery["config_root"])
+    output_root = resolve_path(discovery["output_root"])
+    config_paths = sorted(config_root.glob("*.yaml"))
+    output_dirs = [output_root / path.stem for path in config_paths]
+    roi_groups = discovery.get("roi_groups", {})
+    rois = [
+        str(roi)
+        for group in roi_groups.values()
+        for roi in group.get("rois", [])
+    ]
+    expected_cells = int(discovery.get("expected_cells", {}).get("model_roi_cells", 0))
+    if expected_cells and len(output_dirs) != expected_cells:
+        raise ValueError(
+            f"V1 geometry expected {expected_cells} configs, found {len(output_dirs)} in {config_root}"
+        )
+
+    return {
+        "subject_id": discovery.get("subject_id", ""),
+        "models": [str(model) for model in discovery.get("models", [])],
+        "rois": rois,
+        "feature_reduction": encoding.get("method", "flatten_pca"),
+        "expected_num_items": int(discovery.get("max_items") or 0),
+        "geometry": geometry,
+        "neural_output_dirs": [str(path) for path in output_dirs],
+    }
+
+
+def _validate_output_dir(
+    output_dir: Path,
+    *,
+    expected_models: set[str],
+    expected_rois: set[str],
+    expected_num_items: int,
+    expected_feature_reduction: str,
+) -> None:
+    metadata_path = output_dir / "metadata.json"
+    encoding_path = output_dir / "encoding_scores.csv"
+    activations_path = output_dir / "activations.npz"
+    for path in [metadata_path, encoding_path, activations_path]:
+        if not path.is_file():
+            raise FileNotFoundError(f"Required geometry input not found: {path}")
+
+    metadata = _load_json(metadata_path)
+    model = str(metadata.get("model_name") or metadata.get("model", ""))
+    roi = _single(metadata.get("rois"))
+    if expected_models and model not in expected_models:
+        raise ValueError(f"Unexpected model for V1 geometry: {model} in {output_dir}")
+    if expected_rois and roi not in expected_rois:
+        raise ValueError(f"Unexpected ROI for V1 geometry: {roi} in {output_dir}")
+    feature_reduction = str(metadata.get("feature_reduction", ""))
+    if expected_feature_reduction and feature_reduction != expected_feature_reduction:
+        raise ValueError(
+            f"Expected feature_reduction={expected_feature_reduction}, got {feature_reduction} "
+            f"in {output_dir}"
+        )
+    if expected_num_items and int(metadata.get("num_items") or 0) != expected_num_items:
+        raise ValueError(
+            f"Expected num_items={expected_num_items}, got {metadata.get('num_items')} "
+            f"in {output_dir}"
+        )
 
 
 def _compute_output_geometry(

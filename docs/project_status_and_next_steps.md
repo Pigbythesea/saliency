@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-06-05
+Updated: 2026-06-07
 
 ## Purpose And Codex Operating Contract
 
@@ -16,7 +16,7 @@ Its purpose is to steer implementation toward publication-grade scientific evide
 
 The current Paper 1 claim to test is:
 
-> Human-like fixation alignment, neural encoding, and latent representational geometry are related but non-equivalent axes of visual alignment; dissociation and convergence patterns may emerge out of different axis, giving insight on brain decoding via model architecture. 
+> Human-like fixation alignment, neural encoding, and latent representational geometry are related but non-equivalent axes of visual alignment; dissociation and convergence patterns may emerge out of different axis, giving insight on brain decoding via model architecture. Then, do models that better match human visual attention behavior also better align with human visual cortex in encoding and representational geometry, or do these alignment axes dissociate across architecture, attribution family, ROI, and viewing regime?
 
 Codex must treat every implementation task as subordinate to this claim. The project should not be optimized for a larger saliency leaderboard, a local Algonauts score chase, broad model-zoo accumulation, or cosmetic paper-pack expansion unless the task directly improves the cross-axis dissociation/convergence evidence.
 
@@ -78,10 +78,10 @@ Current steering documents under `docs/`:
 The repository now implements three active layers:
 
 - Behavioral saliency / fixation benchmarking on SALICON, CAT2000, and COCO-Search18.
-- Neural encoding on local Algonauts / NSD `subj01` visual ROIs, including the complete six-model full-image-count `flatten_pca` PRF ROI panel and full-image-count learned spatial readout provenance for DINOv2.
-- Paper-style inspection tables and figures that join corrected behavioral summaries with the matched full-image neural panel, matched geometry sensitivity outputs, and matched cross-level correlation/regression outputs.
+- Neural encoding on local Algonauts / NSD `subj01` visual ROIs, including the complete six-model full-image-count `flatten_pca` PRF ROI diagnostic panel, full-image-count learned spatial readout provenance for DINOv2, and the V1 four-model x ten-ROI discovery matrix.
+- Paper-style inspection tables and figures that join corrected behavioral summaries with the matched full-image neural panel, matched geometry sensitivity outputs, V1 ROI-expanded geometry, and matched cross-level correlation/regression outputs.
 
-The repository now implements the matched full-image representational-geometry axis for `subj01`; current geometry rows are accepted as diagnostic within-study evidence, not as final paper-grade scientific evidence.
+The repository now implements both the diagnostic PRF-only matched full-image representational-geometry axis and the V1 ROI-expanded `subj01` geometry axis. The V1 artifact gate passes, but interpretation is not yet paper-grade because the main result is geometry-method dependent.
 
 Main package: `src/hma/`.
 
@@ -95,11 +95,13 @@ Accepted diagnostic evidence:
 - Matched full-image `flatten_pca` neural panel: `outputs/neural_roi_summary/matched_full_panel_model_rankings.csv`.
 - Matched full-image geometry rankings and sensitivity summaries: `outputs/neural_roi_summary/matched_geometry_model_rankings.csv`, `outputs/neural_roi_summary/matched_geometry_method_agreement.csv`.
 - Matched cross-level analysis outputs: `outputs/neural_roi_summary/matched_cross_level_observations.csv`, `outputs/neural_roi_summary/matched_cross_level_correlations.csv`.
+- V1 ROI-expanded discovery evidence: `outputs/paper1_experiment_v1/summary/roi_expanded_encoding_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_agreement.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_cross_level_correlations.csv`, and `outputs/paper1_experiment_v1/summary/roi_expanded_cross_axis_decisions.csv`.
 
 Robustness/control artifacts:
 
 - Matched panel audit: `outputs/neural_roi_summary/matched_full_panel_artifact_audit.csv`.
 - Cross-axis sensitivity and decision diagnostics: `outputs/neural_roi_summary/matched_cross_axis_sensitivity.csv`, `outputs/neural_roi_summary/matched_cross_axis_decisions.csv`.
+- V1 ROI-expanded artifact audit: `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`; current status is all checks passing after `40` geometry cells x `10` geometry rows per cell.
 - Observer-control outputs: `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`, `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`.
 
 Diagnostics/provenance:
@@ -145,11 +147,11 @@ Paper 1 should be held to these publication gates before strong top-venue claims
 Paper 1 is not yet top-venue ready. The current repository supports a serious diagnostic study, but the accepted evidence is still too narrow for a strong conference claim because it is mainly:
 
 * one-subject neural evidence;
-* six-model model-level correlations;
-* four PRF visual ROIs;
+* small model-level correlations (`n=4` for the V1 discovery matrix, `n=6` for the older PRF diagnostic panel);
+* one completed ROI-expanded discovery pass without subject replication;
 * limited behavioral SOTA controls;
 * limited transformer attribution coverage;
-* mostly descriptive cross-axis analysis.
+* geometry-method-dependent cross-axis analysis.
 
 The current project should therefore be treated as a publication-directed evidence-building pipeline, not as a finished paper.
 
@@ -157,21 +159,21 @@ The current project should therefore be treated as a publication-directed eviden
 
 The strongest currently defensible claim is:
 
-> The current pipeline can produce plausible behavioral, neural encoding, and representational-geometry measurements under a matched local setup, and these diagnostics suggest that a cross-axis dissociation study may be viable.
+> The current pipeline can produce a complete ROI-expanded `subj01` discovery matrix, and the first V1 results suggest that encoding and full-image CKA converge while subset-RSA weakens that geometry conclusion.
 
-This is not yet a paper claim. It is a project-readiness claim.
+This is not yet a paper claim. It is a candidate method-dependent convergence/dissociation pattern that needs explicit failure-gate synthesis before subject replication.
 
-The current results should be used to design the first paper-grade experiment, not to support a top-venue conclusion.
+The current results should be used to decide whether the V1 pattern is worth confirming, not to support a top-venue conclusion.
 
 ### Current weakest links
 
 The weakest links, in order of reviewer severity, are:
 
-1. **Small model-level ****`n`****:** behavior–encoding–geometry correlations over `n=6` or transformer-only `n=4` are descriptive.
-2. **Limited ROI and one-subject neural evidence:** current encoding and geometry results are local `subj01` diagnostics only to early visual areas without connecting to later visual processing regions.
+1. **Small model-level ****`n`****:** behavior-encoding-geometry correlations over `n=4` in the V1 matrix remain descriptive.
+2. **One-subject neural evidence:** current ROI-expanded encoding and geometry results are still local `subj01` evidence and need subject robustness only after the V1 pattern is decision-clean.
 3. **Insufficient behavioral SOTA controls:** DeepGaze IIE and center bias are useful, but human ceilings, DeepGaze MSDB/comparable modern fixation baseline, and task-specific COCO-Search18 controls remain important.
 4. **Attribution ambiguity:** Grad-CAM, vanilla gradients, and attention rollout are different explanation objects. Attention rollout must not be treated as human-like attention.
-5. **Geometry metric dependence:** full-image CKA is useful, but geometry claims need subset-RSA stability and ideally another geometry check or repeated seeds.
+5. **Geometry metric dependence:** V1 full-image CKA converges with encoding, while subset-RSA gives a weaker or different ranking. This is now the immediate scientific issue, not a future concern.
 6. **Efficiency missing:** compute and alignment-per-compute remain untested, so the original efficient-attention axis is not yet active in Paper 1.
 7. **Causality absent:** Paper 1 is observational. It cannot claim that human-like saliency causes neural alignment.
 
@@ -259,11 +261,23 @@ Matched cross-level readout:
 - Grad-CAM across-ROI NSS groups are marked `insufficient_models` because only `resnet50` and `convnext_tiny` have matched Grad-CAM behavioral rows in the six-model panel.
 - Lower-is-better behavioral metrics such as KL are sign-aligned before correlation while retaining the raw behavioral mean in the observation table.
 
+V1 ROI-expanded discovery matrix:
+
+- Path: `outputs/paper1_experiment_v1/summary/`.
+- Artifact audit: `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`; all `9` audit checks pass.
+- Encoding scope: `40` completed full-image `flatten_pca` cells across four models x ten ROIs, with `148144` target rows.
+- Geometry scope: `40` completed cells, each with `10` valid geometry rows: one `linear_cka_full9841` row and nine deterministic `subset_rsa` rows from subset sizes `512`, `1024`, and `2048` with seeds `123`, `456`, and `789`.
+- V1 encoding ranking across ten ROIs: `vit_small_patch14_dinov2` `0.556`, `resnet50` `0.537`, `vit_base_patch16_clip_224` `0.521`, and `vit_base_patch16_224` `0.502`.
+- V1 full-image CKA ranking: `vit_small_patch14_dinov2` `0.194`, `resnet50` `0.187`, `vit_base_patch16_clip_224` `0.099`, and `vit_base_patch16_224` `0.089`.
+- V1 subset-RSA rankings are not identical to CKA: most subset-RSA variants rank `resnet50` first, `vit_small_patch14_dinov2` second, `vit_base_patch16_224` third, and `vit_base_patch16_clip_224` fourth; two subset seeds rank DINOv2 first.
+- CKA/subset-RSA rank agreement at `across_roi_mean` is complete but moderate: Spearman is mostly `0.6`, occasionally `0.8`; Kendall is mostly `0.333`, occasionally `0.667`.
+
 Interpretation:
 
 - The project has a complete full-image-count matched `flatten_pca` panel for six model families, plus a stronger DINOv2 learned-readout method result.
 - The matched-panel ranking is now the accepted basis for cross-model neural comparisons: `vit_small_patch14_dinov2` first, `vit_base_patch16_clip_224` second, `resnet50` third, `deit_small_patch16_224` fourth, `vit_base_patch16_224` fifth, and `convnext_tiny` sixth by mean valid-target noise-normalized score.
 - The previous test-set feedback risk for layer choice has been addressed for the current one-subject PRF visual ROI baselines by validation-only layer selection.
+- The V1 discovery matrix changes the scientific state: encoding and full-image CKA converge on DINOv2 as the top model, but subset-RSA partially dissociates from that story. The next accepted evidence object must therefore synthesize geometry-method sensitivity, not simply report the CKA ranking.
 
 ## Global Direction Rationale
 
@@ -287,67 +301,35 @@ The matched geometry axis is the current most important addition because it can 
 
 ### Current priority
 
-The immediate priority is to move from a validation matrix to a paper-grade experiment.
+The immediate priority is to move from a completed V1 discovery matrix to a decision-clean scientific interpretation.
 
-The current behavioral, neural, and geometry outputs should be treated as diagnostics. They show that the pipeline can generate plausible axis measurements, but they are not yet the central paper result. Future Codex sessions should not spend their main effort reinforcing the current six-model/subj01/V1–hV4 matrix unless the task directly helps define or execute the next paper-grade experiment.
+The current V1 behavioral, neural, and geometry outputs are the first claim-relevant discovery matrix, but they are not yet a paper result. Future Codex sessions should not expand subjects, models, behavioral baselines, or efficiency before the project decides whether the V1 pattern is a stable convergence, a method-dependent dissociation, or an insufficient/ambiguous result.
 
 The next Codex work should therefore focus on:
 
-1. **Paper-grade experiment definition**
+1. **V1 geometry-method sensitivity synthesis**
 
-   Define the minimum experiment that could actually support the Paper 1 claim. This experiment must specify:
+   Build an accepted table that compares the V1 cross-axis conclusions under `linear_cka_full9841` against all deterministic `subset_rsa` variants. This table should explicitly mark whether behavior-geometry and encoding-geometry conclusions are `stable_across_geometry_methods`, `cka_only`, `subset_rsa_only`, `direction_conflict`, or `insufficient_models`.
 
-   * the model panel;
-   * the subject scope;
-   * the ROI / brain-region scope;
-   * the behavioral datasets and controls;
-   * the attribution families to be accepted;
-   * the geometry metrics;
-   * the exact dissociation/convergence tests;
-   * the acceptance and failure criteria.
+2. **Failure-gate decision**
 
-   The output should be a concrete experiment spec, not a broad roadmap.
+   Apply the V1 failure criteria before any expansion. The decision should answer whether the current result is:
 
-2. **Scope correction before robustness**
+   * a stable convergence pattern;
+   * a method-dependent dissociation pattern worth confirming;
+   * an ambiguous result requiring uncertainty/geometry repair before replication;
+   * or a failed Paper 1 discovery matrix that should demote the paper framing.
 
-   Do not bootstrap or overanalyze the current diagnostic matrix as if it were the final experiment. First decide whether the paper-grade experiment needs:
-
-   * broader visual ROIs beyond early PRF regions;
-   * more subjects;
-   * a different model panel;
-   * stronger behavioral baselines;
-   * better transformer attribution;
-   * efficiency variables;
-   * a causal Paper 2-style intervention.
-
-   Robustness analysis is valuable only after the tested matrix is scientifically adequate.
-
-3. **Publication-grade matrix construction**
-
-   Build the first real paper-grade matrix around the minimum sufficient design.
-
-   The likely direction is:
-
-   * keep the current six-model matched panel as the seed;
-   * expand anatomical scope before broad model-zoo scope;
-   * add subject replication after the ROI-expanded pattern exists;
-   * add stronger behavioral controls;
-   * add accepted transformer attribution beyond rollout;
-   * keep free-viewing and task-driven regimes separate;
-   * preserve matched model/behavior/neural/geometry linkage.
-
-4. **Outcome-first implementation**
+3. **Outcome-first implementation**
 
    Each Codex session should produce an artifact that changes the paper’s scientific state.
 
    Good session outputs include:
 
-   * a paper-grade experiment spec;
-   * a new manifest/config set for the selected experiment;
-   * a completed expanded ROI or subject panel;
-   * a stronger accepted behavioral baseline;
-   * a transformer attribution family that replaces weak rollout-only claims;
-   * a table showing whether the upgraded matrix changes the dissociation story.
+   * a geometry-method sensitivity decision table;
+   * a V1 failure-gate synthesis note;
+   * a targeted robustness table that changes whether the V1 pattern is trusted;
+   * a documented decision to proceed to subject robustness or pause for method repair.
 
    Poor session outputs include:
 
@@ -357,16 +339,15 @@ The next Codex work should therefore focus on:
    * small improvements to stale summaries;
    * broad model-zoo expansion without a claim-driven design.
 
-5. **Robustness after adequacy**
+4. **Robustness after decision**
 
-   Uncertainty, bootstrapping, leave-one-model-out sensitivity, and reviewer-facing decision tables should be applied after the project has built a matrix worth defending.
+   Uncertainty, subject replication, behavioral-control integration, and efficiency should be applied after the V1 decision is clear.
 
    The correct order is:
 
-   1. define the paper-grade experiment;
-   2. build the adequate matrix;
-   3. inspect whether a real pattern exists;
-   4. then run robustness and reviewer-facing hardening.
+   1. finish the V1 geometry-method sensitivity synthesis;
+   2. decide whether the V1 pattern is stable, method-dependent, or insufficient;
+   3. then choose the next robustness target.
 
    Do not reverse this order.
 
@@ -386,36 +367,28 @@ Do not prioritize:
 The current milestone order is:
 
 1. Freeze the current six-model/subj01/V1–hV4 results as diagnostic validation outputs, not paper-grade evidence.
-2. Define the minimum paper-grade cross-axis experiment required to test the Paper 1 claim.
-3. Decide the upgraded scope:
-   - model panel;
-   - subject count;
-   - ROI / brain-region coverage;
-   - behavioral controls;
-   - attribution families;
-   - geometry metrics;
-   - efficiency variables if included.
-4. Generate configs/manifests for the upgraded experiment.
-5. Run the upgraded matrix in the smallest scientifically adequate form.
-6. Inspect whether the upgraded matrix produces a nontrivial convergence/dissociation pattern.
-7. Only then add uncertainty, sensitivity, leave-one-model-out tests, and reviewer-facing decision tables.
-8. If the upgraded matrix still does not produce a defensible claim, demote Paper 1 to a methods/workshop paper and shift the main publication effort toward Paper 2’s causal adaptive-attention intervention.
+2. Complete the V1 four-model x ten-ROI discovery matrix for `subj01`.
+3. Apply geometry-method sensitivity and the V1 failure gate.
+4. If a coherent method-dependent convergence/dissociation pattern remains, run subject robustness on the reduced `subj02`-`subj04` panel.
+5. If the pattern is ambiguous, add uncertainty/geometry repair before replication.
+6. Only after the V1 decision is clean, add behavioral controls, stronger attribution, and efficiency.
+7. If the V1 matrix does not produce a defensible claim after sensitivity, demote Paper 1 to a methods/workshop paper and shift the main publication effort toward Paper 2’s causal adaptive-attention intervention.
 
 ### Decision rule
 
-Do not attempt to make the current diagnostic result look publication-grade through robustness analysis.
+Do not treat the V1 full-image CKA convergence as paper-grade evidence until subset-RSA sensitivity is explicitly included in the decision table.
 
-Robustness can strengthen an adequate experiment. It cannot rescue an inadequate experimental scope.
+Robustness can strengthen a decision-clean pattern. It cannot rescue an interpretation that depends on silently choosing one geometry method.
 
 Continue Paper 1 toward a top venue only if the upgraded experiment can say more than:
 
-> The pipeline runs and produces plausible correlations over a small local panel.
+> DINOv2 leads under encoding and CKA in one subject.
 
 The desired paper-level statement is:
 
 > Under a controlled, sufficiently broad cross-axis experiment, fixation alignment, neural encoding, and representational geometry converge or dissociate in identifiable model/ROI/task regimes.
 
-That statement requires a better experiment first, then robustness second.
+That statement now requires V1 geometry-method synthesis first, then robustness second.
 
 ### Relevant SOTA references:
 
@@ -468,6 +441,8 @@ Neural infrastructure:
 - Cross-validated ridge alpha selection on an inner split of training images.
 - RSA over model and neural response RDMs.
 - Full-image-count PRF ROI summaries, model rankings, ROI winners, and matched cross-level behavior-neural tables.
+- V1 ROI-expanded full-image `flatten_pca` summaries for four models x ten ROIs.
+- V1 ROI-expanded geometry scoring and summaries for `linear_cka_full9841` plus deterministic subset-RSA.
 - Additional Algonauts subject full PRF visual ROI manifests are prepared for `subj02`, `subj03`, and `subj04`, with per-image `V1`/`V2`/`V3`/`hV4` response files.
 
 Reporting infrastructure:
@@ -479,7 +454,7 @@ Reporting infrastructure:
 
 ## Current Implementation Progress
 
-Updated: 2026-06-05
+Updated: 2026-06-07
 
 Current implementation state:
 
@@ -491,61 +466,67 @@ Current implementation state:
 - Paper-Grade Experiment Definition V1 is now complete as a planning milestone. The new spec fixes the next falsifiable matrix as `subj01`, four method-matched models, PRF ROIs plus stream ROIs, full-image `flatten_pca` encoding, and `linear_cka_full9841` plus deterministic `subset_rsa` geometry.
 - The V1 config is a forward-looking experiment contract, not a replacement for `configs/paper1_config.yaml`, which remains the scope file for the current diagnostic PRF-only results.
 - The new validation test `tests/test_paper1_experiment_spec.py` locks required model names, ROI names, accepted artifact paths, exclusion rules, and cmd-only verification-command documentation.
+- The `subj01` V1 stream-ROI manifest/config readiness path is now implemented. The stream manifest exists, the ROI-expanded config directory contains the expected `40` full-image `flatten_pca` validation-selection configs, and the readiness audit passes.
+- The V1 readiness generator is `scripts/create_paper1_v1_roi_expanded_configs.py`; it reads `configs/paper1_experiment_v1.yaml`, generates the stream manifest/configs, and writes `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`.
+- Stream ROI noise ceilings are now generated from NSD ncsnr files and attached to `data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv`. The `resnet50`/`midventral` V1 smoke rerun has `noise_ceiling_available=true`, `1913` valid noise-ceiling targets, `4` zero-ceiling targets, and downstream summaries use the populated noise-normalized score.
+- The full V1 ROI-expanded `subj01` encoding matrix is now complete for all `40` expected cells: four models x ten ROIs. The generated summary is in `outputs/paper1_experiment_v1/summary/`.
+- V1 ROI-expanded mean noise-normalized encoding ranking across ten ROIs is: `vit_small_patch14_dinov2` `0.556`, `resnet50` `0.537`, `vit_base_patch16_clip_224` `0.521`, and `vit_base_patch16_224` `0.502`.
+- The V1 encoding summary has `40` encoding rows and `148144` target rows. Target-level noise-ceiling scope is mostly normalized: `148108` normalized target rows and `36` non-normalized target rows caused by zero ceilings.
+- The full V1 ROI-expanded `subj01` geometry matrix is now complete for all `40` expected cells. Each cell has `10` valid geometry rows: `linear_cka_full9841` plus deterministic `subset_rsa` at sizes `512`, `1024`, and `2048` with seeds `123`, `456`, and `789`.
+- V1 ROI-expanded full-image CKA ranking across ten ROIs is: `vit_small_patch14_dinov2` `0.194`, `resnet50` `0.187`, `vit_base_patch16_clip_224` `0.099`, and `vit_base_patch16_224` `0.089`.
+- V1 deterministic subset-RSA rankings are method-sensitive: most subset-RSA variants rank `resnet50` first and `vit_small_patch14_dinov2` second, while two subset-RSA seeds rank DINOv2 first. CKA/subset-RSA across-ROI rank agreement is complete but moderate.
+- The V1 cross-axis summaries exist: `693` cross-level correlation rows and `2079` cross-axis decision rows. Current decision rows are dominated by `insufficient_models` (`1386`), with `627` `stable_convergence` and `66` `unstable` rows. The stable across-ROI rows are concentrated in `vanilla_gradient` behavior and `linear_cka_full9841` geometry.
 
 Latest session report:
 
-1. `Scientific change`: no new empirical evidence was produced; the scientific scope decision changed from an underspecified "define a paper-grade experiment" milestone to a concrete ROI-expanded `subj01` discovery matrix.
-2. `Accepted artifact`: `docs/paper1_experiment_spec_v1.md`, `configs/paper1_experiment_v1.yaml`, and `outputs/planning/paper1_experiment_scope_decisions.csv`.
-3. `Claim impact`: neutral on the Paper 1 claim as evidence, but positive for claim testability because it defines the next matrix capable of testing convergence/dissociation beyond PRF-only diagnostics.
-4. `Reviewer risk reduced`: reduces the "PRF-only / one narrow anatomical scope" and "self-reinforcing diagnostic matrix" risks by forcing the next implementation toward broader brain-region coverage before model-zoo expansion.
-5. `Next decisive step`: generate and validate the `subj01` stream-ROI manifest/config path for the V1 experiment.
+1. `Scientific change`: the V1 ROI-expanded `subj01` discovery matrix is now complete across encoding and geometry. Encoding and full-image CKA converge on DINOv2 as the top model, but deterministic subset-RSA weakens or partially reverses that geometry story by usually ranking ResNet first. This is a candidate geometry-method dissociation, not a clean model-ranking result.
+2. `Accepted artifact`: `outputs/paper1_experiment_v1/neural_subj01_roi_expanded/`, `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_encoding_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_agreement.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_cross_level_correlations.csv`, and `outputs/paper1_experiment_v1/summary/roi_expanded_cross_axis_decisions.csv`.
+3. `Claim impact`: positive for the Paper 1 dissociation claim, but still not paper-ready. The result provides a concrete convergence/dissociation candidate: encoding aligns with full-image CKA, while subset-RSA exposes geometry-method dependence.
+4. `Reviewer risk reduced`: reduces the "PRF-only anatomical scope" and "missing geometry axis" risks by completing method-matched PRF-plus-stream encoding and geometry for the four-model V1 panel. It also surfaces the geometry-metric-dependence risk instead of hiding it.
+5. `Next decisive step`: implement a V1 geometry-method sensitivity and failure-gate synthesis table that compares CKA-based cross-axis conclusions against all subset-RSA variants before any subject replication, model expansion, or new behavioral controls.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
 ## Next Concrete Milestone
 
-Priority: **Enable Paper 1 V1 ROI-Expanded Matrix Execution**.
+Priority: **Add V1 Geometry-Method Sensitivity And Failure-Gate Synthesis**.
 
-The previous milestone, Paper-Grade Experiment Definition V1, is complete. Do not keep editing the spec unless a concrete implementation blocker is discovered. The next milestone is to make the V1 matrix runnable without hand-written configs or ambiguous ROI handling.
+The previous milestone, Paper 1 V1 ROI-Expanded Geometry, is complete. Do not rerun encoding or geometry unless an audit regresses or a concrete data-integrity blocker is discovered.
 
-The next decisive implementation task is to generate and validate the `subj01` stream-ROI manifest/config path required by `configs/paper1_experiment_v1.yaml`.
+The next decisive implementation task is to synthesize whether the apparent V1 convergence/dissociation pattern survives geometry-method sensitivity. The current cross-axis decision table uses `linear_cka_full9841` as the primary geometry method, while subset-RSA is summarized mostly through method agreement. The next session must make the CKA-vs-subset-RSA implication explicit.
 
 ### Required outcome
 
-By the end of this milestone, the project should produce executable planning infrastructure for the V1 discovery matrix:
+By the end of this milestone, the project should produce a reviewer-facing decision artifact for the completed V1 discovery matrix:
 
-- Stream ROI manifest target: `data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv`.
-- ROI-expanded config directory target: `configs/experiments/paper1_experiment_v1/neural_subj01_roi_expanded/`.
-- Optional manifest/config audit target: `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`.
-- Focused tests for stream ROI manifest/config generation and V1 config validity.
+- A V1 geometry-method sensitivity table under `outputs/paper1_experiment_v1/summary/`, preferably named `roi_expanded_geometry_method_sensitivity_decisions.csv`.
+- A compact V1 failure-gate synthesis table or Markdown note under `outputs/paper1_experiment_v1/summary/`, preferably named `roi_expanded_failure_gate_summary.csv` or `roi_expanded_failure_gate_summary.md`.
+- Explicit labels for each behavior/encoding/geometry relationship: `stable_across_geometry_methods`, `cka_only`, `subset_rsa_only`, `direction_conflict`, `insufficient_models`, or `not_tested`.
+- A clear decision on whether the V1 result should move to subject robustness, geometry/uncertainty repair, or downgraded Paper 1 framing.
 
 ### Required implementation work
 
 The next Codex session should implement:
 
-1. **Generalized ROI manifest support**
+1. **Load completed V1 evidence**
 
-   Use `scripts/create_algonauts_manifest.py` in ROI-manifest mode with `roi_class=streams`, bilateral hemispheres, and stream ROI labels from `data/raw/nsd_algonauts/subj01/roi_masks/mapping_streams.npy`.
+   Read `configs/paper1_experiment_v1.yaml`, `roi_expanded_encoding_model_rankings.csv`, `roi_expanded_geometry_model_rankings.csv`, `roi_expanded_geometry_method_agreement.csv`, `roi_expanded_cross_level_correlations.csv`, and `roi_expanded_cross_axis_decisions.csv`.
 
-2. **Stream ROI manifest generation**
+2. **Build geometry-method sensitivity summaries**
 
-   Generate `data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv` for `subj01` with the six stream ROIs in the V1 experiment: `midventral`, `midlateral`, `midparietal`, `ventral`, `lateral`, and `parietal`.
+   Compare cross-model rankings and correlation conclusions for `linear_cka_full9841` versus every deterministic `subset_rsa` method. Report per-method and aggregated subset-RSA agreement with CKA for model mean and ROI-specific rows.
 
-3. **Manifest validation**
+3. **Extend cross-axis decisions beyond primary CKA**
 
-   Confirm all six stream ROIs exist, all selected response dimensions are nonzero, image ordering matches the existing PRF full manifest for `subj01`, and bounded file validation passes without touching every response file unnecessarily.
+   The existing `roi_expanded_cross_axis_decisions.csv` is CKA-primary. Add a companion decision table that states whether behavior-vs-geometry and encoding-vs-geometry conclusions remain stable when geometry is represented by subset-RSA variants.
 
-4. **Generalized ROI-expanded config generation**
+4. **Apply the V1 failure criteria**
 
-   Extend `scripts/create_neural_roi500_configs.py` or add a narrowly scoped V1 generator so it can emit full-image `flatten_pca` validation-selection configs for arbitrary ROI labels and manifest paths, not only hardcoded PRF `V1`/`V2`/`V3`/`hV4`.
+   Mark whether the V1 pattern depends on one model, one ROI, or one geometry method. Treat "DINOv2 leads under CKA but not subset-RSA" as a possible method-dependent dissociation, not as a failure by itself.
 
-5. **V1 config emission**
+5. **Update status and next step**
 
-   Generate the four-model x ten-ROI config set under `configs/experiments/paper1_experiment_v1/neural_subj01_roi_expanded/`, using the model panel and encoding settings from `configs/paper1_experiment_v1.yaml`.
-
-6. **Smoke-run readiness only**
-
-   Do not run the full matrix in this milestone. At most, prepare one smoke config/cell and document the exact cmd command for a future smoke run.
+   Update this file with the scientific decision. If the method-dependent pattern is coherent, the next step becomes subject robustness on `subj02`-`subj04`; if it is ambiguous, the next step becomes uncertainty/geometry repair before replication.
 
 ### Scope decision rules
 
@@ -554,29 +535,28 @@ The implementation should follow these rules:
 - Prefer a small reusable generator over hand-writing `40` configs.
 - Keep `configs/paper1_config.yaml` unchanged as the diagnostic PRF-only result scope.
 - Keep V1 fLOC category ROIs out of scope unless `docs/paper1_experiment_spec_v1.md` is explicitly revised.
-- Do not run subject replication before the ROI-expanded `subj01` pattern exists.
-- Do not add new models, new behavioral baselines, efficiency, or stronger attribution before the V1 stream-ROI manifest/config path is validated.
+- Do not run subject replication before the V1 geometry-method sensitivity decision exists.
+- Do not add new models, new behavioral baselines, efficiency, or stronger attribution before the V1 failure gate is applied.
 - Use cmd-form commands in any docs or handoff text.
 
 ### Acceptance criteria
 
 This milestone is complete only if:
 
-- `data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv` exists and contains all six stream ROIs.
-- The stream manifest has the same `subj01` image ordering as the PRF full manifest for matching image rows.
-- Every stream ROI has nonzero response dimensionality.
-- The generated config directory contains the expected `40` full-image `flatten_pca` validation-selection configs: four models x ten ROIs.
-- A test or audit verifies the required models and ROIs come from `configs/paper1_experiment_v1.yaml`.
-- No full V1 neural matrix run is started before manifest/config audit passes.
+- The new sensitivity table includes all four V1 models, all ten ROIs, `linear_cka_full9841`, and all nine subset-RSA variants.
+- The synthesis explicitly marks whether encoding-geometry convergence is stable across geometry methods or CKA-only.
+- The synthesis explicitly preserves SALICON/CAT2000 free-viewing versus COCO-Search18 task-search separation.
+- The failure-gate output states whether to proceed to subject robustness, add uncertainty/geometry repair, or demote Paper 1 framing.
+- Focused tests verify that subset-RSA rows are not silently excluded from the sensitivity decision.
 
 ### Stop condition
 
-If stream ROI manifests cannot be generated from the available local masks, stop and document the blocker in this file instead of falling back to model expansion or PRF-only robustness.
+If the existing summary tables do not contain enough information to compare CKA and subset-RSA cross-axis conclusions, stop and add the missing summary fields instead of falling back to subject replication, model expansion, or PRF-only robustness.
 
-Suggested focused verification command:
+Suggested focused inspection command before sensitivity work:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_paper1_experiment_spec.py tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py
+.\.venv\Scripts\python.exe -c "import csv; from pathlib import Path; audit=list(csv.DictReader(Path('outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv').open(newline='',encoding='utf-8'))); print([(r['check'], r['status']) for r in audit]); geom=list(csv.DictReader(Path('outputs/paper1_experiment_v1/summary/roi_expanded_geometry_model_rankings.csv').open(newline='',encoding='utf-8'))); print('geometry_methods', len(set(r['geometry_method'] for r in geom))); print('models', sorted(set(r['model'] for r in geom)))"
 ```
 
 ## Data/control readiness update:
@@ -588,7 +568,7 @@ Suggested focused verification command:
   - `data/manifests/nsd_algonauts_subj04_prf_visualrois_full_manifest.csv`: `35116` rows; response dimensions V1 `2328`, V2 `2474`, V3 `2146`, hV4 `1190`.
 - Combined four-subject audit manifest: `data/manifests/nsd_algonauts_subj01-04_prf_visualrois_full_manifest.csv`, `150172` rows.
 - Per-ROI bounded validation passed for `subj02`-`subj04` using `25` sampled rows per subject/ROI. Full all-row validation is intentionally avoided because it touches more than `100k` response files and is slow on Windows.
-- `subj01` has local ROI masks for PRF visual ROIs, streams, and fLOC category maps under `data/raw/nsd_algonauts/subj01/roi_masks/`. V1 should use `streams` next; fLOC category maps are deferred.
+- `subj01` has local ROI masks for PRF visual ROIs, streams, and fLOC category maps under `data/raw/nsd_algonauts/subj01/roi_masks/`. V1 now uses PRF visual ROIs plus streams; fLOC category maps are deferred.
 - COCO-Search18 target-absent data is integrated. `data/manifests/coco_search18_manifest.csv` now has `74646` rows: `49760` target-present and `24886` target-absent rows. The V2 static manifest now has `2000` validation rows: `1338` target-present and `662` target-absent.
 - SALICON official JSON annotations are integrated. `data/manifests/salicon_observer_annotations_manifest.csv` has `893854` worker-level rows with explicit `worker_id`; the V2 subset `data/manifests/v2/salicon_static2000_observer_annotations_manifest.csv` has `125874` rows over `2000` images.
 - Observer-control outputs are generated:
@@ -597,16 +577,15 @@ Suggested focused verification command:
 
 Current post-spec implementation priorities:
 
-The V1 spec and config now define the falsifiable paper-grade matrix. The immediate work is to make that matrix executable, starting with stream ROI manifests and configs.
+The V1 spec and config now define the falsifiable paper-grade matrix, and the ROI-expanded encoding plus geometry axes are complete. The immediate work is to decide whether the observed CKA/subset-RSA method dependence is a coherent cross-axis dissociation pattern or an ambiguity that needs repair before replication.
 
-- Add ROI/brain-region expansion before expanding the model zoo or prioritizing subject replication:
-  - build and validate `subj01` stream ROI manifests/configs first;
-  - start on `subj01` so ROI-expanded behavior/encoding/geometry results are directly comparable to the current matched panel;
-  - start with `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, `resnet50`, and `vit_base_patch16_224`;
-  - keep the same `flatten_pca`, CKA, subset-RSA, and cross-axis summary contracts so results are comparable.
+- Apply V1 geometry-method sensitivity before expanding the model zoo or prioritizing subject replication:
+  - keep the completed `subj01` ROI-expanded encoding matrix as the V1 discovery encoding axis;
+  - keep the completed `subj01` ROI-expanded geometry matrix as the V1 discovery geometry axis;
+  - explicitly compare CKA-primary conclusions against deterministic subset-RSA conclusions before adding subjects or models.
 - Use the prepared additional subjects as a robustness follow-up:
-  - after ROI-expanded `subj01` results identify candidate patterns, run the reduced confirmatory panel on `subj02`-`subj04`;
-  - do not let subject replication delay the first brain-region expansion pass.
+  - after the V1 failure gate identifies a coherent candidate pattern, run the reduced confirmatory panel on `subj02`-`subj04`;
+  - do not let subject replication precede geometry-method sensitivity synthesis.
 - Strengthen behavioral controls:
   - consume the generated SALICON and COCO-Search18 observer-control outputs in behavioral summaries and paper-pack diagnostics;
   - add DeepGaze MSDB or another modern fixation reference if feasible;
@@ -614,7 +593,7 @@ The V1 spec and config now define the falsifiable paper-grade matrix. The immedi
 - Improve transformer attribution coverage:
   - add one stronger transformer relevance method, preferably Chefer-style transformer attribution or AttnLRP-style relevance propagation;
   - keep gradients, rollout, perturbation, and relevance-style maps as separate saliency families.
-- Add paper-grade uncertainty only after the paper-grade matrix exists:
+- Add paper-grade uncertainty only after the V1 failure-gate decision exists:
   - add target bootstrap intervals for matched encoding summaries;
   - add subset/image bootstrap or additional deterministic seeds for subset RSA;
   - keep leave-one-model and leave-one-ROI sensitivity, but use them as robustness diagnostics.
@@ -628,9 +607,9 @@ Completed milestones are archived in `docs/project_status_changelog.md`.
 
 Proceed in phases that map directly to the research question.
 
-1. **ROI/brain-region expansion.** Move beyond PRF V1/V2/V3/hV4 before broadening the model zoo or prioritizing subject replication. Prioritize broader visual-cortex vertices and higher-level visual ROIs because anatomical scope is the most plausible source of meaningful new convergence/dissociation patterns.
+1. **V1 geometry-method decision.** Resolve whether the completed ROI-expanded `subj01` matrix supports a stable convergence, a method-dependent dissociation, or an ambiguous result.
 2. **Behavioral and attribution controls.** Integrate observer ceilings, add a modern DeepGaze reference if feasible, add a task-trained COCO-Search18 baseline, and add stronger transformer attribution before any attention-specific interpretation.
-3. **Subject robustness.** Use `subj02`-`subj04` after the ROI-expanded `subj01` pass to check whether candidate patterns replicate. Subject expansion is a robustness layer, not the main discovery path.
+3. **Subject robustness.** Use `subj02`-`subj04` after the V1 geometry-method decision to check whether candidate patterns replicate. Subject expansion is a robustness layer, not the main discovery path.
 4. **Uncertainty and sensitivity.** Estimate intervals over images, neural targets, and geometry subsets only after the paper-grade matrix exists; add leave-one-model-out, leave-one-ROI-out, Kendall tau, and model-label permutation checks as diagnostics rather than claim filters.
 5. **Cross-axis decision gate.** Use the decision table to identify weak implementation areas, not to assert paper-ready conclusions. Revisit publication framing only after ROI-expanded results, controls, and subject robustness materially improve the evidence base.
 6. **Efficiency.** Add FLOPs, latency, token count, retained-patch statistics, and memory footprint for the matched model panel, then regenerate alignment-per-compute summaries. Keep efficiency exploratory unless it produces a clean dissociation or tradeoff.
@@ -681,6 +660,8 @@ Neural alignment:
 - `scripts/run_neural_alignment.py`
 - `scripts/create_nsd_noise_ceiling_manifest.py`
 - `scripts/summarize_neural_roi_results.py`
+- `scripts/compute_matched_geometry.py`
+- `scripts/summarize_paper1_v1_roi_expanded_results.py`
 - `scripts/audit_matched_neural_panel.py`
 
 Reporting:
@@ -697,18 +678,26 @@ For current status-file cleanup, no tests are required.
 For future neural/reporting implementation changes, use this focused verification command:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_neural_roi_summary.py tests\test_paper_inspection_pack.py
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper1_experiment_spec.py tests\test_paper1_v1_geometry_and_summary.py
 ```
 
-Last known focused result: `36 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+Last known focused result: `78 passed` with `--basetemp=.tmp_pytest_v1_focused`.
 
 For broader confidence after neural/reporting changes, run:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_paper_inspection_pack.py
+.\.venv\Scripts\python.exe -m pytest tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_paper_inspection_pack.py tests\test_paper1_v1_roi_expanded_generation.py tests\test_paper1_experiment_spec.py tests\test_paper1_v1_geometry_and_summary.py
 ```
 
-Last known broader result: `85 passed`; Windows `.pytest_cache` permission warning remains non-blocking.
+Last known broader result: `105 passed` with `--basetemp=.tmp_pytest_v1_broader`.
+
+V1 ROI-expanded artifact audit command:
+
+```cmd
+.\.venv\Scripts\python.exe -c "import csv; from pathlib import Path; rows=list(csv.DictReader(Path('outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv').open(newline='',encoding='utf-8'))); print([(r['check'], r['status']) for r in rows])"
+```
+
+Last known V1 audit result: all `9` checks pass, including `40` encoding cells, `40` geometry cells, and `10` geometry rows per cell.
 
 Matched panel audit command:
 

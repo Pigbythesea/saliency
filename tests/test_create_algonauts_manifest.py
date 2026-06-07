@@ -2,6 +2,7 @@ import csv
 from pathlib import Path
 
 import numpy as np
+import pytest
 from PIL import Image
 
 from scripts.create_algonauts_manifest import (
@@ -139,3 +140,77 @@ def test_create_algonauts_manifest_attaches_noise_ceilings_for_roi_rows(tmp_path
     assert rows[3]["noise_ceiling_path"] == "subj01/noise_ceilings/hV4.npy"
     assert np.load(root / rows[0]["roi_response_path"]).shape == (4,)
     assert np.load(root / rows[3]["roi_response_path"]).shape == (1,)
+
+
+def test_create_algonauts_manifest_writes_exact_label_stream_roi_responses(tmp_path):
+    root = tmp_path / "algonauts"
+    subject_dir = root / "subj01"
+    image_dir = subject_dir / "training_split" / "training_images"
+    fmri_dir = subject_dir / "training_split" / "training_fmri"
+    mask_dir = subject_dir / "roi_masks"
+    fmri_dir.mkdir(parents=True)
+    mask_dir.mkdir(parents=True)
+    for index in range(2):
+        _write_image(image_dir / f"train-{index + 1:04d}_nsd-{index:05d}.png")
+    np.save(fmri_dir / "lh_training_fmri.npy", np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32))
+    np.save(fmri_dir / "rh_training_fmri.npy", np.array([[10, 20, 30, 40], [50, 60, 70, 80]], dtype=np.float32))
+    np.save(mask_dir / "lh.streams_challenge_space.npy", np.array([2, 3, 5]))
+    np.save(mask_dir / "rh.streams_challenge_space.npy", np.array([0, 2, 5, 7]))
+    np.save(
+        mask_dir / "mapping_streams.npy",
+        {
+            0: "Unknown",
+            1: "early",
+            2: "midventral",
+            3: "midlateral",
+            5: "ventral",
+            7: "parietal",
+        },
+    )
+
+    manifest = tmp_path / "streams_manifest.csv"
+    summary = create_algonauts_manifest(
+        root=root,
+        subject="subj01",
+        hemispheres=["lh", "rh"],
+        roi_class="streams",
+        roi_names=["midventral", "ventral"],
+        combine_hemispheres=True,
+        output_manifest=manifest,
+    )
+
+    assert summary["rows"] == 4
+    assert summary["response_dim"] == "midventral:2,ventral:2"
+    with manifest.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows[0]["roi"] == "midventral"
+    assert rows[2]["roi"] == "ventral"
+    assert np.allclose(np.load(root / rows[0]["roi_response_path"]), [1, 20])
+    assert np.allclose(np.load(root / rows[2]["roi_response_path"]), [3, 30])
+
+
+def test_create_algonauts_manifest_rejects_zero_dimension_stream_roi(tmp_path):
+    root = tmp_path / "algonauts"
+    subject_dir = root / "subj01"
+    image_dir = subject_dir / "training_split" / "training_images"
+    fmri_dir = subject_dir / "training_split" / "training_fmri"
+    mask_dir = subject_dir / "roi_masks"
+    fmri_dir.mkdir(parents=True)
+    mask_dir.mkdir(parents=True)
+    _write_image(image_dir / "train-0001_nsd-00000.png")
+    np.save(fmri_dir / "lh_training_fmri.npy", np.array([[1, 2]], dtype=np.float32))
+    np.save(fmri_dir / "rh_training_fmri.npy", np.array([[10, 20]], dtype=np.float32))
+    np.save(mask_dir / "lh.streams_challenge_space.npy", np.array([2, 0]))
+    np.save(mask_dir / "rh.streams_challenge_space.npy", np.array([0, 0]))
+    np.save(mask_dir / "mapping_streams.npy", {0: "Unknown", 2: "midventral", 5: "ventral"})
+
+    with pytest.raises(ValueError, match="zero selected vertices"):
+        create_algonauts_manifest(
+            root=root,
+            subject="subj01",
+            hemispheres=["lh", "rh"],
+            roi_class="streams",
+            roi_names=["ventral"],
+            combine_hemispheres=True,
+            output_manifest=tmp_path / "streams_manifest.csv",
+        )

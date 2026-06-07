@@ -18,6 +18,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--behavioral-csv", default=None)
     parser.add_argument("--efficiency-csv", default=None)
+    parser.add_argument(
+        "--scope-config",
+        default=None,
+        help="Optional Paper 1 scope config, e.g. configs/paper1_experiment_v1.yaml.",
+    )
     return parser
 
 
@@ -28,6 +33,7 @@ def main() -> None:
         args.output_dir,
         behavioral_csv=args.behavioral_csv,
         efficiency_csv=args.efficiency_csv,
+        scope_config=args.scope_config,
     )
     for label, path in outputs.items():
         print(f"{label}: {path.resolve()}")

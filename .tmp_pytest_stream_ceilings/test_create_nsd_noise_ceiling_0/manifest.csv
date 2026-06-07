@@ -1,0 +1,3 @@
+image_id,image_path,split,subject_id,roi,roi_response_path,roi_responses,noise_ceiling_path,noise_ceiling_values,noise_ceiling_source
+train-0001_nsd-00001,subj01/training_split/training_images/train-0001_nsd-00001.png,train,subj01,V1,subj01/responses/V1/train-0001_nsd-00001.npy,,subj01/noise_ceilings/V1.npy,,nsd_ncsnr_mgh_n_trials_3
+train-0001_nsd-00001,subj01/training_split/training_images/train-0001_nsd-00001.png,train,subj01,hV4,subj01/responses/hV4/train-0001_nsd-00001.npy,,subj01/noise_ceilings/hV4.npy,,nsd_ncsnr_mgh_n_trials_3

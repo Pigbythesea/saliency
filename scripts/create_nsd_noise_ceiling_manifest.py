@@ -22,6 +22,7 @@ def create_nsd_noise_ceiling_manifest(
     subject: str = "subj01",
     manifest_path: str | Path = "data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv",
     output_manifest: str | Path | None = None,
+    roi_class: str = "prf-visualrois",
     roi_names: list[str] | None = None,
     n_trials: int = 3,
 ) -> dict[str, Any]:
@@ -40,7 +41,7 @@ def create_nsd_noise_ceiling_manifest(
     output_dir = subject_dir / "noise_ceilings"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    mapping = _load_label_to_value(mask_dir / "mapping_prf-visualrois.npy")
+    mapping = _load_label_to_value(mask_dir / f"mapping_{roi_class}.npy")
     challenge_noise_by_hemi = {
         hemi: _load_challenge_noise(
             ncsnr_path=(
@@ -51,7 +52,7 @@ def create_nsd_noise_ceiling_manifest(
                 / f"{hemi}.ncsnr.mgh"
             ),
             all_vertices_path=mask_dir / f"{hemi}.all-vertices_fsaverage_space.npy",
-            roi_mask_path=mask_dir / f"{hemi}.prf-visualrois_challenge_space.npy",
+            roi_mask_path=mask_dir / f"{hemi}.{roi_class}_challenge_space.npy",
             n_trials=n_trials,
         )
         for hemi in HEMISPHERES
@@ -60,7 +61,7 @@ def create_nsd_noise_ceiling_manifest(
     written: dict[str, Path] = {}
     summary_rows = []
     for roi in rois:
-        label_values = _roi_label_values(roi, mapping)
+        label_values = _roi_label_values(roi, mapping, roi_class=roi_class)
         parts = []
         for hemi in HEMISPHERES:
             challenge_noise, roi_mask = challenge_noise_by_hemi[hemi]
@@ -114,6 +115,7 @@ def create_nsd_noise_ceiling_manifest(
         "manifest": str(output),
         "noise_ceiling_dir": str(output_dir),
         "summary_csv": str(summary_path),
+        "roi_class": roi_class,
         "rois": ",".join(rois),
         "n_trials": int(n_trials),
         "rows": len(updated),
@@ -181,8 +183,16 @@ def _resolve_prf_visual_roi_labels(roi_name: str) -> set[str]:
     return {normalized}
 
 
-def _roi_label_values(roi_name: str, label_to_value: dict[str, int]) -> list[int]:
-    labels = _resolve_prf_visual_roi_labels(roi_name)
+def _roi_label_values(
+    roi_name: str,
+    label_to_value: dict[str, int],
+    *,
+    roi_class: str = "prf-visualrois",
+) -> list[int]:
+    if roi_class == "prf-visualrois":
+        labels = _resolve_prf_visual_roi_labels(roi_name)
+    else:
+        labels = {roi_name.strip()}
     missing = sorted(label for label in labels if label not in label_to_value)
     if missing:
         raise ValueError(f"Unknown ROI label(s) for {roi_name}: {missing}")
@@ -258,6 +268,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv",
     )
     parser.add_argument("--output-manifest")
+    parser.add_argument("--roi-class", default="prf-visualrois")
     parser.add_argument("--roi-names", nargs="+", default=ROI_NAMES)
     parser.add_argument("--n-trials", type=int, default=3)
     return parser
@@ -271,6 +282,7 @@ def main() -> None:
         subject=args.subject,
         manifest_path=args.manifest_path,
         output_manifest=args.output_manifest,
+        roi_class=args.roi_class,
         roi_names=args.roi_names,
         n_trials=args.n_trials,
     )

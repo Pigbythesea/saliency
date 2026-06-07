@@ -1,0 +1,3 @@
+roi,path,num_targets,n_trials,mean_noise_ceiling,min_noise_ceiling,max_noise_ceiling
+midventral,subj01/noise_ceilings/midventral.npy,3,3,0.6590941548347473,0.0,0.9976905584335327
+ventral,subj01/noise_ceilings/ventral.npy,2,3,0.9605542421340942,0.9230769276618958,0.998031497001648

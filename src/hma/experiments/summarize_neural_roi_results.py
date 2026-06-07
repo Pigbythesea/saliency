@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 from typing import Any, Iterable
 
+from hma.utils.config import load_yaml
 from hma.utils.paths import ensure_dir
 
 
@@ -31,12 +32,89 @@ MATCHED_PANEL_MODELS = {
 MATCHED_PANEL_ROIS = {"V1", "V2", "V3", "hV4"}
 
 
+def _default_summary_scope() -> dict[str, Any]:
+    return {
+        "subject_id": "subj01",
+        "models": set(MATCHED_PANEL_MODELS),
+        "rois": set(MATCHED_PANEL_ROIS),
+        "ordered_rois": sorted(MATCHED_PANEL_ROIS),
+        "feature_reduction": "flatten_pca",
+        "expected_num_items": 9841,
+        "expected_cells": 24,
+        "expected_geometry_rows_per_cell": 0,
+        "encoding_interpretation_scope": "matched_full_image_flatten_pca",
+        "geometry_interpretation_scope": "matched_full_image_flatten_pca_geometry",
+        "alias_prefix": "",
+    }
+
+
+def _summary_scope(scope_config: str | Path | None) -> dict[str, Any]:
+    if scope_config is None:
+        return _default_summary_scope()
+
+    config = load_yaml(scope_config)
+    legacy_scope = config.get("paper1_scope")
+    if isinstance(legacy_scope, dict):
+        scope = _default_summary_scope()
+        scope.update(
+            {
+                "subject_id": str(legacy_scope.get("subject_id", scope["subject_id"])),
+                "models": set(str(model) for model in legacy_scope.get("models", [])),
+                "rois": set(str(roi) for roi in legacy_scope.get("rois", [])),
+                "ordered_rois": [str(roi) for roi in legacy_scope.get("rois", [])],
+                "feature_reduction": str(
+                    legacy_scope.get("feature_reduction", scope["feature_reduction"])
+                ),
+                "expected_num_items": int(
+                    legacy_scope.get("expected_num_items", scope["expected_num_items"])
+                ),
+            }
+        )
+        scope["expected_cells"] = len(scope["models"]) * len(scope["rois"])
+        return scope
+
+    discovery = config.get("discovery_matrix")
+    if not isinstance(discovery, dict):
+        raise ValueError(
+            f"{scope_config} must contain either a paper1_scope or discovery_matrix mapping"
+        )
+    roi_groups = discovery.get("roi_groups", {})
+    ordered_rois = [
+        str(roi)
+        for group in roi_groups.values()
+        for roi in group.get("rois", [])
+    ]
+    geometry = config.get("geometry", {})
+    subset_sizes = geometry.get("subset_sizes", []) if isinstance(geometry, dict) else []
+    subset_seeds = geometry.get("subset_seeds", []) if isinstance(geometry, dict) else []
+    has_full_cka = (
+        isinstance(geometry, dict)
+        and "linear_cka_full9841" in [str(method) for method in geometry.get("methods", [])]
+    )
+    return {
+        "subject_id": str(discovery.get("subject_id", "subj01")),
+        "models": set(str(model) for model in discovery.get("models", [])),
+        "rois": set(ordered_rois),
+        "ordered_rois": ordered_rois,
+        "feature_reduction": str(config.get("encoding", {}).get("method", "flatten_pca")),
+        "expected_num_items": int(discovery.get("max_items") or 0),
+        "expected_cells": int(discovery.get("expected_cells", {}).get("model_roi_cells", 0)),
+        "expected_geometry_rows_per_cell": (
+            (1 if has_full_cka else 0) + len(subset_sizes) * len(subset_seeds)
+        ),
+        "encoding_interpretation_scope": "roi_expanded_full_image_flatten_pca",
+        "geometry_interpretation_scope": "roi_expanded_full_image_flatten_pca_geometry",
+        "alias_prefix": "roi_expanded",
+    }
+
+
 def summarize_neural_roi_results(
     input_dirs: Iterable[str | Path],
     output_dir: str | Path,
     *,
     behavioral_csv: str | Path | None = None,
     efficiency_csv: str | Path | None = None,
+    scope_config: str | Path | None = None,
 ) -> dict[str, Path]:
     """Combine neural ROI outputs and write compact summary tables."""
     dirs = [Path(path).expanduser().resolve() for path in input_dirs]
@@ -44,6 +122,7 @@ def summarize_neural_roi_results(
         raise ValueError("At least one neural output directory is required")
 
     output = ensure_dir(output_dir)
+    scope = _summary_scope(scope_config)
     encoding_rows, encoding_target_rows, rsa_rows, geometry_rows = _load_neural_rows(dirs)
     _annotate_target_noise_validity(encoding_target_rows)
     encoding_rows = _attach_noise_normalized_aggregates(
@@ -78,15 +157,18 @@ def summarize_neural_roi_results(
     neural_ranking_rows = _neural_model_rankings(best_rows, efficiency_csv)
     for row in neural_ranking_rows:
         row["interpretation_scope"] = "mixed_scope"
-    matched_encoding_rows = _matched_panel_encoding_rows(encoding_rows)
+    matched_encoding_rows = _matched_panel_encoding_rows(encoding_rows, scope=scope)
     matched_best_rows = _best_layer_rows(matched_encoding_rows, [])
     matched_panel_ranking_rows = _neural_model_rankings(matched_best_rows, efficiency_csv)
     for row in matched_panel_ranking_rows:
-        row["interpretation_scope"] = "matched_full_image_flatten_pca"
-    matched_geometry_rows = _matched_geometry_rows(geometry_rows)
+        row["interpretation_scope"] = scope["encoding_interpretation_scope"]
+    matched_geometry_rows = _matched_geometry_rows(geometry_rows, scope=scope)
     matched_geometry_model_ranking_rows = _matched_geometry_model_rankings(matched_geometry_rows)
     matched_geometry_roi_ranking_rows = _matched_geometry_roi_rankings(matched_geometry_rows)
-    matched_geometry_agreement_rows = _matched_geometry_method_agreement(matched_geometry_rows)
+    matched_geometry_agreement_rows = _matched_geometry_method_agreement(
+        matched_geometry_rows,
+        scope=scope,
+    )
     matched_geometry_runtime_rows = _matched_geometry_runtime_summary(matched_geometry_rows)
     learned_readout_comparison_rows = _learned_readout_vs_flatten_pca_rows(encoding_rows)
     _write_rows(outputs["combined_encoding_scores"], encoding_rows, ENCODING_FIELDNAMES)
@@ -183,6 +265,7 @@ def summarize_neural_roi_results(
         matched_cross_axis_sensitivity_rows = _matched_cross_axis_sensitivity(
             matched_cross_level_observation_rows,
             matched_cross_level_correlation_rows,
+            scope=scope,
         )
         matched_cross_axis_decision_rows = _matched_cross_axis_decisions(
             matched_cross_level_correlation_rows,
@@ -249,6 +332,22 @@ def summarize_neural_roi_results(
             outputs["alignment_per_efficiency"],
             _alignment_per_efficiency(best_rows, efficiency_csv),
             EFFICIENCY_FIELDNAMES,
+        )
+
+    if scope["alias_prefix"]:
+        outputs.update(
+            _write_scope_alias_outputs(
+                output,
+                scope=scope,
+                matched_best_rows=matched_best_rows,
+                matched_panel_ranking_rows=matched_panel_ranking_rows,
+                matched_geometry_rows=matched_geometry_rows,
+                matched_geometry_model_ranking_rows=matched_geometry_model_ranking_rows,
+                matched_geometry_agreement_rows=matched_geometry_agreement_rows,
+                matched_cross_level_observation_rows=matched_cross_level_observation_rows,
+                matched_cross_level_correlation_rows=matched_cross_level_correlation_rows,
+                matched_cross_axis_decision_rows=matched_cross_axis_decision_rows,
+            )
         )
 
     _write_summary_note(
@@ -559,45 +658,51 @@ def _learned_readout_vs_flatten_pca_rows(
 
 def _matched_panel_encoding_rows(
     encoding_rows: list[dict[str, Any]],
+    *,
+    scope: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Return rows eligible for the matched full-image flatten_pca panel."""
     rows = []
     for row in encoding_rows:
-        if str(row.get("model", "")) not in MATCHED_PANEL_MODELS:
+        if str(row.get("model", "")) not in scope["models"]:
             continue
-        if str(row.get("subject_id", "")) != "subj01":
+        if str(row.get("subject_id", "")) != scope["subject_id"]:
             continue
-        if str(row.get("roi", "")) not in MATCHED_PANEL_ROIS:
+        if str(row.get("roi", "")) not in scope["rois"]:
             continue
-        if str(row.get("feature_reduction", "")) != "flatten_pca":
+        if str(row.get("feature_reduction", "")) != scope["feature_reduction"]:
             continue
-        if int(_float(row.get("metadata_num_items"))) != 9841:
+        if int(_float(row.get("metadata_num_items"))) != int(scope["expected_num_items"]):
             continue
         alpha_mode = str(row.get("alpha_selection_mode", ""))
         if alpha_mode not in {"selection_validation", "cv_inner_validation"}:
             continue
-        rows.append({**row, "interpretation_scope": "matched_full_image_flatten_pca"})
+        rows.append({**row, "interpretation_scope": scope["encoding_interpretation_scope"]})
     return rows
 
 
-def _matched_geometry_rows(geometry_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _matched_geometry_rows(
+    geometry_rows: list[dict[str, Any]],
+    *,
+    scope: dict[str, Any],
+) -> list[dict[str, Any]]:
     """Return geometry rows eligible for the matched full-image panel."""
     rows = []
     for row in geometry_rows:
-        if str(row.get("model", "")) not in MATCHED_PANEL_MODELS:
+        if str(row.get("model", "")) not in scope["models"]:
             continue
-        if str(row.get("subject_id", "")) != "subj01":
+        if str(row.get("subject_id", "")) != scope["subject_id"]:
             continue
-        if str(row.get("roi", "")) not in MATCHED_PANEL_ROIS:
+        if str(row.get("roi", "")) not in scope["rois"]:
             continue
-        if str(row.get("model_feature_reduction", "")) != "flatten_pca":
+        if str(row.get("model_feature_reduction", "")) != scope["feature_reduction"]:
             continue
         metadata_items = _optional_float(row.get("metadata_num_items"))
-        if metadata_items is not None and int(metadata_items) != 9841:
+        if metadata_items is not None and int(metadata_items) != int(scope["expected_num_items"]):
             continue
         if str(row.get("valid", "")).lower() != "true":
             continue
-        updated = {**row, "interpretation_scope": "matched_full_image_flatten_pca_geometry"}
+        updated = {**row, "interpretation_scope": scope["geometry_interpretation_scope"]}
         rows.append(updated)
     return rows
 
@@ -686,6 +791,8 @@ def _matched_geometry_roi_rankings(
 
 def _matched_geometry_method_agreement(
     geometry_rows: list[dict[str, Any]],
+    *,
+    scope: dict[str, Any],
 ) -> list[dict[str, Any]]:
     primary_method = _primary_geometry_method(geometry_rows)
     subset_methods = sorted(
@@ -696,7 +803,7 @@ def _matched_geometry_method_agreement(
         }
     )
     rows: list[dict[str, Any]] = []
-    for roi_or_mean in sorted(MATCHED_PANEL_ROIS | {"across_roi_mean"}):
+    for roi_or_mean in sorted(set(scope["ordered_rois"]) | {"across_roi_mean"}):
         primary_scores = _geometry_scores_by_model(geometry_rows, primary_method, roi_or_mean)
         for subset_method in subset_methods:
             subset_scores = _geometry_scores_by_model(geometry_rows, subset_method, roi_or_mean)
@@ -1532,6 +1639,8 @@ def _matched_cross_level_correlations(
 def _matched_cross_axis_sensitivity(
     observation_rows: list[dict[str, Any]],
     correlation_rows: list[dict[str, Any]],
+    *,
+    scope: dict[str, Any],
 ) -> list[dict[str, Any]]:
     observation_groups = _cross_axis_observation_groups(observation_rows)
     rows: list[dict[str, Any]] = []
@@ -1561,7 +1670,7 @@ def _matched_cross_axis_sensitivity(
             if permutation:
                 rows.append(permutation)
         if str(correlation.get("roi_or_mean", "")) == "across_roi_mean":
-            rows.extend(_leave_one_roi_rows(correlation, observation_rows))
+            rows.extend(_leave_one_roi_rows(correlation, observation_rows, scope=scope))
     rows.sort(
         key=lambda row: (
             row["behavior_dataset"],
@@ -1701,6 +1810,8 @@ def _leave_one_model_rows(
 def _leave_one_roi_rows(
     correlation: dict[str, Any],
     observation_rows: list[dict[str, Any]],
+    *,
+    scope: dict[str, Any],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for relationship, field in [
@@ -1711,11 +1822,11 @@ def _leave_one_roi_rows(
         baseline = _optional_float(correlation.get(field))
         if baseline is None:
             continue
-        for omitted_roi in sorted(MATCHED_PANEL_ROIS):
+        for omitted_roi in sorted(scope["ordered_rois"]):
             retained = [
                 row
                 for row in observation_rows
-                if _matches_roi_sensitivity_group(row, correlation)
+                if _matches_roi_sensitivity_group(row, correlation, scope=scope)
                 and row.get("roi_or_mean") != omitted_roi
             ]
             averaged = _average_observations_by_model(retained)
@@ -1735,7 +1846,12 @@ def _leave_one_roi_rows(
     return rows
 
 
-def _matches_roi_sensitivity_group(row: dict[str, Any], correlation: dict[str, Any]) -> bool:
+def _matches_roi_sensitivity_group(
+    row: dict[str, Any],
+    correlation: dict[str, Any],
+    *,
+    scope: dict[str, Any],
+) -> bool:
     return (
         row.get("behavior_dataset") == correlation.get("behavior_dataset")
         and row.get("behavior_metric") == correlation.get("behavior_metric")
@@ -1743,7 +1859,7 @@ def _matches_roi_sensitivity_group(row: dict[str, Any], correlation: dict[str, A
         and row.get("behavior_saliency_family") == correlation.get("behavior_saliency_family")
         and row.get("neural_scope") == "roi"
         and row.get("geometry_method") == correlation.get("geometry_method")
-        and row.get("roi_or_mean") in MATCHED_PANEL_ROIS
+        and row.get("roi_or_mean") in scope["rois"]
     )
 
 
@@ -2044,6 +2160,171 @@ def _metric_higher_is_better(metric: str) -> bool:
 
 def _metric_direction(metric: str) -> str:
     return "higher_is_better" if _metric_higher_is_better(metric) else "lower_is_better"
+
+
+def _write_scope_alias_outputs(
+    output: Path,
+    *,
+    scope: dict[str, Any],
+    matched_best_rows: list[dict[str, Any]],
+    matched_panel_ranking_rows: list[dict[str, Any]],
+    matched_geometry_rows: list[dict[str, Any]],
+    matched_geometry_model_ranking_rows: list[dict[str, Any]],
+    matched_geometry_agreement_rows: list[dict[str, Any]],
+    matched_cross_level_observation_rows: list[dict[str, Any]],
+    matched_cross_level_correlation_rows: list[dict[str, Any]],
+    matched_cross_axis_decision_rows: list[dict[str, Any]],
+) -> dict[str, Path]:
+    prefix = str(scope["alias_prefix"])
+    outputs = {
+        f"{prefix}_encoding_model_rankings": output / f"{prefix}_encoding_model_rankings.csv",
+        f"{prefix}_encoding_roi_rankings": output / f"{prefix}_encoding_roi_rankings.csv",
+        f"{prefix}_geometry_model_rankings": output / f"{prefix}_geometry_model_rankings.csv",
+        f"{prefix}_geometry_method_agreement": output / f"{prefix}_geometry_method_agreement.csv",
+        f"{prefix}_cross_level_observations": output / f"{prefix}_cross_level_observations.csv",
+        f"{prefix}_cross_level_correlations": output / f"{prefix}_cross_level_correlations.csv",
+        f"{prefix}_cross_axis_decisions": output / f"{prefix}_cross_axis_decisions.csv",
+        "experiment_artifact_audit": output / "experiment_artifact_audit.csv",
+    }
+    _write_rows(
+        outputs[f"{prefix}_encoding_model_rankings"],
+        matched_panel_ranking_rows,
+        NEURAL_RANKING_FIELDNAMES,
+    )
+    _write_rows(
+        outputs[f"{prefix}_encoding_roi_rankings"],
+        matched_best_rows,
+        BEST_LAYER_FIELDNAMES,
+    )
+    _write_rows(
+        outputs[f"{prefix}_geometry_model_rankings"],
+        matched_geometry_model_ranking_rows,
+        GEOMETRY_MODEL_RANKING_FIELDNAMES,
+    )
+    _write_rows(
+        outputs[f"{prefix}_geometry_method_agreement"],
+        matched_geometry_agreement_rows,
+        GEOMETRY_METHOD_AGREEMENT_FIELDNAMES,
+    )
+    _write_rows(
+        outputs[f"{prefix}_cross_level_observations"],
+        matched_cross_level_observation_rows,
+        MATCHED_CROSS_LEVEL_OBSERVATION_FIELDNAMES,
+    )
+    _write_rows(
+        outputs[f"{prefix}_cross_level_correlations"],
+        matched_cross_level_correlation_rows,
+        MATCHED_CROSS_LEVEL_CORRELATION_FIELDNAMES,
+    )
+    _write_rows(
+        outputs[f"{prefix}_cross_axis_decisions"],
+        matched_cross_axis_decision_rows,
+        MATCHED_CROSS_AXIS_DECISION_FIELDNAMES,
+    )
+    _write_rows(
+        outputs["experiment_artifact_audit"],
+        _scope_artifact_audit_rows(
+            scope=scope,
+            matched_best_rows=matched_best_rows,
+            matched_geometry_rows=matched_geometry_rows,
+            matched_geometry_agreement_rows=matched_geometry_agreement_rows,
+            matched_cross_level_correlation_rows=matched_cross_level_correlation_rows,
+            matched_cross_axis_decision_rows=matched_cross_axis_decision_rows,
+        ),
+        ["check", "status", "detail"],
+    )
+    return outputs
+
+
+def _scope_artifact_audit_rows(
+    *,
+    scope: dict[str, Any],
+    matched_best_rows: list[dict[str, Any]],
+    matched_geometry_rows: list[dict[str, Any]],
+    matched_geometry_agreement_rows: list[dict[str, Any]],
+    matched_cross_level_correlation_rows: list[dict[str, Any]],
+    matched_cross_axis_decision_rows: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    expected_cells = int(scope["expected_cells"])
+    expected_geometry_rows_per_cell = int(scope.get("expected_geometry_rows_per_cell") or 0)
+    expected_rois = set(scope["ordered_rois"])
+    expected_models = set(scope["models"])
+    encoding_cells = {
+        (str(row.get("model", "")), str(row.get("roi", "")))
+        for row in matched_best_rows
+        if row.get("score_type") == "encoding"
+    }
+    geometry_cells = {
+        (str(row.get("model", "")), str(row.get("roi", "")))
+        for row in matched_geometry_rows
+    }
+    geometry_counts: dict[tuple[str, str], int] = {}
+    for row in matched_geometry_rows:
+        key = (str(row.get("model", "")), str(row.get("roi", "")))
+        geometry_counts[key] = geometry_counts.get(key, 0) + 1
+    bad_geometry_counts = [
+        f"{model}:{roi}:{count}"
+        for (model, roi), count in sorted(geometry_counts.items())
+        if expected_geometry_rows_per_cell and count != expected_geometry_rows_per_cell
+    ]
+    geometry_rois = {roi for _model, roi in geometry_cells}
+    encoding_rois = {roi for _model, roi in encoding_cells}
+    geometry_models = {model for model, _roi in geometry_cells}
+    rows = [
+        _audit_row(
+            "roi_expanded_encoding_cell_count",
+            len(encoding_cells) == expected_cells,
+            f"found={len(encoding_cells)};expected={expected_cells}",
+        ),
+        _audit_row(
+            "roi_expanded_geometry_cell_count",
+            len(geometry_cells) == expected_cells,
+            f"found={len(geometry_cells)};expected={expected_cells}",
+        ),
+        _audit_row(
+            "roi_expanded_geometry_rows_per_cell",
+            expected_geometry_rows_per_cell == 0 or not bad_geometry_counts,
+            (
+                f"expected={expected_geometry_rows_per_cell};bad="
+                + ("none" if not bad_geometry_counts else ";".join(bad_geometry_counts[:20]))
+            ),
+        ),
+        _audit_row(
+            "roi_expanded_geometry_roi_coverage",
+            geometry_rois == expected_rois,
+            ",".join(sorted(geometry_rois)),
+        ),
+        _audit_row(
+            "roi_expanded_geometry_model_coverage",
+            geometry_models == expected_models,
+            ",".join(sorted(geometry_models)),
+        ),
+        _audit_row(
+            "roi_expanded_encoding_roi_coverage",
+            encoding_rois == expected_rois,
+            ",".join(sorted(encoding_rois)),
+        ),
+        _audit_row(
+            "roi_expanded_geometry_method_agreement_present",
+            bool(matched_geometry_agreement_rows),
+            f"rows={len(matched_geometry_agreement_rows)}",
+        ),
+        _audit_row(
+            "roi_expanded_cross_level_correlations_present",
+            bool(matched_cross_level_correlation_rows),
+            f"rows={len(matched_cross_level_correlation_rows)}",
+        ),
+        _audit_row(
+            "roi_expanded_cross_axis_decisions_present",
+            bool(matched_cross_axis_decision_rows),
+            f"rows={len(matched_cross_axis_decision_rows)}",
+        ),
+    ]
+    return rows
+
+
+def _audit_row(check: str, passed: bool, detail: str) -> dict[str, str]:
+    return {"check": check, "status": "pass" if passed else "fail", "detail": detail}
 
 
 def _write_summary_note(

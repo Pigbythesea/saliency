@@ -52,6 +52,9 @@ MODEL_SPECS = {
 }
 MATCHED_PANEL_MODEL_SPECS = {
     **MODEL_SPECS,
+    "vit_small_patch14_dinov2": {
+        "layers": ["blocks.0", "blocks.3", "blocks.6", "blocks.9", "blocks.11"],
+    },
     "vit_base_patch16_clip_224": {
         "layers": ["blocks.0", "blocks.3", "blocks.6", "blocks.9", "blocks.11"],
     },
@@ -208,6 +211,10 @@ def create_matched_full_subject_flatten_pca_configs(
     max_items: int = 9841,
     name_suffix: str = "flatten_pca_validation_selection_full",
     pca_components: int = 512,
+    roi_slugs: dict[str, str] | None = None,
+    ridge_alphas: Iterable[float] | None = None,
+    validation_fraction: float = 0.2,
+    selection_primary_score: str = "mean_noise_normalized_score",
 ) -> list[Path]:
     """Write matched full-image-count validation-selected flatten_pca configs."""
     root = Path(output_dir)
@@ -215,6 +222,11 @@ def create_matched_full_subject_flatten_pca_configs(
     selected_models = list(models) if models is not None else list(MATCHED_PANEL_MODEL_SPECS)
     selected_rois = list(rois) if rois is not None else [roi for roi, _slug in ROI_CONFIGS]
     roi_slug_by_name = dict(ROI_CONFIGS)
+    if roi_slugs is not None:
+        roi_slug_by_name.update(roi_slugs)
+    selected_alphas = (
+        list(ridge_alphas) if ridge_alphas is not None else list(FULL_PANEL_RIDGE_ALPHAS)
+    )
     written = []
     for model_name in selected_models:
         if model_name not in MATCHED_PANEL_MODEL_SPECS:
@@ -247,12 +259,12 @@ def create_matched_full_subject_flatten_pca_configs(
                     "pca_solver": "randomized",
                     "pca_whiten": False,
                     "feature_reduction_seed": int(config.get("seed", 123)),
-                    "ridge_alphas": list(FULL_PANEL_RIDGE_ALPHAS),
-                    "validation_fraction": 0.2,
+                    "ridge_alphas": selected_alphas,
+                    "validation_fraction": float(validation_fraction),
                     "selection": {
                         "enabled": True,
-                        "validation_fraction": 0.2,
-                        "primary_score": "mean_noise_normalized_score",
+                        "validation_fraction": float(validation_fraction),
+                        "primary_score": selection_primary_score,
                     },
                     "rsa": {
                         "enabled": False,
