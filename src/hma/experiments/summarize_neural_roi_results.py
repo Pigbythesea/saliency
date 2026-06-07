@@ -242,6 +242,8 @@ def summarize_neural_roi_results(
     matched_cross_level_correlation_rows: list[dict[str, Any]] = []
     matched_cross_axis_sensitivity_rows: list[dict[str, Any]] = []
     matched_cross_axis_decision_rows: list[dict[str, Any]] = []
+    matched_geometry_method_sensitivity_decision_rows: list[dict[str, Any]] = []
+    matched_failure_gate_summary_rows: list[dict[str, Any]] = []
     if behavioral_csv is not None:
         bridge_rows = _behavior_neural_bridge(behavioral_csv, best_rows)
         behavior_neural_alignment_rows = _behavior_neural_alignment_summary(
@@ -270,6 +272,29 @@ def summarize_neural_roi_results(
         matched_cross_axis_decision_rows = _matched_cross_axis_decisions(
             matched_cross_level_correlation_rows,
             matched_cross_axis_sensitivity_rows,
+        )
+        all_geometry_method_observation_rows = _matched_cross_level_observations(
+            behavioral_csv,
+            matched_encoding_rows,
+            matched_panel_ranking_rows,
+            matched_geometry_rows,
+            matched_geometry_model_ranking_rows,
+            geometry_methods=_geometry_methods_for_sensitivity(
+                matched_geometry_model_ranking_rows
+            ),
+        )
+        all_geometry_method_correlation_rows = _matched_cross_level_correlations(
+            all_geometry_method_observation_rows
+        )
+        matched_geometry_method_sensitivity_decision_rows = (
+            _geometry_method_sensitivity_decisions(
+                all_geometry_method_correlation_rows,
+                matched_geometry_model_ranking_rows,
+            )
+        )
+        matched_failure_gate_summary_rows = _failure_gate_summary_rows(
+            matched_geometry_method_sensitivity_decision_rows,
+            scope=scope,
         )
         outputs["behavior_neural_bridge"] = output / "behavior_neural_bridge.csv"
         outputs["behavior_neural_model_summary"] = output / "behavior_neural_model_summary.csv"
@@ -347,6 +372,10 @@ def summarize_neural_roi_results(
                 matched_cross_level_observation_rows=matched_cross_level_observation_rows,
                 matched_cross_level_correlation_rows=matched_cross_level_correlation_rows,
                 matched_cross_axis_decision_rows=matched_cross_axis_decision_rows,
+                matched_geometry_method_sensitivity_decision_rows=(
+                    matched_geometry_method_sensitivity_decision_rows
+                ),
+                matched_failure_gate_summary_rows=matched_failure_gate_summary_rows,
             )
         )
 
@@ -1377,6 +1406,7 @@ def _matched_cross_level_observations(
     matched_panel_ranking_rows: list[dict[str, Any]],
     matched_geometry_rows: list[dict[str, Any]] | None = None,
     matched_geometry_model_ranking_rows: list[dict[str, Any]] | None = None,
+    geometry_methods: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Join corrected behavioral rows to the matched full-image neural panel."""
     matched_geometry_rows = matched_geometry_rows or []
@@ -1408,15 +1438,22 @@ def _matched_cross_level_observations(
         if row.get("model")
     }
     primary_geometry_method = _primary_geometry_method(matched_geometry_model_ranking_rows)
+    selected_geometry_methods = (
+        list(geometry_methods)
+        if geometry_methods is not None
+        else ([primary_geometry_method] if primary_geometry_method else [""])
+    )
     geometry_roi_by_model_roi = {
-        (str(row.get("model", "")), str(row.get("roi", ""))): row
+        (
+            str(row.get("model", "")),
+            str(row.get("roi", "")),
+            str(row.get("geometry_method", "")),
+        ): row
         for row in matched_geometry_rows
-        if str(row.get("geometry_method", "")) == primary_geometry_method
     }
     geometry_mean_by_model = {
-        str(row.get("model", "")): row
+        (str(row.get("model", "")), str(row.get("geometry_method", ""))): row
         for row in matched_geometry_model_ranking_rows
-        if str(row.get("geometry_method", "")) == primary_geometry_method
     }
 
     rows: list[dict[str, Any]] = []
@@ -1441,42 +1478,44 @@ def _matched_cross_level_observations(
             roi_rows_by_model.get(model, []),
             key=lambda row: str(row.get("roi", "")),
         ):
-            rows.append(
-                {
-                    **common,
-                    "roi_or_mean": neural.get("roi", ""),
-                    "neural_scope": "matched_full_image_flatten_pca_roi",
-                    "neural_mean_encoding_raw": neural.get("mean_score", ""),
-                    "neural_mean_noise_normalized": neural.get(
-                        "mean_noise_normalized_score",
-                        "",
-                    ),
-                    "geometry_method": primary_geometry_method,
-                    "geometry_score": geometry_roi_by_model_roi.get(
-                        (model, str(neural.get("roi", ""))),
-                        {},
-                    ).get("score", ""),
-                }
-            )
+            for geometry_method in selected_geometry_methods:
+                rows.append(
+                    {
+                        **common,
+                        "roi_or_mean": neural.get("roi", ""),
+                        "neural_scope": "matched_full_image_flatten_pca_roi",
+                        "neural_mean_encoding_raw": neural.get("mean_score", ""),
+                        "neural_mean_noise_normalized": neural.get(
+                            "mean_noise_normalized_score",
+                            "",
+                        ),
+                        "geometry_method": geometry_method,
+                        "geometry_score": geometry_roi_by_model_roi.get(
+                            (model, str(neural.get("roi", "")), geometry_method),
+                            {},
+                        ).get("score", ""),
+                    }
+                )
         mean_row = mean_rows_by_model.get(model)
         if mean_row is not None:
-            rows.append(
-                {
-                    **common,
-                    "roi_or_mean": "across_roi_mean",
-                    "neural_scope": "matched_full_image_flatten_pca_model_mean",
-                    "neural_mean_encoding_raw": mean_row.get("mean_encoding_score", ""),
-                    "neural_mean_noise_normalized": mean_row.get(
-                        "mean_noise_normalized_score",
-                        "",
-                    ),
-                    "geometry_method": primary_geometry_method,
-                    "geometry_score": geometry_mean_by_model.get(model, {}).get(
-                        "mean_geometry_score",
-                        "",
-                    ),
-                }
-            )
+            for geometry_method in selected_geometry_methods:
+                rows.append(
+                    {
+                        **common,
+                        "roi_or_mean": "across_roi_mean",
+                        "neural_scope": "matched_full_image_flatten_pca_model_mean",
+                        "neural_mean_encoding_raw": mean_row.get("mean_encoding_score", ""),
+                        "neural_mean_noise_normalized": mean_row.get(
+                            "mean_noise_normalized_score",
+                            "",
+                        ),
+                        "geometry_method": geometry_method,
+                        "geometry_score": geometry_mean_by_model.get(
+                            (model, geometry_method),
+                            {},
+                        ).get("mean_geometry_score", ""),
+                    }
+                )
     rows.sort(
         key=lambda row: (
             row["behavior_dataset"],
@@ -1738,6 +1777,284 @@ def _matched_cross_axis_decisions(
                 }
             )
     return rows
+
+
+def _geometry_methods_for_sensitivity(
+    matched_geometry_model_ranking_rows: list[dict[str, Any]],
+) -> list[str]:
+    methods = sorted(
+        {
+            str(row.get("geometry_method", ""))
+            for row in matched_geometry_model_ranking_rows
+            if row.get("geometry_method")
+        }
+    )
+    primary = _primary_geometry_method(matched_geometry_model_ranking_rows)
+    subset_methods = [method for method in methods if method.startswith("subset_rsa_")]
+    if primary:
+        return [primary, *[method for method in subset_methods if method != primary]]
+    return subset_methods
+
+
+def _geometry_method_sensitivity_decisions(
+    all_geometry_method_correlation_rows: list[dict[str, Any]],
+    matched_geometry_model_ranking_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    primary_method = _primary_geometry_method(matched_geometry_model_ranking_rows)
+    subset_methods = [
+        method
+        for method in _geometry_methods_for_sensitivity(matched_geometry_model_ranking_rows)
+        if method.startswith("subset_rsa_")
+    ]
+    rows_by_key: dict[tuple[str, ...], dict[str, dict[str, Any]]] = {}
+    for row in all_geometry_method_correlation_rows:
+        rows_by_key.setdefault(_geometry_method_sensitivity_key(row), {})[
+            str(row.get("geometry_method", ""))
+        ] = row
+
+    rows: list[dict[str, Any]] = []
+    for key in sorted(rows_by_key):
+        primary = rows_by_key[key].get(primary_method)
+        if primary is None:
+            continue
+        subset_by_method = rows_by_key[key]
+        for relationship, field in [
+            ("behavior_vs_noise_normalized", "spearman_behavior_vs_noise_normalized"),
+            ("behavior_vs_geometry", "spearman_behavior_vs_geometry"),
+            ("encoding_vs_geometry", "spearman_encoding_vs_geometry"),
+        ]:
+            primary_value = _optional_float(primary.get(field))
+            if relationship == "behavior_vs_noise_normalized":
+                label = "not_tested"
+                subset_values: list[float] = []
+                tested_subset_methods: list[str] = []
+            else:
+                subset_values = []
+                tested_subset_methods = []
+                for method in subset_methods:
+                    subset_row = subset_by_method.get(method)
+                    value = (
+                        _optional_float(subset_row.get(field))
+                        if subset_row is not None and subset_row.get("status") == "complete"
+                        else None
+                    )
+                    if value is not None:
+                        subset_values.append(value)
+                        tested_subset_methods.append(method)
+                label = _geometry_method_sensitivity_label(
+                    primary_status=str(primary.get("status", "")),
+                    primary_value=primary_value,
+                    subset_values=subset_values,
+                    expected_subset_count=len(subset_methods),
+                )
+            primary_direction = _spearman_direction(primary_value)
+            primary_sign = _strong_spearman_sign(primary_value)
+            subset_signs = [_strong_spearman_sign(value) for value in subset_values]
+            rows.append(
+                {
+                    "behavior_dataset": primary.get("behavior_dataset", ""),
+                    "viewing_regime": _viewing_regime(primary.get("behavior_dataset", "")),
+                    "behavior_metric": primary.get("behavior_metric", ""),
+                    "behavior_metric_direction": primary.get("behavior_metric_direction", ""),
+                    "behavior_saliency_method": primary.get("behavior_saliency_method", ""),
+                    "behavior_saliency_family": primary.get("behavior_saliency_family", ""),
+                    "neural_scope": primary.get("neural_scope", ""),
+                    "roi_or_mean": primary.get("roi_or_mean", ""),
+                    "relationship": relationship,
+                    "models": primary.get("models", ""),
+                    "n_models": primary.get("n_models", ""),
+                    "primary_geometry_method": primary_method,
+                    "tested_geometry_methods": ";".join([primary_method, *subset_methods]),
+                    "subset_rsa_methods": ";".join(subset_methods),
+                    "subset_rsa_methods_tested": ";".join(tested_subset_methods),
+                    "num_subset_rsa_methods_expected": len(subset_methods),
+                    "num_subset_rsa_methods_tested": len(tested_subset_methods),
+                    "num_subset_rsa_methods_incomplete": (
+                        len(subset_methods) - len(tested_subset_methods)
+                    ),
+                    "cka_spearman": primary_value if primary_value is not None else "",
+                    "cka_direction": primary_direction,
+                    "subset_spearman_min": min(subset_values) if subset_values else "",
+                    "subset_spearman_median": _median(subset_values) if subset_values else "",
+                    "subset_spearman_max": max(subset_values) if subset_values else "",
+                    "subset_same_direction_count": sum(
+                        1
+                        for sign in subset_signs
+                        if primary_sign != 0 and sign == primary_sign
+                    ),
+                    "subset_opposite_direction_count": sum(
+                        1
+                        for sign in subset_signs
+                        if primary_sign != 0 and sign == -primary_sign
+                    ),
+                    "subset_weak_or_zero_count": sum(1 for sign in subset_signs if sign == 0),
+                    "geometry_sensitivity_label": label,
+                }
+            )
+    return rows
+
+
+def _geometry_method_sensitivity_key(row: dict[str, Any]) -> tuple[str, ...]:
+    return (
+        str(row.get("behavior_dataset", "")),
+        str(row.get("behavior_metric", "")),
+        str(row.get("behavior_saliency_method", "")),
+        str(row.get("behavior_saliency_family", "")),
+        str(row.get("neural_scope", "")),
+        str(row.get("roi_or_mean", "")),
+    )
+
+
+def _geometry_method_sensitivity_label(
+    *,
+    primary_status: str,
+    primary_value: float | None,
+    subset_values: list[float],
+    expected_subset_count: int,
+) -> str:
+    primary_sign = _strong_spearman_sign(primary_value)
+    subset_signs = [_strong_spearman_sign(value) for value in subset_values]
+    subset_nonzero_signs = {sign for sign in subset_signs if sign != 0}
+    if primary_status != "complete" or primary_value is None:
+        if subset_nonzero_signs and len(subset_nonzero_signs) == 1:
+            return "subset_rsa_only"
+        return "insufficient_models"
+    if not subset_values:
+        return "cka_only" if primary_sign != 0 else "insufficient_models"
+    if primary_sign != 0 and any(sign == -primary_sign for sign in subset_nonzero_signs):
+        return "direction_conflict"
+    if (
+        primary_sign != 0
+        and len(subset_values) == expected_subset_count
+        and all(sign == primary_sign for sign in subset_signs)
+    ):
+        return "stable_across_geometry_methods"
+    if primary_sign != 0:
+        return "cka_only"
+    if subset_nonzero_signs and len(subset_nonzero_signs) == 1:
+        return "subset_rsa_only"
+    return "insufficient_models"
+
+
+def _failure_gate_summary_rows(
+    sensitivity_rows: list[dict[str, Any]],
+    *,
+    scope: dict[str, Any],
+) -> list[dict[str, Any]]:
+    geometry_rows = [
+        row
+        for row in sensitivity_rows
+        if row.get("relationship") in {"behavior_vs_geometry", "encoding_vs_geometry"}
+    ]
+    label_counts = _status_counts(geometry_rows, "geometry_sensitivity_label")
+    expected_subset_count = 0
+    if geometry_rows:
+        expected_subset_count = max(
+            int(_float(row.get("num_subset_rsa_methods_expected"))) for row in geometry_rows
+        )
+    methods_complete = expected_subset_count > 0 and any(
+        int(_float(row.get("num_subset_rsa_methods_tested"))) == expected_subset_count
+        for row in geometry_rows
+    )
+    if not geometry_rows or not methods_complete:
+        next_step = "downgraded_paper1_framing"
+        rationale = "required geometry-method sensitivity rows are incomplete"
+    elif label_counts.get("stable_across_geometry_methods", 0) > 0:
+        next_step = "subject_robustness_subj02_subj04"
+        rationale = "at least one geometry relationship is stable across CKA and subset-RSA"
+    elif _has_coherent_method_dependent_pattern(geometry_rows, scope=scope):
+        next_step = "subject_robustness_subj02_subj04"
+        rationale = "method-dependent geometry pattern repeats across most V1 ROIs"
+    elif any(
+        label_counts.get(label, 0) > 0
+        for label in ["cka_only", "subset_rsa_only", "direction_conflict"]
+    ):
+        next_step = "geometry_uncertainty_repair"
+        rationale = "CKA/subset-RSA dependence exists but is not coherent enough to replicate"
+    else:
+        next_step = "downgraded_paper1_framing"
+        rationale = "no nontrivial cross-axis pattern survives geometry-method sensitivity"
+
+    return [
+        {
+            "summary_item": "geometry_sensitivity_rows",
+            "status": "pass" if geometry_rows else "fail",
+            "value": len(geometry_rows),
+            "detail": "behavior-vs-geometry and encoding-vs-geometry sensitivity rows",
+        },
+        {
+            "summary_item": "geometry_sensitivity_label_counts",
+            "status": "info",
+            "value": ";".join(
+                f"{label}={count}" for label, count in sorted(label_counts.items())
+            ),
+            "detail": "counts exclude behavior-vs-encoding not_tested rows",
+        },
+        {
+            "summary_item": "required_subset_rsa_methods",
+            "status": "pass" if methods_complete else "fail",
+            "value": expected_subset_count,
+            "detail": "expected deterministic subset-RSA methods represented in at least one complete comparison",
+        },
+        {
+            "summary_item": "failure_gate_next_step",
+            "status": "decision",
+            "value": next_step,
+            "detail": rationale,
+        },
+    ]
+
+
+def _has_coherent_method_dependent_pattern(
+    rows: list[dict[str, Any]],
+    *,
+    scope: dict[str, Any],
+) -> bool:
+    method_dependent_labels = {"cka_only", "subset_rsa_only", "direction_conflict"}
+    roi_threshold = max(1, len(scope.get("ordered_rois", [])) // 2 + 1)
+    grouped_rois: dict[tuple[str, ...], set[str]] = {}
+    for row in rows:
+        label = str(row.get("geometry_sensitivity_label", ""))
+        roi = str(row.get("roi_or_mean", ""))
+        if label not in method_dependent_labels or roi == "across_roi_mean":
+            continue
+        key = (
+            str(row.get("behavior_dataset", "")),
+            str(row.get("behavior_metric", "")),
+            str(row.get("behavior_saliency_method", "")),
+            str(row.get("behavior_saliency_family", "")),
+            str(row.get("neural_scope", "")),
+            str(row.get("relationship", "")),
+            label,
+        )
+        grouped_rois.setdefault(key, set()).add(roi)
+    return any(len(rois) >= roi_threshold for rois in grouped_rois.values())
+
+
+def _strong_spearman_sign(value: float | None) -> int:
+    if value is None or abs(value) < 0.2:
+        return 0
+    return 1 if value > 0 else -1
+
+
+def _spearman_direction(value: float | None) -> str:
+    sign = _strong_spearman_sign(value)
+    if sign > 0:
+        return "positive"
+    if sign < 0:
+        return "negative"
+    if value is None:
+        return "not_available"
+    return "weak_or_zero"
+
+
+def _viewing_regime(dataset: Any) -> str:
+    normalized = str(dataset).lower()
+    if "coco_search18" in normalized:
+        return "task_search"
+    if "salicon" in normalized or "cat2000" in normalized:
+        return "free_viewing"
+    return "unknown"
 
 
 def _cross_axis_observation_groups(
@@ -2174,6 +2491,8 @@ def _write_scope_alias_outputs(
     matched_cross_level_observation_rows: list[dict[str, Any]],
     matched_cross_level_correlation_rows: list[dict[str, Any]],
     matched_cross_axis_decision_rows: list[dict[str, Any]],
+    matched_geometry_method_sensitivity_decision_rows: list[dict[str, Any]],
+    matched_failure_gate_summary_rows: list[dict[str, Any]],
 ) -> dict[str, Path]:
     prefix = str(scope["alias_prefix"])
     outputs = {
@@ -2181,6 +2500,10 @@ def _write_scope_alias_outputs(
         f"{prefix}_encoding_roi_rankings": output / f"{prefix}_encoding_roi_rankings.csv",
         f"{prefix}_geometry_model_rankings": output / f"{prefix}_geometry_model_rankings.csv",
         f"{prefix}_geometry_method_agreement": output / f"{prefix}_geometry_method_agreement.csv",
+        f"{prefix}_geometry_method_sensitivity_decisions": (
+            output / f"{prefix}_geometry_method_sensitivity_decisions.csv"
+        ),
+        f"{prefix}_failure_gate_summary": output / f"{prefix}_failure_gate_summary.csv",
         f"{prefix}_cross_level_observations": output / f"{prefix}_cross_level_observations.csv",
         f"{prefix}_cross_level_correlations": output / f"{prefix}_cross_level_correlations.csv",
         f"{prefix}_cross_axis_decisions": output / f"{prefix}_cross_axis_decisions.csv",
@@ -2207,6 +2530,16 @@ def _write_scope_alias_outputs(
         GEOMETRY_METHOD_AGREEMENT_FIELDNAMES,
     )
     _write_rows(
+        outputs[f"{prefix}_geometry_method_sensitivity_decisions"],
+        matched_geometry_method_sensitivity_decision_rows,
+        GEOMETRY_METHOD_SENSITIVITY_DECISION_FIELDNAMES,
+    )
+    _write_rows(
+        outputs[f"{prefix}_failure_gate_summary"],
+        matched_failure_gate_summary_rows,
+        FAILURE_GATE_SUMMARY_FIELDNAMES,
+    )
+    _write_rows(
         outputs[f"{prefix}_cross_level_observations"],
         matched_cross_level_observation_rows,
         MATCHED_CROSS_LEVEL_OBSERVATION_FIELDNAMES,
@@ -2230,6 +2563,10 @@ def _write_scope_alias_outputs(
             matched_geometry_agreement_rows=matched_geometry_agreement_rows,
             matched_cross_level_correlation_rows=matched_cross_level_correlation_rows,
             matched_cross_axis_decision_rows=matched_cross_axis_decision_rows,
+            matched_geometry_method_sensitivity_decision_rows=(
+                matched_geometry_method_sensitivity_decision_rows
+            ),
+            matched_failure_gate_summary_rows=matched_failure_gate_summary_rows,
         ),
         ["check", "status", "detail"],
     )
@@ -2244,6 +2581,8 @@ def _scope_artifact_audit_rows(
     matched_geometry_agreement_rows: list[dict[str, Any]],
     matched_cross_level_correlation_rows: list[dict[str, Any]],
     matched_cross_axis_decision_rows: list[dict[str, Any]],
+    matched_geometry_method_sensitivity_decision_rows: list[dict[str, Any]],
+    matched_failure_gate_summary_rows: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
     expected_cells = int(scope["expected_cells"])
     expected_geometry_rows_per_cell = int(scope.get("expected_geometry_rows_per_cell") or 0)
@@ -2318,6 +2657,16 @@ def _scope_artifact_audit_rows(
             "roi_expanded_cross_axis_decisions_present",
             bool(matched_cross_axis_decision_rows),
             f"rows={len(matched_cross_axis_decision_rows)}",
+        ),
+        _audit_row(
+            "roi_expanded_geometry_method_sensitivity_decisions_present",
+            bool(matched_geometry_method_sensitivity_decision_rows),
+            f"rows={len(matched_geometry_method_sensitivity_decision_rows)}",
+        ),
+        _audit_row(
+            "roi_expanded_failure_gate_summary_present",
+            bool(matched_failure_gate_summary_rows),
+            f"rows={len(matched_failure_gate_summary_rows)}",
         ),
     ]
     return rows
@@ -3057,6 +3406,43 @@ GEOMETRY_METHOD_AGREEMENT_FIELDNAMES = [
     "spearman_rank_agreement",
     "kendall_rank_agreement",
     "status",
+]
+
+GEOMETRY_METHOD_SENSITIVITY_DECISION_FIELDNAMES = [
+    "behavior_dataset",
+    "viewing_regime",
+    "behavior_metric",
+    "behavior_metric_direction",
+    "behavior_saliency_method",
+    "behavior_saliency_family",
+    "neural_scope",
+    "roi_or_mean",
+    "relationship",
+    "models",
+    "n_models",
+    "primary_geometry_method",
+    "tested_geometry_methods",
+    "subset_rsa_methods",
+    "subset_rsa_methods_tested",
+    "num_subset_rsa_methods_expected",
+    "num_subset_rsa_methods_tested",
+    "num_subset_rsa_methods_incomplete",
+    "cka_spearman",
+    "cka_direction",
+    "subset_spearman_min",
+    "subset_spearman_median",
+    "subset_spearman_max",
+    "subset_same_direction_count",
+    "subset_opposite_direction_count",
+    "subset_weak_or_zero_count",
+    "geometry_sensitivity_label",
+]
+
+FAILURE_GATE_SUMMARY_FIELDNAMES = [
+    "summary_item",
+    "status",
+    "value",
+    "detail",
 ]
 
 GEOMETRY_RUNTIME_FIELDNAMES = [

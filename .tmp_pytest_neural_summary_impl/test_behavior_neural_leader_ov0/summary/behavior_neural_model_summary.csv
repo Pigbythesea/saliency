@@ -1,0 +1,3 @@
+model,behavior_dataset,behavior_metric,behavior_saliency_method,behavior_saliency_family,num_rois,behavior_mean,mean_best_encoding_score_across_rois,mean_best_rsa_score_across_rois
+fast_model,salicon_static2000,kl,gradcam,class_localization,1,1.0,0.2,0.07
+slow_model,salicon_static2000,kl,gradcam,class_localization,1,2.0,0.2,0.07

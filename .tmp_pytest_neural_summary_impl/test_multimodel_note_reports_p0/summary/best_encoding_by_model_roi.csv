@@ -1,0 +1,2 @@
+score_type,model,subject_id,roi,layer,metric,compare_method,score,encoding_score_type,raw_score,median_score,std_score,mean_noise_normalized_score,median_noise_normalized_score,valid_noise_ceiling_targets,zero_noise_ceiling_targets,invalid_noise_ceiling_targets,n_train,n_test,n_items,num_targets,dataset,source_dir
+encoding,resnet50,subj01,V1,layer2,correlation,,0.2,raw,0.2,0.18,0.02,,,,,,400,100,,10,nsd_V1,D:\Git\saliency\.tmp_pytest_neural_summary_impl\test_multimodel_note_reports_p0\outputs\v1

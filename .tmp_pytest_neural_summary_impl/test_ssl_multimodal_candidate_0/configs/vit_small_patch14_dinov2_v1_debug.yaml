@@ -1,0 +1,44 @@
+seed: 123
+device: auto
+experiment:
+  name: vit_small_patch14_dinov2_v1_debug
+dataset:
+  name: nsd_algonauts
+  label: vit_small_patch14_dinov2_v1_debug
+  root: data/raw/nsd_algonauts
+  manifest_path: data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv
+  split: train
+  subject_id: subj01
+  roi: V1
+  max_items: 16
+  validate_files: true
+model:
+  name: vit_small_patch14_dinov2
+  backend: timm
+  pretrained: false
+  eval_mode: true
+preprocessing:
+  input_size:
+  - 518
+  - 518
+  mean: imagenet
+  std: imagenet
+neural:
+  layers:
+  - blocks.0
+  - blocks.3
+  - blocks.6
+  - blocks.9
+  - blocks.11
+  response_key: roi_responses
+  feature_reduction: spatial_mean
+  train_fraction: 0.8
+  ridge_alpha: 1.0
+  metric: correlation
+  rsa:
+    enabled: true
+    rdm_metric: correlation
+    response_rdm_metric: correlation
+    compare_method: spearman
+output:
+  dir: D:\Git\saliency\.tmp_pytest_neural_summary_impl\test_ssl_multimodal_candidate_0\outputs/vit_small_patch14_dinov2_v1_debug

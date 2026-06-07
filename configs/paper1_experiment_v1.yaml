@@ -132,6 +132,8 @@ accepted_tables:
   - outputs/paper1_experiment_v1/summary/roi_expanded_encoding_roi_rankings.csv
   - outputs/paper1_experiment_v1/summary/roi_expanded_geometry_model_rankings.csv
   - outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_agreement.csv
+  - outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_sensitivity_decisions.csv
+  - outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv
   - outputs/paper1_experiment_v1/summary/roi_expanded_cross_level_observations.csv
   - outputs/paper1_experiment_v1/summary/roi_expanded_cross_level_correlations.csv
   - outputs/paper1_experiment_v1/summary/roi_expanded_cross_axis_decisions.csv
@@ -160,4 +162,3 @@ do_not_do:
   - Run subject replication before the ROI-expanded subj01 pattern is inspected.
   - Add fLOC category ROIs, DeepGaze MSDB, task-trained COCO-Search18 baselines, efficiency, or stronger transformer relevance in V1 unless this spec is revised.
   - Shift this milestone into Paper 2 causal adaptive-attention intervention work.
-

@@ -1,0 +1,1 @@
+model,subject_id,roi,layer,geometry_method,geometry_score,rank_within_roi,num_images_used,subset_seed,subset_size,source_dir,interpretation_scope

@@ -1,0 +1,4 @@
+model:
+  name: vit_small_patch14_dinov2
+dataset:
+  roi: V2

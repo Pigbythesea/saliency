@@ -1,0 +1,7 @@
+model,subject_id,roi,layer,geometry_method,geometry_score,rank_within_roi,num_images_used,subset_seed,subset_size,source_dir,interpretation_scope
+deit_small_patch16_224,subj01,V1,layer1,linear_cka,0.6,1,9841,,,D:\Git\saliency\.tmp_pytest_neural_summary_impl\test_summarize_neural_roi_resu9\outputs\deit_small_patch16_224,matched_full_image_flatten_pca_geometry
+convnext_tiny,subj01,V1,layer1,linear_cka,0.4,2,9841,,,D:\Git\saliency\.tmp_pytest_neural_summary_impl\test_summarize_neural_roi_resu9\outputs\convnext_tiny,matched_full_image_flatten_pca_geometry
+resnet50,subj01,V1,layer1,linear_cka,0.2,3,9841,,,D:\Git\saliency\.tmp_pytest_neural_summary_impl\test_summarize_neural_roi_resu9\outputs\resnet50,matched_full_image_flatten_pca_geometry
+deit_small_patch16_224,subj01,V1,layer1,subset_rsa_corr_rdm_spearman_size128_seed123,0.61,1,128,123,128,D:\Git\saliency\.tmp_pytest_neural_summary_impl\test_summarize_neural_roi_resu9\outputs\deit_small_patch16_224,matched_full_image_flatten_pca_geometry
+convnext_tiny,subj01,V1,layer1,subset_rsa_corr_rdm_spearman_size128_seed123,0.41000000000000003,2,128,123,128,D:\Git\saliency\.tmp_pytest_neural_summary_impl\test_summarize_neural_roi_resu9\outputs\convnext_tiny,matched_full_image_flatten_pca_geometry
+resnet50,subj01,V1,layer1,subset_rsa_corr_rdm_spearman_size128_seed123,0.21000000000000002,3,128,123,128,D:\Git\saliency\.tmp_pytest_neural_summary_impl\test_summarize_neural_roi_resu9\outputs\resnet50,matched_full_image_flatten_pca_geometry

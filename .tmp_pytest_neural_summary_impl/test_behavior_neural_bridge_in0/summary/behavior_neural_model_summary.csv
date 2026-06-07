@@ -1,0 +1,2 @@
+model,behavior_dataset,behavior_metric,behavior_saliency_method,behavior_saliency_family,num_rois,behavior_mean,mean_best_encoding_score_across_rois,mean_best_rsa_score_across_rois
+vit_small_patch14_dinov2,salicon_static2000,nss,attention_rollout,internal_routing,1,0.41,0.2,0.07

@@ -66,6 +66,15 @@ def test_paper1_experiment_v1_config_declares_required_artifacts_and_exclusions(
     assert accepted_tables
     assert all(path.startswith("outputs/paper1_experiment_v1/summary/") for path in accepted_tables)
     assert "outputs/paper1_experiment_v1/summary/roi_expanded_cross_axis_decisions.csv" in accepted_tables
+    assert (
+        "outputs/paper1_experiment_v1/summary/"
+        "roi_expanded_geometry_method_sensitivity_decisions.csv"
+        in accepted_tables
+    )
+    assert (
+        "outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv"
+        in accepted_tables
+    )
     assert "outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv" in accepted_tables
 
     immediate_sequence = " ".join(config["implementation_sequence"]).lower()

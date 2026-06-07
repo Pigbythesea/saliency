@@ -1,0 +1,3 @@
+model_name,latency_mean_ms,parameter_count
+resnet50,5.0,10
+vit_small_patch14_dinov2,9.0,20

@@ -1,0 +1,2 @@
+model_name,latency_mean_ms,parameter_count,model_size_mb
+vit_small_patch14_dinov2,3.0,30,12.0

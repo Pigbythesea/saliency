@@ -1,0 +1,6 @@
+roi_or_mean,primary_geometry_method,sensitivity_geometry_method,n_models,models,spearman_rank_agreement,kendall_rank_agreement,status
+V1,linear_cka,subset_rsa_corr_rdm_spearman_size128_seed123,3,convnext_tiny;deit_small_patch16_224;resnet50,1.0,1.0,complete
+V2,linear_cka,subset_rsa_corr_rdm_spearman_size128_seed123,0,,,,insufficient_models
+V3,linear_cka,subset_rsa_corr_rdm_spearman_size128_seed123,0,,,,insufficient_models
+across_roi_mean,linear_cka,subset_rsa_corr_rdm_spearman_size128_seed123,3,convnext_tiny;deit_small_patch16_224;resnet50,1.0,1.0,complete
+hV4,linear_cka,subset_rsa_corr_rdm_spearman_size128_seed123,0,,,,insufficient_models

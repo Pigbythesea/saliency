@@ -235,7 +235,14 @@ def test_compute_matched_geometry_preserves_legacy_scope(tmp_path, monkeypatch):
     assert written == [output_dir / "geometry_scores.csv"]
 
 
-def _write_summary_cell(output_root: Path, model: str, roi: str, model_index: int) -> Path:
+def _write_summary_cell(
+    output_root: Path,
+    model: str,
+    roi: str,
+    model_index: int,
+    *,
+    subset_score_sign: float = 1.0,
+) -> Path:
     output_dir = output_root / _cell_stem(model, roi)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "metadata.json").write_text(
@@ -306,7 +313,7 @@ def _write_summary_cell(output_root: Path, model: str, roi: str, model_index: in
                     "roi": roi,
                     "layer": "layer3",
                     "geometry_method": f"subset_rsa_corr_rdm_spearman_size{size}_seed{seed}",
-                    "score": 0.25 * model_index + size / 100000,
+                    "score": subset_score_sign * 0.25 * model_index + size / 100000,
                     "valid": "true",
                     "status": "ok",
                     "num_images_total": 9841,
@@ -402,8 +409,17 @@ def test_v1_summary_writes_roi_expanded_aliases_and_audit(tmp_path):
 
     alias_rows = _read_csv(outputs["roi_expanded_geometry_model_rankings"])
     agreement_rows = _read_csv(outputs["roi_expanded_geometry_method_agreement"])
+    method_sensitivity_rows = _read_csv(
+        outputs["roi_expanded_geometry_method_sensitivity_decisions"]
+    )
+    failure_gate_rows = _read_csv(outputs["roi_expanded_failure_gate_summary"])
     sensitivity_rows = _read_csv(outputs["matched_cross_axis_sensitivity"])
     audit_rows = _read_csv(outputs["experiment_artifact_audit"])
+    expected_subset_methods = {
+        f"subset_rsa_corr_rdm_spearman_size{size}_seed{seed}"
+        for size in [512, 1024, 2048]
+        for seed in [123, 456, 789]
+    }
 
     assert {row["model"] for row in alias_rows} == set(MODELS)
     assert any("midventral" in row["rois"] for row in alias_rows)
@@ -411,10 +427,37 @@ def test_v1_summary_writes_roi_expanded_aliases_and_audit(tmp_path):
         row["sensitivity_geometry_method"]
         for row in agreement_rows
         if row["sensitivity_geometry_method"].startswith("subset_rsa_")
-    } == {
-        f"subset_rsa_corr_rdm_spearman_size{size}_seed{seed}"
-        for size in [512, 1024, 2048]
-        for seed in [123, 456, 789]
+    } == expected_subset_methods
+    assert method_sensitivity_rows
+    assert {
+        row["primary_geometry_method"] for row in method_sensitivity_rows
+    } == {"linear_cka_full9841"}
+    assert expected_subset_methods <= set(
+        ";".join(row["subset_rsa_methods"] for row in method_sensitivity_rows).split(";")
+    )
+    assert any(
+        row["geometry_sensitivity_label"] == "stable_across_geometry_methods"
+        and row["relationship"] == "encoding_vs_geometry"
+        for row in method_sensitivity_rows
+    )
+    assert any(
+        row["geometry_sensitivity_label"] == "not_tested"
+        and row["relationship"] == "behavior_vs_noise_normalized"
+        for row in method_sensitivity_rows
+    )
+    assert any(
+        set(row["models"].split(";")) == set(MODELS)
+        for row in method_sensitivity_rows
+        if row["relationship"] == "encoding_vs_geometry"
+    )
+    assert {
+        row["value"]
+        for row in failure_gate_rows
+        if row["summary_item"] == "failure_gate_next_step"
+    } <= {
+        "subject_robustness_subj02_subj04",
+        "geometry_uncertainty_repair",
+        "downgraded_paper1_framing",
     }
     assert any(row["sensitivity_type"] == "leave_one_model" for row in sensitivity_rows)
     assert any(row["sensitivity_type"] == "leave_one_roi" for row in sensitivity_rows)
@@ -423,3 +466,71 @@ def test_v1_summary_writes_roi_expanded_aliases_and_audit(tmp_path):
         "coco_search18_static2000",
     }
     assert all(row["status"] == "pass" for row in audit_rows)
+
+
+def test_v1_geometry_method_sensitivity_flags_direction_conflict(tmp_path):
+    config_path = _v1_config(tmp_path)
+    _write_v1_config_files(config_path)
+    output_root = (
+        tmp_path
+        / "outputs"
+        / "paper1_experiment_v1"
+        / "neural_subj01_roi_expanded"
+    )
+    input_dirs = []
+    behavior_rows = []
+    for model_index, model in enumerate(MODELS, start=1):
+        for roi in ROIS:
+            input_dirs.append(
+                _write_summary_cell(
+                    output_root,
+                    model,
+                    roi,
+                    model_index,
+                    subset_score_sign=-1.0,
+                )
+            )
+        behavior_rows.append(
+            {
+                "dataset": "salicon_static2000",
+                "model": model,
+                "saliency_method": "gradcam",
+                "saliency_family": "class_localization",
+                "metric": "nss",
+                "n": 2000,
+                "mean": model_index,
+                "fixation_protocol": "points",
+            }
+        )
+    behavior_csv = tmp_path / "outputs" / "behavior.csv"
+    _write_csv(
+        behavior_csv,
+        behavior_rows,
+        [
+            "dataset",
+            "model",
+            "saliency_method",
+            "saliency_family",
+            "metric",
+            "n",
+            "mean",
+            "fixation_protocol",
+        ],
+    )
+
+    outputs = summarize_neural_roi_results(
+        input_dirs,
+        tmp_path / "outputs" / "paper1_experiment_v1" / "summary",
+        behavioral_csv=behavior_csv,
+        scope_config=config_path,
+    )
+
+    method_sensitivity_rows = _read_csv(
+        outputs["roi_expanded_geometry_method_sensitivity_decisions"]
+    )
+
+    assert any(
+        row["geometry_sensitivity_label"] == "direction_conflict"
+        and row["relationship"] == "encoding_vs_geometry"
+        for row in method_sensitivity_rows
+    )

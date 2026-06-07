@@ -1,0 +1,4 @@
+model:
+  name: resnet50
+dataset:
+  roi: lateral

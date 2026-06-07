@@ -1,0 +1,7 @@
+behavior_dataset,behavior_metric,behavior_saliency_method,neural_scope,roi_or_mean,geometry_method,relationship,baseline_spearman,min_leave_one_model_spearman,max_leave_one_model_spearman,n_sensitivity_rows,decision_label
+salicon_static2000,nss,gradcam,matched_full_image_flatten_pca_model_mean,across_roi_mean,,behavior_vs_noise_normalized,,,,0,insufficient_models
+salicon_static2000,nss,gradcam,matched_full_image_flatten_pca_model_mean,across_roi_mean,,behavior_vs_geometry,,,,0,insufficient_models
+salicon_static2000,nss,gradcam,matched_full_image_flatten_pca_model_mean,across_roi_mean,,encoding_vs_geometry,,,,0,insufficient_models
+salicon_static2000,nss,gradcam,matched_full_image_flatten_pca_roi,V1,,behavior_vs_noise_normalized,,,,0,insufficient_models
+salicon_static2000,nss,gradcam,matched_full_image_flatten_pca_roi,V1,,behavior_vs_geometry,,,,0,insufficient_models
+salicon_static2000,nss,gradcam,matched_full_image_flatten_pca_roi,V1,,encoding_vs_geometry,,,,0,insufficient_models

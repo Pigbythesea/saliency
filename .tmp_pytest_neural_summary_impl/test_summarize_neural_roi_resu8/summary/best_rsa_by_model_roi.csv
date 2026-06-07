@@ -1,0 +1,1 @@
+score_type,model,subject_id,roi,layer,metric,compare_method,score,encoding_score_type,raw_score,median_score,std_score,mean_noise_normalized_score,median_noise_normalized_score,valid_noise_ceiling_targets,zero_noise_ceiling_targets,invalid_noise_ceiling_targets,n_train,n_test,n_items,num_targets,dataset,source_dir
