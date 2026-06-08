@@ -1,2 +1,0 @@
-image_id,image_path,split,subject_id,roi,roi_response_path,roi_responses,noise_ceiling_path,noise_ceiling_values,noise_ceiling_source
-image_001,images/image_001.png,train,subj01,V1,responses/image_001.npy,,ceilings/v1.npy,,

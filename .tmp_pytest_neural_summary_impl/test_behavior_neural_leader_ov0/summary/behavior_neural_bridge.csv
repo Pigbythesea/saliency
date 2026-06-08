@@ -1,3 +1,0 @@
-behavior_dataset,behavior_metric,behavior_model,behavior_saliency_method,behavior_saliency_family,behavior_n,behavior_mean,behavior_ci95_low,behavior_ci95_high,neural_model,subject_id,roi,best_encoding_layer,best_encoding_metric,best_encoding_score,best_encoding_n_train,best_encoding_n_test,best_rsa_layer,best_rsa_method,best_rsa_score,best_rsa_n_items
-salicon_static2000,kl,slow_model,gradcam,class_localization,2000,2.0,1.9,2.1,slow_model,subj01,V1,layer2,correlation,0.2,400,100,layer3,spearman,0.07,500
-salicon_static2000,kl,fast_model,gradcam,class_localization,2000,1.0,0.9,1.1,fast_model,subj01,V1,layer2,correlation,0.2,400,100,layer3,spearman,0.07,500

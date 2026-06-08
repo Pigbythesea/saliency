@@ -1,2 +1,0 @@
-image_id,image_path,split,subject_id,roi,roi_response_path,roi_responses
-train-0001_nsd-00001,subj01/training_split/training_images/train-0001_nsd-00001.png,train,subj01,midventral,subj01/responses/midventral/train-0001_nsd-00001.npy,

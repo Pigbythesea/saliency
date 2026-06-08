@@ -1,4 +1,0 @@
-model:
-  name: resnet50
-dataset:
-  roi: midlateral

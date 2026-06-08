@@ -1,7 +1,0 @@
-model,geometry_method,num_geometry_rois,mean_geometry_score,rank_mean_geometry,rois,interpretation_scope
-deit_small_patch16_224,linear_cka,1,0.6,1,V1,matched_full_image_flatten_pca_geometry
-convnext_tiny,linear_cka,1,0.4,2,V1,matched_full_image_flatten_pca_geometry
-resnet50,linear_cka,1,0.2,3,V1,matched_full_image_flatten_pca_geometry
-deit_small_patch16_224,subset_rsa_corr_rdm_spearman_size128_seed123,1,0.61,1,V1,matched_full_image_flatten_pca_geometry
-convnext_tiny,subset_rsa_corr_rdm_spearman_size128_seed123,1,0.41000000000000003,2,V1,matched_full_image_flatten_pca_geometry
-resnet50,subset_rsa_corr_rdm_spearman_size128_seed123,1,0.21000000000000002,3,V1,matched_full_image_flatten_pca_geometry

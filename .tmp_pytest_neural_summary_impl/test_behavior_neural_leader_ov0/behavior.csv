@@ -1,3 +1,0 @@
-dataset,model,saliency_method,saliency_family,metric,n,mean,ci95_low,ci95_high
-salicon_static2000,slow_model,gradcam,class_localization,kl,2000,2.0,1.9,2.1
-salicon_static2000,fast_model,gradcam,class_localization,kl,2000,1.0,0.9,1.1

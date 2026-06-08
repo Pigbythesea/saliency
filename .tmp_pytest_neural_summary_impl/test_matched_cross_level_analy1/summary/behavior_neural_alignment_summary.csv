@@ -1,3 +1,0 @@
-model,behavior_dataset,behavior_metric,behavior_metric_direction,behavior_saliency_method,behavior_saliency_family,num_rois,behavior_mean,mean_encoding_score,mean_noise_normalized_score,mean_rsa_score,rank_mean_encoding,rank_mean_noise_normalized,rank_mean_rsa,rank_encoding_per_latency,rank_rsa_per_latency,interpretation_scope
-convnext_tiny,salicon_static2000,nss,higher_is_better,gradcam,class_localization,1,0.2,0.2,0.4,0.0,1,1,1,,,descriptive_one_subject_roi500
-resnet50,salicon_static2000,nss,higher_is_better,gradcam,class_localization,1,0.1,0.1,0.2,0.0,2,2,1,,,descriptive_one_subject_roi500

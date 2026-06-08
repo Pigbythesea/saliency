@@ -1,5 +1,0 @@
-behavior_dataset,behavior_metric,behavior_metric_direction,behavior_saliency_method,behavior_saliency_family,model,roi_or_mean,neural_scope,behavior_mean_raw,behavior_score_aligned,neural_mean_encoding_raw,neural_mean_noise_normalized,geometry_method,geometry_score,n_behavior,fixation_protocol
-salicon_static2000,nss,higher_is_better,gradcam,class_localization,convnext_tiny,across_roi_mean,matched_full_image_flatten_pca_model_mean,0.2,0.2,0.2,0.4,,,2000,points
-salicon_static2000,nss,higher_is_better,gradcam,class_localization,resnet50,across_roi_mean,matched_full_image_flatten_pca_model_mean,0.1,0.1,0.1,0.2,,,2000,points
-salicon_static2000,nss,higher_is_better,gradcam,class_localization,convnext_tiny,V1,matched_full_image_flatten_pca_roi,0.2,0.2,0.2,0.4,,,2000,points
-salicon_static2000,nss,higher_is_better,gradcam,class_localization,resnet50,V1,matched_full_image_flatten_pca_roi,0.1,0.1,0.1,0.2,,,2000,points

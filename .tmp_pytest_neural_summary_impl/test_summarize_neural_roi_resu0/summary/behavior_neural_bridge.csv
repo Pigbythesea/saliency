@@ -1,3 +1,0 @@
-behavior_dataset,behavior_metric,behavior_model,behavior_saliency_method,behavior_saliency_family,behavior_n,behavior_mean,behavior_ci95_low,behavior_ci95_high,neural_model,subject_id,roi,best_encoding_layer,best_encoding_metric,best_encoding_score,best_encoding_n_train,best_encoding_n_test,best_rsa_layer,best_rsa_method,best_rsa_score,best_rsa_n_items
-cat2000_static2000,cc,deit_small_patch16_224,attention_rollout,internal_routing,2000,0.12,0.11,0.13,deit_small_patch16_224,subj01,V2,layer2,correlation,0.2,400,100,layer3,spearman,0.07,500
-salicon_static2000,nss,resnet50,gradcam,class_localization,2000,0.34,0.33,0.35,resnet50,subj01,V1,layer2,correlation,0.2,400,100,layer3,spearman,0.07,500

@@ -1,3 +1,0 @@
-model_name,family,wrapper_compatible,pretrained_weights_run,pretrained_run_status
-vit_small_patch14_dinov2,DINOv2,true,true,complete
-vit_base_patch16_clip_224,CLIP,true,false,not_run

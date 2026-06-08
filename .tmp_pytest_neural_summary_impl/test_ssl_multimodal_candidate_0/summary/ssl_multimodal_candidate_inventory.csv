@@ -1,5 +1,0 @@
-model_name,family,available_in_timm,architecture_hint,proposed_layers,verified_layers,missing_layers,wrapper_compatible,pretrained_weights_run,debug_config_path,pretrained_debug_config_path,pretrained_output_dir,pretrained_run_status,pretrained_weight_status,pretrained_run_error,inspection_error
-vit_small_patch14_dinov2,DINOv2,true,vit,blocks.0 blocks.3 blocks.6 blocks.9 blocks.11,blocks.0 blocks.3 blocks.6 blocks.9 blocks.11,,true,false,,,,not_run,,,
-resnet50_clip,CLIP,true,resnet,layer1 layer2 layer3 layer4,layer1 layer2 layer3 layer4,,true,false,,,,not_run,,,
-not_available,DINOv3,false,unknown,,,,false,false,,,,not_run,,,model_not_listed_by_timm
-missing_blocks_model,test,true,unknown,,,,false,false,,,,not_run,,,

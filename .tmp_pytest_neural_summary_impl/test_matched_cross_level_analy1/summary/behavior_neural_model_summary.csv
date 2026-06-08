@@ -1,3 +1,0 @@
-model,behavior_dataset,behavior_metric,behavior_saliency_method,behavior_saliency_family,num_rois,behavior_mean,mean_best_encoding_score_across_rois,mean_best_rsa_score_across_rois
-convnext_tiny,salicon_static2000,nss,gradcam,class_localization,1,0.2,0.4,0.0
-resnet50,salicon_static2000,nss,gradcam,class_localization,1,0.1,0.2,0.0

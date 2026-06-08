@@ -1,2 +1,0 @@
-dataset,model,saliency_method,saliency_family,metric,n,mean,ci95_low,ci95_high
-salicon_static2000,vit_small_patch14_dinov2,attention_rollout,internal_routing,nss,2000,0.41,0.4,0.42

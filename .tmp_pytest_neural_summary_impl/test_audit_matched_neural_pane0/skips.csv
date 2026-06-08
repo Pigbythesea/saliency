@@ -1,2 +1,0 @@
-model,roi,skip_reason
-convnext_tiny,V1,pretrained weights failed

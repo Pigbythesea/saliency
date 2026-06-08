@@ -1,5 +1,0 @@
-image_id,image_path,split,subject_id,roi,roi_response_path,roi_responses
-image_001,images/image_001.png,train,subj01,V1,responses/image_001.npy,
-image_002,images/image_002.png,train,subj01,V2,responses/image_002.npy,
-image_003,images/image_003.png,train,subj02,V1,responses/image_003.npy,
-image_004,images/image_004.png,val,subj01,V1,responses/image_004.npy,
