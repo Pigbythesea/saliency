@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-06-07
+Updated: 2026-06-08
 
 ## Purpose And Codex Operating Contract
 
@@ -369,7 +369,7 @@ The current milestone order is:
 1. Freeze the current six-model/subj01/V1–hV4 results as diagnostic validation outputs, not paper-grade evidence.
 2. Complete the V1 four-model x ten-ROI discovery matrix for `subj01`.
 3. Apply geometry-method sensitivity and the V1 failure gate. **Complete.**
-4. Run subject robustness on the reduced `subj02`-`subj04` panel.
+4. Run subject robustness on the reduced `subj02`-`subj04` panel. **In progress:** `subj02` and `subj03` encoding are complete; `subj04`, geometry, and summary remain.
 5. If the pattern is ambiguous after subject robustness, add uncertainty/geometry repair before paper-pack hardening.
 6. Only after subject robustness is summarized, add behavioral controls, stronger attribution, and efficiency.
 7. If the V1 matrix does not produce a defensible claim after sensitivity, demote Paper 1 to a methods/workshop paper and shift the main publication effort toward Paper 2’s causal adaptive-attention intervention.
@@ -454,7 +454,7 @@ Reporting infrastructure:
 
 ## Current Implementation Progress
 
-Updated: 2026-06-07
+Updated: 2026-06-08
 
 Current implementation state:
 
@@ -478,36 +478,39 @@ Current implementation state:
 - The V1 CKA-primary cross-axis summaries exist: `693` cross-level correlation rows and `2079` cross-axis decision rows. Current CKA-primary decision rows are dominated by `insufficient_models` (`1386`), with `627` `stable_convergence` and `66` `unstable` rows. The stable across-ROI rows are concentrated in `vanilla_gradient` behavior and `linear_cka_full9841` geometry.
 - The V1 geometry-method sensitivity synthesis now exists: `2079` rows in `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_sensitivity_decisions.csv`. Labels are `908` `stable_across_geometry_methods`, `693` `not_tested`, `462` `insufficient_models`, and `16` `direction_conflict`. The table preserves free-viewing versus task-search separation with `1386` free-viewing rows and `693` task-search rows, and includes `linear_cka_full9841` plus all nine deterministic subset-RSA variants.
 - The V1 failure-gate summary now exists at `outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv`. The current gate decision is `subject_robustness_subj02_subj04` because at least one geometry relationship is stable across CKA and subset-RSA.
+- The reduced V1 subject-robustness scaffold is implemented for `subj02`-`subj04`: `configs/paper1_experiment_v1.yaml` has an executable `confirmatory_matrix`, `scripts/create_paper1_v1_subject_robustness_configs.py` generates `48` subject/model/ROI configs under `configs/experiments/paper1_experiment_v1/neural_subject_robustness/`, and `outputs/paper1_experiment_v1/summary/subject_robustness_artifact_audit.csv` passes all scaffold checks.
+- Local subject-robustness encoding progress: `subj02` has `16/16` expected output directories with core encoding artifacts (`metadata.json`, `encoding_scores.csv`, `activations.npz`); `subj03` has `16/16`; `subj04` has `0/16`. No subject-robustness `geometry_scores.csv` files exist yet, and `outputs/paper1_experiment_v1/summary/subject_robustness_decisions.csv` has not been generated.
 
 Latest session report:
 
-1. `Scientific change`: the V1 geometry-method sensitivity gate is now explicit. The completed `subj01` ROI-expanded matrix has many CKA/subset-RSA-stable geometry relationships (`908` rows), while preserving `16` explicit direction-conflict rows rather than hiding geometry-method dependence. The synthesis therefore supports moving the candidate pattern to subject robustness, not model expansion or geometry repair first.
-2. `Accepted artifact`: `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_sensitivity_decisions.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv`, `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_encoding_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_agreement.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_cross_level_correlations.csv`, and `outputs/paper1_experiment_v1/summary/roi_expanded_cross_axis_decisions.csv`.
-3. `Claim impact`: positive for the Paper 1 dissociation/convergence claim, but still not paper-ready. The result says the V1 candidate is coherent enough for confirmatory subject robustness, while geometry-method dependence remains a limitation that must be reported.
-4. `Reviewer risk reduced`: reduces the "geometry metric cherry-picking" objection by comparing CKA-primary conclusions against all deterministic subset-RSA variants and by producing an explicit failure-gate decision.
-5. `Next decisive step`: run a reduced confirmatory subject-robustness matrix on `subj02`-`subj04` for the existing four-model panel, without adding models, new behavioral baselines, efficiency, fLOC ROIs, or stronger attribution first.
+1. `Scientific change`: no new scientific claim has been made yet. The subject-robustness evidence gate is partially executed: `subj02` and `subj03` encoding are complete locally, but the confirmatory panel is still incomplete without `subj04` and geometry.
+2. `Accepted artifact`: local encoding outputs under `outputs/paper1_experiment_v1/neural_subj02_subject_robustness/` and `outputs/paper1_experiment_v1/neural_subj03_subject_robustness/`, each with `16/16` complete core encoding cells.
+3. `Claim impact`: still neutral until `subj04` encoding, confirmatory geometry, and `subject_robustness_decisions.csv` complete. Do not interpret `subj02`/`subj03` alone as a subject-robustness result.
+4. `Reviewer risk reduced`: execution risk is reduced because two of three confirmatory subjects have complete local encoding. The one-subject reviewer risk is not reduced scientifically until all planned subjects are summarized.
+5. `Next decisive step`: integrate the JHU DSAI cluster workflow, run the remaining `subj04` encoding jobs there, sync outputs back locally, then compute subject-robustness geometry and summary tables.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
 ## Next Concrete Milestone
 
-Priority: **Run V1 Subject Robustness On `subj02`-`subj04`**.
+Priority: **Integrate JHU DSAI Cluster Execution For Remaining `subj04` Subject Robustness Jobs**.
 
 The previous milestone, V1 Geometry-Method Sensitivity And Failure-Gate Synthesis, is complete. Do not rerun `subj01` encoding or geometry unless an audit regresses or a concrete data-integrity blocker is discovered.
 
-The next decisive implementation task is to build the reduced confirmatory subject-robustness matrix for the existing four-model panel on `subj02`-`subj04`. This must test whether the V1 candidate pattern survives subject variation before any model-zoo expansion, new behavioral controls, efficiency profiling, or attribution-method expansion.
+The reduced confirmatory subject-robustness scaffold exists, and local encoding is complete for `subj02` and `subj03`. The next decisive task is to make the local project runnable on the JHU DSAI cluster, execute only the remaining `subj04` four-model x four-ROI encoding jobs, sync those outputs back to the local project, compute confirmatory geometry, and summarize whether the V1 candidate pattern survives subject variation before any model-zoo expansion, new behavioral controls, efficiency profiling, or attribution-method expansion.
 
 This ordering is intentional. Small model-level `n` remains the most severe reviewer risk, but adding models before subject robustness would make the project larger without testing whether the current cross-axis pattern is real. Subject robustness is the cleaner falsification gate for the current Paper 1 claim.
 
-For the next Codex session specifically, implement the confirmatory config/audit/run-command scaffold first. The actual encoding and geometry runs are likely time-consuming and should be split into user-managed `cmd` batches unless a single smoke cell is needed to validate the scaffold.
+The remaining encoding work should be cluster-managed because the jobs are independent by config and can likely run faster in parallel on cluster GPUs. The next Codex session should first establish a reproducible local-to-cluster sync and run procedure before launching jobs. Do not launch one unbounded all-subject job from Codex.
 
 ### Required outcome
 
 By the end of this milestone, the project should produce subject-robustness evidence under `outputs/paper1_experiment_v1/summary/`:
 
-- A generator for reduced `subj02`-`subj04` confirmatory configs, preferably under `scripts/`, with outputs under `configs/experiments/paper1_experiment_v1/neural_subject_robustness/`.
-- A subject-robustness audit table, preferably `outputs/paper1_experiment_v1/summary/subject_robustness_artifact_audit.csv`, that reports expected and completed subject/model/ROI cells.
-- A `cmd`-only runbook or status-file command block that splits long encoding and geometry jobs by subject or manageable subject/model batches.
+- Done: a generator for reduced `subj02`-`subj04` confirmatory configs under `scripts/`, with outputs under `configs/experiments/paper1_experiment_v1/neural_subject_robustness/`.
+- Done: a subject-robustness audit table at `outputs/paper1_experiment_v1/summary/subject_robustness_artifact_audit.csv`, reporting expected and completed subject/model/ROI config cells.
+- Done: a `cmd`-only runbook below that splits long encoding and geometry jobs by subject.
+- Partial: local encoding outputs are complete for `subj02` and `subj03`; `subj04` remains pending.
 - A subject-level encoding ranking table for `subj02`, `subj03`, and `subj04`.
 - A subject-level geometry ranking/sensitivity table using `linear_cka_full9841` and the same deterministic subset-RSA variants where feasible.
 - A compact subject-robustness decision table that states whether the `subj01` V1 pattern replicates, partially replicates, or fails across subjects.
@@ -515,27 +518,69 @@ By the end of this milestone, the project should produce subject-robustness evid
 
 ### Required implementation work
 
-The next Codex session should implement:
+The scaffold implementation is complete. The remaining execution work is:
 
-1. **Prepare confirmatory configs**
+1. **Integrate cluster sync and runtime**
 
-   Generate reduced `subj02`-`subj04` configs for the same four V1 models and the available PRF visual ROI manifests. Use the existing V1 encoding protocol: full-image-count `flatten_pca`, validation-selected layer, same PCA/ridge settings, and no learned-readout headline rows. Start with PRF visual ROIs (`V1`, `V2`, `V3`, `hV4`) because those manifests are already generated for `subj02`-`subj04`; do not invent stream/fLOC subject scope unless the manifests and spec are explicitly updated.
+   Set up a reproducible JHU DSAI cluster copy/run/sync path for this repo and required NSD/Algonauts data. Confirm Python environment, package install, model cache behavior, data paths, and write paths. The cluster run must preserve relative output paths so synced artifacts land under `outputs/paper1_experiment_v1/neural_subj04_subject_robustness/` locally.
 
-2. **Run subject encoding in user-managed batches**
+2. **Run only remaining `subj04` encoding on the cluster**
 
-   Split the encoding jobs by subject and model/ROI cells so they can be run from `cmd` without launching one unbounded job. The next Codex session should provide copy-pastable `cmd` commands and may run only a small smoke cell locally if needed.
+   Run the existing `configs/experiments/paper1_experiment_v1/neural_subject_robustness/subj04/*.yaml` configs. Do not rerun `subj02`, `subj03`, or `subj01` unless a concrete artifact-integrity issue is discovered. Prefer a cluster job array or one job per config if the scheduler supports it.
 
-3. **Compute confirmatory geometry**
+3. **Sync `subj04` outputs back locally and audit**
+
+   After the cluster run, sync `outputs/paper1_experiment_v1/neural_subj04_subject_robustness/` back to the local workspace. Verify `16/16` `subj04` cells have `metadata.json`, `encoding_scores.csv`, and `activations.npz` before computing geometry.
+
+4. **Compute confirmatory geometry**
 
    After encoding cells pass audit, compute `linear_cka_full9841` and deterministic subset-RSA for completed subject/model/ROI cells. If full geometry is too slow, stop and document the reduced geometry scope before interpreting replication.
 
-4. **Summarize subject robustness**
+5. **Summarize subject robustness**
 
    Add summary tables that compare each subject against `subj01` on model ranking, ROI ranking, CKA/subset-RSA agreement, and cross-axis decision labels.
 
-5. **Update status and next step**
+6. **Update status and next step**
 
    Update this file with the subject robustness decision. If the pattern replicates, the next step becomes paper-grade uncertainty and paper-pack hardening. If it does not, downgrade Paper 1 framing or repair the failed axis before adding new work.
+
+### Subject-robustness runbook
+
+Generate or refresh the config scaffold and audit:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\create_paper1_v1_subject_robustness_configs.py --config configs\paper1_experiment_v1.yaml
+```
+
+Local encoding already completed for `subj02` and `subj03`. Keep these commands for reproducibility, but do not rerun them unless an audit fails:
+
+```cmd
+for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj02\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
+```
+
+```cmd
+for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj03\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
+```
+
+Run remaining `subj04` encoding only if staying local:
+
+```cmd
+for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj04\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
+```
+
+For the JHU DSAI cluster path, the next Codex session should produce cluster-specific `cmd` commands for sync, scheduler submission, monitoring, and output retrieval after the remote account path, scheduler command, GPU partition, and storage layout are known.
+
+Compute geometry after encoding cells complete:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\compute_paper1_v1_subject_robustness_geometry.py --config configs\paper1_experiment_v1.yaml --skip-existing
+```
+
+Summarize subject robustness:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\summarize_paper1_v1_subject_robustness_results.py --config configs\paper1_experiment_v1.yaml
+```
 
 ### Scope decision rules
 
@@ -548,10 +593,10 @@ The next Codex session should implement:
 
 This milestone is complete only if:
 
-- The next-session scaffold can generate all planned subject/model/ROI configs without touching the completed `subj01` discovery outputs.
+- The existing scaffold can generate all planned subject/model/ROI configs without touching the completed `subj01` discovery outputs.
 - `subj02`-`subj04` runs are auditable by subject, model, ROI, and method.
 - Subject summaries preserve the existing four-model panel and do not mix in learned-readout rows.
-- The subject decision explicitly marks `replicated`, `partially_replicated`, `failed_to_replicate`, or `not_tested`.
+- The subject decision explicitly marks `replicated`, `partial`, `failed`, or `incomplete`.
 - Any long-running commands are split into copy-pastable `cmd` batches for the user.
 
 ## Data/control readiness update:
@@ -572,10 +617,10 @@ This milestone is complete only if:
 
 Current post-spec implementation priorities:
 
-The V1 spec and config now define the falsifiable paper-grade matrix, and the ROI-expanded encoding, geometry, and geometry-method sensitivity axes are complete for `subj01`. The immediate work is to test whether the sensitivity-gated `subj01` pattern survives subject variation.
+The V1 spec and config now define the falsifiable paper-grade matrix, and the ROI-expanded encoding, geometry, and geometry-method sensitivity axes are complete for `subj01`. The immediate work is to finish the partially executed subject-robustness panel and test whether the sensitivity-gated `subj01` pattern survives subject variation.
 
 - Use the prepared additional subjects as a robustness follow-up:
-  - run the reduced confirmatory panel on `subj02`-`subj04`;
+  - finish the reduced confirmatory panel: `subj02` and `subj03` encoding are complete locally, while `subj04` encoding is pending for cluster execution;
   - keep the completed `subj01` ROI-expanded encoding and geometry matrix as the discovery reference;
   - do not add new models, behavioral baselines, attribution methods, or efficiency before the subject robustness decision exists.
 - Integrate generated observer controls before broader behavioral expansion:
@@ -657,6 +702,9 @@ Neural alignment:
 - `scripts/summarize_neural_roi_results.py`
 - `scripts/compute_matched_geometry.py`
 - `scripts/summarize_paper1_v1_roi_expanded_results.py`
+- `scripts/create_paper1_v1_subject_robustness_configs.py`
+- `scripts/compute_paper1_v1_subject_robustness_geometry.py`
+- `scripts/summarize_paper1_v1_subject_robustness_results.py`
 - `scripts/audit_matched_neural_panel.py`
 
 Reporting:
@@ -668,7 +716,13 @@ Reporting:
 
 ## Verification Baseline
 
-For current status-file cleanup, no tests are required.
+For the latest subject-robustness scaffold implementation, focused tests passed:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_paper1_v1_subject_robustness.py tests\test_paper1_v1_roi_expanded_generation.py tests\test_paper1_v1_geometry_and_summary.py tests\test_neural_roi_summary.py --basetemp=.pytest_tmp_subject_robustness
+```
+
+Last known subject-robustness scaffold result: `35 passed`.
 
 For future neural/reporting implementation changes, use this focused verification command:
 

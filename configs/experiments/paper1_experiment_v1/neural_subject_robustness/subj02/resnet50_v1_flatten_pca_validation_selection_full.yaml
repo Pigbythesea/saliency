@@ -1,0 +1,65 @@
+seed: 123
+device: auto
+experiment:
+  name: resnet50_v1_flatten_pca_validation_selection_full
+dataset:
+  name: nsd_algonauts
+  label: resnet50_v1_flatten_pca_validation_selection_full
+  root: data/raw/nsd_algonauts
+  manifest_path: data/manifests/nsd_algonauts_subj02_prf_visualrois_full_manifest.csv
+  split: train
+  subject_id: subj02
+  roi: V1
+  max_items: 9841
+  validate_files: true
+model:
+  name: resnet50
+  backend: timm
+  pretrained: true
+  eval_mode: true
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  mean: imagenet
+  std: imagenet
+neural:
+  layers:
+  - layer1
+  - layer2
+  - layer3
+  - layer4
+  response_key: roi_responses
+  feature_reduction: flatten_pca
+  train_fraction: 0.8
+  ridge_alpha: 1.0
+  metric: correlation
+  rsa:
+    enabled: false
+    rdm_metric: correlation
+    response_rdm_metric: correlation
+    compare_method: spearman
+  noise_ceiling_key: noise_ceiling
+  pca_components: 512
+  pca_solver: randomized
+  pca_whiten: false
+  feature_reduction_seed: 123
+  ridge_alphas:
+  - 0.001
+  - 0.01
+  - 0.1
+  - 1.0
+  - 10.0
+  - 100.0
+  - 1000.0
+  - 10000.0
+  - 100000.0
+  - 1000000.0
+  - 10000000.0
+  validation_fraction: 0.2
+  selection:
+    enabled: true
+    validation_fraction: 0.2
+    primary_score: mean_noise_normalized_score
+output:
+  dir: outputs/paper1_experiment_v1/neural_subj02_subject_robustness/resnet50_v1_flatten_pca_validation_selection_full

@@ -1,0 +1,66 @@
+seed: 123
+device: auto
+experiment:
+  name: vit_base_patch16_224_hv4_flatten_pca_validation_selection_full
+dataset:
+  name: nsd_algonauts
+  label: vit_base_patch16_224_hv4_flatten_pca_validation_selection_full
+  root: data/raw/nsd_algonauts
+  manifest_path: data/manifests/nsd_algonauts_subj04_prf_visualrois_full_manifest.csv
+  split: train
+  subject_id: subj04
+  roi: hV4
+  max_items: 9841
+  validate_files: true
+model:
+  name: vit_base_patch16_224
+  backend: timm
+  pretrained: true
+  eval_mode: true
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  mean: imagenet
+  std: imagenet
+neural:
+  layers:
+  - blocks.0
+  - blocks.3
+  - blocks.6
+  - blocks.9
+  - blocks.11
+  response_key: roi_responses
+  feature_reduction: flatten_pca
+  train_fraction: 0.8
+  ridge_alpha: 1.0
+  metric: correlation
+  rsa:
+    enabled: false
+    rdm_metric: correlation
+    response_rdm_metric: correlation
+    compare_method: spearman
+  noise_ceiling_key: noise_ceiling
+  pca_components: 512
+  pca_solver: randomized
+  pca_whiten: false
+  feature_reduction_seed: 123
+  ridge_alphas:
+  - 0.001
+  - 0.01
+  - 0.1
+  - 1.0
+  - 10.0
+  - 100.0
+  - 1000.0
+  - 10000.0
+  - 100000.0
+  - 1000000.0
+  - 10000000.0
+  validation_fraction: 0.2
+  selection:
+    enabled: true
+    validation_fraction: 0.2
+    primary_score: mean_noise_normalized_score
+output:
+  dir: outputs/paper1_experiment_v1/neural_subj04_subject_robustness/vit_base_patch16_224_hv4_flatten_pca_validation_selection_full

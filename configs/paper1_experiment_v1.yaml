@@ -57,11 +57,27 @@ confirmatory_matrix:
     - subj03
     - subj04
   trigger: Run only after ROI-expanded subj01 produces a candidate convergence or dissociation pattern.
+  config_root: configs/experiments/paper1_experiment_v1/neural_subject_robustness
+  output_root_template: outputs/paper1_experiment_v1/neural_{subject}_subject_robustness
+  summary_output_dir: outputs/paper1_experiment_v1/summary
+  manifest_path_template: data/manifests/nsd_algonauts_{subject}_prf_visualrois_full_manifest.csv
   reduced_models:
     - resnet50
     - vit_base_patch16_224
     - vit_small_patch14_dinov2
     - vit_base_patch16_clip_224
+  rois:
+    - V1
+    - V2
+    - V3
+    - hV4
+  roi_class: prf-visualrois
+  expected_cells:
+    subjects: 3
+    models: 4
+    rois: 4
+    subject_model_roi_cells: 48
+    cells_per_subject: 16
 behavioral_controls:
   datasets:
     free_viewing:

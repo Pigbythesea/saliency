@@ -122,6 +122,7 @@ def create_neural_roi500_configs(
     rois: Iterable[str] | None = None,
     max_items: int = 500,
     name_suffix: str = "500",
+    subject_id: str = "subj01",
 ) -> list[Path]:
     """Write ROI neural configs and return their paths."""
     root = Path(output_dir)
@@ -149,6 +150,7 @@ def create_neural_roi500_configs(
                 output_root=str(output_root),
                 max_items=max_items,
                 name_suffix=name_suffix,
+                subject_id=subject_id,
             )
             run_name = _run_name(model_name, slug, name_suffix)
             path = root / f"{run_name}.yaml"
@@ -188,6 +190,7 @@ def create_neural_full_subject_configs(
     rois: Iterable[str] | None = None,
     max_items: int = 9841,
     name_suffix: str = "full",
+    subject_id: str = "subj01",
 ) -> list[Path]:
     """Write full-subject configs against the full PRF visual ROI manifest."""
     return create_neural_roi500_configs(
@@ -198,6 +201,7 @@ def create_neural_full_subject_configs(
         rois=rois,
         max_items=max_items,
         name_suffix=name_suffix,
+        subject_id=subject_id,
     )
 
 
@@ -215,6 +219,7 @@ def create_matched_full_subject_flatten_pca_configs(
     ridge_alphas: Iterable[float] | None = None,
     validation_fraction: float = 0.2,
     selection_primary_score: str = "mean_noise_normalized_score",
+    subject_id: str = "subj01",
 ) -> list[Path]:
     """Write matched full-image-count validation-selected flatten_pca configs."""
     root = Path(output_dir)
@@ -248,6 +253,7 @@ def create_matched_full_subject_flatten_pca_configs(
                 output_root=str(output_root),
                 max_items=max_items,
                 name_suffix=name_suffix,
+                subject_id=subject_id,
             )
             config["preprocessing"]["input_size"] = _input_size_for_candidate(model_name)
             neural = config["neural"]
@@ -528,6 +534,7 @@ def _config_for_roi(
     output_root: str,
     max_items: int,
     name_suffix: str,
+    subject_id: str = "subj01",
 ) -> dict:
     name = _run_name(model_name, slug, name_suffix)
     model_specs = MATCHED_PANEL_MODEL_SPECS if model_name in MATCHED_PANEL_MODEL_SPECS else MODEL_SPECS
@@ -542,7 +549,7 @@ def _config_for_roi(
             "root": "data/raw/nsd_algonauts",
             "manifest_path": manifest_path,
             "split": "train",
-            "subject_id": "subj01",
+            "subject_id": subject_id,
             "roi": roi,
             "max_items": int(max_items),
             "validate_files": True,
