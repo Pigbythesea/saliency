@@ -9,6 +9,10 @@ from hma.saliency.attention_rollout import (
     patch_relevance_to_grid,
 )
 from hma.saliency.baselines import center_bias_saliency, random_saliency
+from hma.saliency.baselines import (
+    COCOSearch18TaskPrior,
+    coco_search18_task_prior_saliency,
+)
 from hma.saliency.gradcam import gradcam_saliency
 from hma.saliency.gradients import vanilla_gradient_saliency
 from hma.saliency.integrated_gradients import integrated_gradients_saliency
@@ -22,11 +26,13 @@ from hma.saliency.registry import build_saliency_method
 
 __all__ = [
     "UnsupportedModelError",
+    "COCOSearch18TaskPrior",
     "attention_rollout_saliency",
     "attention_rollout_to_saliency_map",
     "build_saliency_method",
     "center_bias_saliency",
     "cls_to_patch_relevance",
+    "coco_search18_task_prior_saliency",
     "compute_attention_rollout",
     "gradcam_saliency",
     "integrated_gradients_saliency",

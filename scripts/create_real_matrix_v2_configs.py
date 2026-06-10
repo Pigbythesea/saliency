@@ -87,6 +87,15 @@ BASELINES = [
     {"model": "center_bias_baseline", "method": "center_bias"},
     {"model": "random_baseline", "method": "random_saliency", "seed": 123},
 ]
+COCO_SEARCH18_BASELINES = [
+    {
+        "model": "coco_search18_task_prior_baseline",
+        "method": "coco_search18_task_prior",
+        "prior_manifest_path": "data/manifests/coco_search18_manifest.csv",
+        "prior_split": "train",
+        "fixation_sigma": 10.0,
+    }
+]
 
 MODELS = [
     "resnet50",
@@ -111,6 +120,9 @@ def main() -> None:
     for dataset in DATASETS:
         for baseline in BASELINES:
             _write_config(dataset, baseline["model"], baseline["method"], baseline=baseline)
+        if dataset["name"] == "coco_search18":
+            for baseline in COCO_SEARCH18_BASELINES:
+                _write_config(dataset, baseline["model"], baseline["method"], baseline=baseline)
         for model in VANILLA_GRADIENT_MODELS:
             _write_config(dataset, model, "vanilla_gradient")
         for model in ATTENTION_ROLLOUT_MODELS:
@@ -203,8 +215,17 @@ def _write_config(
             "pretrained": True,
             "eval_mode": True,
         }
-    elif "seed" in baseline:
-        config["saliency"]["seed"] = baseline["seed"]
+    elif baseline is not None:
+        for key in (
+            "seed",
+            "prior_manifest_path",
+            "prior_split",
+            "fixation_sigma",
+        ):
+            if key in baseline:
+                config["saliency"][key] = baseline[key]
+        if method == "coco_search18_task_prior":
+            config["saliency"]["image_size"] = dataset["image_size"]
 
     save_yaml(config, MATRIX_ROOT / f"{dataset['label']}__{run_name}.yaml")
 

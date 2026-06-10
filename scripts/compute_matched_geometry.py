@@ -56,6 +56,8 @@ def compute_matched_geometry(
     subset_sizes_override: list[int] | None = None,
     subset_seeds_override: list[int] | None = None,
     skip_existing: bool = False,
+    progress: bool = False,
+    progress_label: str | None = None,
 ) -> list[Path]:
     """Compute geometry scores for every output directory in the Paper 1 scope."""
     scope = _geometry_scope(config_path)
@@ -80,10 +82,14 @@ def compute_matched_geometry(
     model_filter = set(models or [])
     roi_filter = set(rois or [])
 
+    output_dirs = [resolve_path(raw_dir) for raw_dir in scope.get("neural_output_dirs", [])]
+    label = progress_label or str(config_path)
+    if progress:
+        _print_progress(f"{label}: starting matched geometry over {len(output_dirs)} cells")
+
     written: list[Path] = []
     response_cache: dict[tuple[str, str, str, str, str, int], tuple[list[str], np.ndarray]] = {}
-    for raw_dir in scope.get("neural_output_dirs", []):
-        output_dir = resolve_path(raw_dir)
+    for index, output_dir in enumerate(output_dirs, start=1):
         _validate_output_dir(
             output_dir,
             expected_models=expected_models,
@@ -99,9 +105,14 @@ def compute_matched_geometry(
         if roi_filter and roi not in roi_filter:
             continue
         path = output_dir / "geometry_scores.csv"
+        cell_label = f"{label}: cell {index}/{len(output_dirs)} {model} {roi}"
         if skip_existing and path.is_file():
+            if progress:
+                _print_progress(f"{cell_label}: skipped existing {path}")
             written.append(path)
             continue
+        if progress:
+            _print_progress(f"{cell_label}: computing")
         rows = _compute_output_geometry(
             output_dir,
             metadata=metadata,
@@ -112,9 +123,15 @@ def compute_matched_geometry(
             response_rdm_metric=response_rdm_metric,
             rdm_compare_method=rdm_compare_method,
             response_cache=response_cache,
+            progress=progress,
+            progress_label=cell_label,
         )
         _write_rows(path, rows)
+        if progress:
+            _print_progress(f"{cell_label}: wrote {len(rows)} rows to {path}")
         written.append(path)
+    if progress:
+        _print_progress(f"{label}: finished matched geometry; outputs={len(written)}")
     return written
 
 
@@ -210,11 +227,15 @@ def _compute_output_geometry(
     response_rdm_metric: str,
     rdm_compare_method: str,
     response_cache: dict[tuple[str, str, str, str, str, int], tuple[list[str], np.ndarray]],
+    progress: bool = False,
+    progress_label: str | None = None,
 ) -> list[dict[str, Any]]:
     metadata = metadata or _load_json(output_dir / "metadata.json")
-    activation_path = Path(metadata.get("activations") or output_dir / "activations.npz")
-    if not activation_path.is_absolute():
-        activation_path = output_dir / activation_path
+    activation_path = _artifact_path(
+        metadata.get("activations"),
+        output_dir=output_dir,
+        filename="activations.npz",
+    )
     selected_layer = str(metadata.get("selected_layer") or _selected_layer(output_dir))
     if not selected_layer:
         raise ValueError(f"No selected layer found for {output_dir}")
@@ -247,18 +268,45 @@ def _compute_output_geometry(
         "response_shape": _shape_text(responses.shape),
     }
 
+    operation_total = sum(
+        1 if method in {"linear_cka", "linear_cka_full9841"} else len(subset_sizes) * len(subset_seeds)
+        for method in methods
+    )
+    operation_index = 0
     rows: list[dict[str, Any]] = []
     for method in methods:
         if method in {"linear_cka", "linear_cka_full9841"}:
+            operation_index += 1
+            if progress:
+                _print_progress(
+                    f"{progress_label}: method {operation_index}/{operation_total} linear_cka_full9841 start"
+                )
             row = _profiled_row(
                 lambda: linear_cka(features, responses),
                 estimated_rdm_bytes="0",
             )
             row["geometry_method"] = "linear_cka_full9841"
             rows.append({**common, **row})
+            if progress:
+                _print_progress(
+                    f"{progress_label}: method {operation_index}/{operation_total} linear_cka_full9841 done "
+                    f"score={row.get('score')} wall={row.get('wall_time_sec')}s"
+                )
         elif method == "subset_rsa":
             for subset_size in subset_sizes:
                 for subset_seed in subset_seeds:
+                    operation_index += 1
+                    method_label = _subset_rsa_method_label(
+                        subset_size,
+                        subset_seed,
+                        feature_rdm_metric,
+                        response_rdm_metric,
+                        rdm_compare_method,
+                    )
+                    if progress:
+                        _print_progress(
+                            f"{progress_label}: method {operation_index}/{operation_total} {method_label} start"
+                        )
                     row = _profiled_row(
                         lambda subset_size=subset_size, subset_seed=subset_seed: subset_rsa(
                             features,
@@ -271,14 +319,13 @@ def _compute_output_geometry(
                         ),
                         estimated_rdm_bytes=str(_estimated_two_rdm_bytes(subset_size)),
                     )
-                    row["geometry_method"] = _subset_rsa_method_label(
-                        subset_size,
-                        subset_seed,
-                        feature_rdm_metric,
-                        response_rdm_metric,
-                        rdm_compare_method,
-                    )
+                    row["geometry_method"] = method_label
                     rows.append({**common, **row})
+                    if progress:
+                        _print_progress(
+                            f"{progress_label}: method {operation_index}/{operation_total} {method_label} done "
+                            f"score={row.get('score')} wall={row.get('wall_time_sec')}s"
+                        )
         else:
             raise ValueError(f"Unsupported geometry method: {method}")
     return rows
@@ -388,6 +435,24 @@ def _single(value: Any) -> str:
     return str(value or "")
 
 
+def _artifact_path(raw_path: Any, *, output_dir: Path, filename: str) -> Path:
+    """Resolve synced artifacts even when metadata contains stale absolute paths."""
+    local_path = output_dir / filename
+    if raw_path is None:
+        return local_path
+    path = Path(str(raw_path))
+    if not path.is_absolute():
+        candidate = output_dir / path
+        return candidate if candidate.is_file() else local_path
+    if path.is_file():
+        return path
+    return local_path
+
+
+def _print_progress(message: str) -> None:
+    print(f"[progress] {message}", flush=True)
+
+
 def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=GEOMETRY_FIELDNAMES)
@@ -418,6 +483,7 @@ def main() -> None:
         help="Optional subset seeds override for subset RSA.",
     )
     parser.add_argument("--skip-existing", action="store_true")
+    parser.add_argument("--no-progress", action="store_true")
     args = parser.parse_args()
     written = compute_matched_geometry(
         args.config,
@@ -427,6 +493,7 @@ def main() -> None:
         subset_sizes_override=args.subset_sizes,
         subset_seeds_override=args.subset_seeds,
         skip_existing=args.skip_existing,
+        progress=not args.no_progress,
     )
     print(f"Wrote {len(written)} geometry score files")
 

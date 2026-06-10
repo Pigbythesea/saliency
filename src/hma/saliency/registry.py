@@ -6,7 +6,12 @@ from functools import partial
 from typing import Any, Callable
 
 from hma.saliency.attention_rollout import attention_rollout_saliency
-from hma.saliency.baselines import center_bias_saliency, random_saliency
+from hma.saliency.baselines import (
+    COCOSearch18TaskPrior,
+    center_bias_saliency,
+    coco_search18_task_prior_saliency,
+    random_saliency,
+)
 from hma.saliency.gradcam import gradcam_saliency
 from hma.saliency.gradients import vanilla_gradient_saliency
 from hma.saliency.integrated_gradients import integrated_gradients_saliency
@@ -33,6 +38,16 @@ def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
             random_saliency,
             seed=int(saliency_config.get("seed", 0)),
         )
+    if method in {"coco_search18_task_prior", "task_conditioned_spatial_prior"}:
+        prior = COCOSearch18TaskPrior.from_manifest(
+            saliency_config.get(
+                "prior_manifest_path", "data/manifests/coco_search18_manifest.csv"
+            ),
+            split=str(saliency_config.get("prior_split", "train")),
+            image_size=_parse_image_size(saliency_config.get("image_size", [224, 224])),
+            fixation_sigma=float(saliency_config.get("fixation_sigma", 10.0)),
+        )
+        return partial(coco_search18_task_prior_saliency, prior=prior)
     if method == "dummy_gradient_free":
         return _dummy_gradient_free_saliency
     if method == "integrated_gradients":
@@ -77,6 +92,16 @@ def _extract_saliency_config(config: dict[str, Any]) -> dict[str, Any]:
     if "saliency" in config and isinstance(config["saliency"], dict):
         return config["saliency"]
     return config
+
+
+def _parse_image_size(value: Any) -> tuple[int, int]:
+    if isinstance(value, int):
+        return (int(value), int(value))
+    if value is None:
+        return (224, 224)
+    if len(value) != 2:
+        raise ValueError("saliency image_size must be an int or length-2 sequence")
+    return int(value[0]), int(value[1])
 
 
 def _dummy_gradient_free_saliency(

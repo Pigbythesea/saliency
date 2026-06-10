@@ -455,7 +455,7 @@ def test_v1_summary_writes_roi_expanded_aliases_and_audit(tmp_path):
         for row in failure_gate_rows
         if row["summary_item"] == "failure_gate_next_step"
     } <= {
-        "subject_robustness_subj02_subj04",
+        "paper_pack_geometry_first_dissociation",
         "geometry_uncertainty_repair",
         "downgraded_paper1_framing",
     }

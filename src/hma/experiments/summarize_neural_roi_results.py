@@ -701,7 +701,8 @@ def _matched_panel_encoding_rows(
             continue
         if str(row.get("feature_reduction", "")) != scope["feature_reduction"]:
             continue
-        if int(_float(row.get("metadata_num_items"))) != int(scope["expected_num_items"]):
+        expected_num_items = int(scope["expected_num_items"])
+        if expected_num_items and int(_float(row.get("metadata_num_items"))) != expected_num_items:
             continue
         alpha_mode = str(row.get("alpha_selection_mode", ""))
         if alpha_mode not in {"selection_validation", "cv_inner_validation"}:
@@ -727,7 +728,8 @@ def _matched_geometry_rows(
         if str(row.get("model_feature_reduction", "")) != scope["feature_reduction"]:
             continue
         metadata_items = _optional_float(row.get("metadata_num_items"))
-        if metadata_items is not None and int(metadata_items) != int(scope["expected_num_items"]):
+        expected_num_items = int(scope["expected_num_items"])
+        if metadata_items is not None and expected_num_items and int(metadata_items) != expected_num_items:
             continue
         if str(row.get("valid", "")).lower() != "true":
             continue
@@ -1960,11 +1962,17 @@ def _failure_gate_summary_rows(
         next_step = "downgraded_paper1_framing"
         rationale = "required geometry-method sensitivity rows are incomplete"
     elif label_counts.get("stable_across_geometry_methods", 0) > 0:
-        next_step = "subject_robustness_subj02_subj04"
-        rationale = "at least one geometry relationship is stable across CKA and subset-RSA"
+        next_step = "paper_pack_geometry_first_dissociation"
+        rationale = (
+            "at least one geometry relationship is stable across CKA and subset-RSA; "
+            "proceed as geometry-first dissociation or measurement evidence"
+        )
     elif _has_coherent_method_dependent_pattern(geometry_rows, scope=scope):
-        next_step = "subject_robustness_subj02_subj04"
-        rationale = "method-dependent geometry pattern repeats across most V1 ROIs"
+        next_step = "paper_pack_geometry_first_dissociation"
+        rationale = (
+            "method-dependent geometry pattern repeats across most V1 ROIs; "
+            "proceed as geometry-first dissociation or measurement evidence"
+        )
     elif any(
         label_counts.get(label, 0) > 0
         for label in ["cka_only", "subset_rsa_only", "direction_conflict"]

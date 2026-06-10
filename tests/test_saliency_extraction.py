@@ -1,11 +1,16 @@
+import csv
+import json
+
 import numpy as np
 import pytest
 
 torch = pytest.importorskip("torch")
 
 from hma.saliency import (  # noqa: E402
+    COCOSearch18TaskPrior,
     center_bias_saliency,
     build_saliency_method,
+    coco_search18_task_prior_saliency,
     gradcam_saliency,
     integrated_gradients_saliency,
     occlusion_saliency,
@@ -145,3 +150,65 @@ def test_center_bias_beats_random_on_synthetic_center_fixation():
 
     assert nss(center, fixation_map) > nss(random, fixation_map)
     assert cc(center, simple_center_bias_map(16, 16)) > cc(random, simple_center_bias_map(16, 16))
+
+
+def test_coco_search18_task_prior_uses_target_and_task_conditioning(tmp_path):
+    manifest = tmp_path / "coco.csv"
+    rows = [
+        ("train", "cup", "present", [[2, 2], [3, 2]]),
+        ("train", "cup", "absent", [[13, 13], [14, 13]]),
+        ("train", "bottle", "present", [[8, 8], [9, 8]]),
+        ("val", "cup", "present", [[15, 15]]),
+    ]
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "split",
+                "width",
+                "height",
+                "target_category",
+                "task",
+                "fixation_points",
+            ],
+        )
+        writer.writeheader()
+        for split, target, task, points in rows:
+            writer.writerow(
+                {
+                    "split": split,
+                    "width": "16",
+                    "height": "16",
+                    "target_category": target,
+                    "task": task,
+                    "fixation_points": json.dumps(points),
+                }
+            )
+
+    prior = COCOSearch18TaskPrior.from_manifest(
+        manifest,
+        image_size=(16, 16),
+        fixation_sigma=1.0,
+    )
+
+    cup_present = prior.map_for(target_category="cup", task="present")
+    cup_absent = prior.map_for(target_category="cup", task="absent")
+    present_y, present_x = np.unravel_index(np.argmax(cup_present), cup_present.shape)
+    absent_y, absent_x = np.unravel_index(np.argmax(cup_absent), cup_absent.shape)
+
+    assert present_x <= 3
+    assert present_y <= 3
+    assert absent_x >= 13
+    assert absent_y >= 13
+
+    target = np.zeros((16, 16), dtype=np.float32)
+    prediction = coco_search18_task_prior_saliency(
+        None,
+        torch.zeros(1, 3, 16, 16),
+        target_map=target,
+        item={"metadata": {"target_category": "cup", "task": "present"}},
+        prior=prior,
+    )
+
+    assert prediction.shape == (16, 16)
+    assert np.isfinite(prediction).all()

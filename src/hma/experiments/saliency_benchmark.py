@@ -384,9 +384,11 @@ def _saliency_requires_torch(method_name: str | None) -> bool:
 def _saliency_is_model_independent(method_name: str | None) -> bool:
     return str(method_name) in {
         "center_bias",
+        "coco_search18_task_prior",
         "random_saliency",
         "precomputed_map",
         "deepgaze_precomputed",
+        "task_conditioned_spatial_prior",
     }
 
 
@@ -494,6 +496,8 @@ def _saliency_family(method_name: Any) -> str:
         return "internal_routing"
     if method_name in {"center_bias", "random_saliency"}:
         return "baseline"
+    if method_name in {"coco_search18_task_prior", "task_conditioned_spatial_prior"}:
+        return "task_search_baseline"
     if method_name in {"precomputed_map", "deepgaze_precomputed"}:
         return "reference"
     return "unknown"

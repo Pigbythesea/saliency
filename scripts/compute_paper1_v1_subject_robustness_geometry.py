@@ -27,13 +27,24 @@ def compute_paper1_v1_subject_robustness_geometry(
     subset_sizes_override: list[int] | None = None,
     subset_seeds_override: list[int] | None = None,
     skip_existing: bool = False,
+    progress: bool = False,
 ) -> list[Path]:
     """Compute geometry for every confirmatory subject output directory."""
     config = load_yaml(config_path)
     scope_paths = write_subject_geometry_scope_configs(config)
+    if progress:
+        _print_progress(
+            f"subject robustness geometry: starting {len(scope_paths)} subject scopes"
+        )
     written: list[Path] = []
-    for scope_path in scope_paths:
-        written.extend(
+    for index, scope_path in enumerate(scope_paths, start=1):
+        subject_config = load_yaml(scope_path)
+        subject = str(subject_config["discovery_matrix"].get("subject_id", scope_path.stem))
+        if progress:
+            _print_progress(
+                f"subject robustness geometry: subject {index}/{len(scope_paths)} {subject} start"
+            )
+        subject_written = (
             compute_matched_geometry(
                 scope_path,
                 methods_override=methods_override,
@@ -42,7 +53,19 @@ def compute_paper1_v1_subject_robustness_geometry(
                 subset_sizes_override=subset_sizes_override,
                 subset_seeds_override=subset_seeds_override,
                 skip_existing=skip_existing,
+                progress=progress,
+                progress_label=f"subject {subject}",
             )
+        )
+        written.extend(subject_written)
+        if progress:
+            _print_progress(
+                f"subject robustness geometry: subject {index}/{len(scope_paths)} "
+                f"{subject} done outputs={len(subject_written)}"
+            )
+    if progress:
+        _print_progress(
+            f"subject robustness geometry: finished outputs={len(written)}"
         )
     return written
 
@@ -79,9 +102,10 @@ def write_subject_geometry_scope_configs(config: dict[str, Any]) -> list[Path]:
                     "rois": len(rois),
                     "model_roi_cells": len(confirmatory["reduced_models"]) * len(rois),
                 },
-                "max_items": int(
-                    confirmatory.get("max_items") or config["discovery_matrix"]["max_items"]
-                ),
+                # Confirmatory Algonauts subjects have subject-specific image
+                # availability. Do not carry subj01's 9841-image expectation
+                # into geometry validation or summary completeness checks.
+                "max_items": int(confirmatory.get("max_items") or 0),
             },
             "encoding": dict(config["encoding"]),
             "geometry": dict(config["geometry"]),
@@ -99,6 +123,10 @@ def _confirmatory_matrix(config: dict[str, Any]) -> dict[str, Any]:
     return confirmatory
 
 
+def _print_progress(message: str) -> None:
+    print(f"[progress] {message}", flush=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=str(DEFAULT_CONFIG))
@@ -108,6 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--subset-sizes", nargs="+", type=int)
     parser.add_argument("--subset-seeds", nargs="+", type=int)
     parser.add_argument("--skip-existing", action="store_true")
+    parser.add_argument("--no-progress", action="store_true")
     return parser
 
 
@@ -121,6 +150,7 @@ def main() -> None:
         subset_sizes_override=args.subset_sizes,
         subset_seeds_override=args.subset_seeds,
         skip_existing=args.skip_existing,
+        progress=not args.no_progress,
     )
     print(f"Wrote {len(written)} subject-robustness geometry score files")
 

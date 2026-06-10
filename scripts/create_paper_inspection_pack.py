@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import statistics
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -14,6 +15,13 @@ from hma.utils.paths import ensure_dir
 DEFAULT_BEHAVIORAL_CSV = Path("outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv")
 DEFAULT_NEURAL_DIR = Path("outputs/neural_roi_summary")
 DEFAULT_OUTPUT_DIR = Path("outputs/paper_inspection_v1")
+DEFAULT_V1_SUMMARY_DIR = Path("outputs/paper1_experiment_v1/summary")
+DEFAULT_SALICON_OBSERVER_CONTROLS = Path(
+    "outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv"
+)
+DEFAULT_COCO_OBSERVER_CONTROLS = Path(
+    "outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv"
+)
 LOWER_IS_BETTER = {"kl", "emd", "emd_2d", "mae", "mse", "rmse", "loss"}
 DATASET_LABELS = {
     "salicon_static2000": "SALICON",
@@ -88,6 +96,9 @@ def create_paper_inspection_pack(
     behavioral_csv: str | Path = DEFAULT_BEHAVIORAL_CSV,
     neural_dir: str | Path = DEFAULT_NEURAL_DIR,
     output_dir: str | Path = DEFAULT_OUTPUT_DIR,
+    v1_summary_dir: str | Path | None = DEFAULT_V1_SUMMARY_DIR,
+    salicon_observer_controls: str | Path | None = DEFAULT_SALICON_OBSERVER_CONTROLS,
+    coco_observer_controls: str | Path | None = DEFAULT_COCO_OBSERVER_CONTROLS,
 ) -> dict[str, Path]:
     """Write paper-style figures, compact tables, and a report README."""
     behavioral_path = Path(behavioral_csv)
@@ -95,6 +106,7 @@ def create_paper_inspection_pack(
     output_root = ensure_dir(output_dir)
     figures_dir = ensure_dir(output_root / "figures")
     tables_dir = ensure_dir(output_root / "tables")
+    v1_summary_root = Path(v1_summary_dir) if v1_summary_dir is not None else None
 
     behavioral_rows = _load_csv_rows(behavioral_path)
     model_rankings = _load_csv_rows(neural_root / "neural_model_rankings.csv")
@@ -128,6 +140,21 @@ def create_paper_inspection_pack(
     learned_readout_comparison_rows = _load_optional_csv_rows(
         neural_root / "learned_readout_vs_flatten_pca.csv"
     )
+    subject_decision_rows = _load_optional_csv_rows(
+        v1_summary_root / "subject_robustness_uncertainty_decisions.csv"
+        if v1_summary_root is not None
+        else Path()
+    )
+    subject_encoding_margin_rows = _load_optional_csv_rows(
+        v1_summary_root / "subject_robustness_encoding_margin_uncertainty.csv"
+        if v1_summary_root is not None
+        else Path()
+    )
+    subject_geometry_margin_rows = _load_optional_csv_rows(
+        v1_summary_root / "subject_robustness_geometry_margin_summary.csv"
+        if v1_summary_root is not None
+        else Path()
+    )
 
     static_nss_rows = _static_metric_rows(behavioral_rows, "nss")
     behavior_table = _top_behavior_rows(static_nss_rows, limit_per_dataset=8)
@@ -149,6 +176,15 @@ def create_paper_inspection_pack(
     geometry_agreement_table = _geometry_agreement_table(matched_geometry_agreement_rows)
     cross_axis_decision_table = _cross_axis_decision_table(matched_cross_axis_decision_rows)
     sensitivity_table = _sensitivity_table(matched_cross_axis_sensitivity_rows)
+    subject_interpretation_table = _subject_robustness_interpretation_table(
+        subject_decision_rows,
+        subject_encoding_margin_rows,
+        subject_geometry_margin_rows,
+    )
+    observer_control_table = _observer_control_summary_table(
+        salicon_observer_controls=salicon_observer_controls,
+        coco_observer_controls=coco_observer_controls,
+    )
 
     outputs: dict[str, Path] = {}
     outputs["behavior_table_csv"] = _write_rows(
@@ -268,6 +304,35 @@ def create_paper_inspection_pack(
         tables_dir / "table13_cross_axis_sensitivity.md",
         sensitivity_table,
     )
+    outputs["subject_robustness_interpretation_csv"] = _write_rows(
+        tables_dir / "table14_subject_robustness_interpretation.csv",
+        subject_interpretation_table,
+        list(subject_interpretation_table[0]) if subject_interpretation_table else [],
+    )
+    outputs["subject_robustness_interpretation_md"] = _write_markdown_table(
+        tables_dir / "table14_subject_robustness_interpretation.md",
+        subject_interpretation_table,
+    )
+    outputs["observer_control_summary_csv"] = _write_rows(
+        tables_dir / "table15_observer_control_summary.csv",
+        observer_control_table,
+        list(observer_control_table[0]) if observer_control_table else [],
+    )
+    outputs["observer_control_summary_md"] = _write_markdown_table(
+        tables_dir / "table15_observer_control_summary.md",
+        observer_control_table,
+    )
+    if v1_summary_root is not None:
+        outputs["v1_subject_robustness_paper_interpretation"] = _write_rows(
+            v1_summary_root / "subject_robustness_paper_interpretation.csv",
+            subject_interpretation_table,
+            list(subject_interpretation_table[0]) if subject_interpretation_table else [],
+        )
+        outputs["v1_behavioral_observer_control_summary"] = _write_rows(
+            v1_summary_root / "behavioral_observer_control_summary.csv",
+            observer_control_table,
+            list(observer_control_table[0]) if observer_control_table else [],
+        )
 
     outputs.update(
         _plot_behavior_nss(static_nss_rows, figures_dir / "figure1_behavior_static2000_nss")
@@ -326,6 +391,8 @@ def create_paper_inspection_pack(
         matched_geometry_table=matched_geometry_table,
         geometry_agreement_table=geometry_agreement_table,
         cross_axis_decision_table=cross_axis_decision_table,
+        subject_interpretation_table=subject_interpretation_table,
+        observer_control_table=observer_control_table,
         outputs=outputs,
         behavioral_csv=behavioral_path,
     )
@@ -713,6 +780,248 @@ def _sensitivity_table(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
         }
         for row in ordered[:160]
     ]
+
+
+def _subject_robustness_interpretation_table(
+    decision_rows: list[dict[str, str]],
+    encoding_margin_rows: list[dict[str, str]],
+    geometry_margin_rows: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    if not decision_rows:
+        return [
+            {
+                "subject_id": "subject_robustness",
+                "scope": "confirmatory_prf_visualrois",
+                "encoding_leader": "",
+                "encoding_margin_label": "incomplete",
+                "encoding_mean_margin": "",
+                "encoding_ci95": "",
+                "encoding_roi_support": "",
+                "geometry_cka_margin_label": "incomplete",
+                "geometry_cka_mean_margin": "",
+                "geometry_method_support": "",
+                "uncertainty_decision": "incomplete",
+                "accepted_interpretation": "missing subject-robustness uncertainty decisions",
+                "artifact_role": "incomplete",
+            }
+        ]
+
+    encoding_support = _support_counts_by_subject(
+        encoding_margin_rows,
+        subject_field="subject_id",
+        scope_filter=lambda row: row.get("roi") not in {
+            "mean_prf_visualrois",
+            "all_prf_visualrois",
+        },
+    )
+    geometry_support = _support_counts_by_subject(
+        geometry_margin_rows,
+        subject_field="subject_id",
+        scope_filter=lambda row: row.get("roi") in {
+            "mean_prf_visualrois",
+            "all_prf_visualrois",
+        },
+    )
+    ordered = sorted(
+        decision_rows,
+        key=lambda row: (
+            row.get("subject_id", "") == "all_confirmatory_subjects",
+            row.get("subject_id", ""),
+        ),
+    )
+    table: list[dict[str, Any]] = []
+    for row in ordered:
+        subject = row.get("subject_id", "")
+        table.append(
+            {
+                "subject_id": subject,
+                "scope": "aggregate" if subject == "all_confirmatory_subjects" else "subject",
+                "encoding_leader": MODEL_LABELS.get(
+                    row.get("subject_encoding_leader", ""),
+                    row.get("subject_encoding_leader", ""),
+                ),
+                "encoding_margin_label": row.get("encoding_margin_label", ""),
+                "encoding_mean_margin": _fmt_if_present(row.get("encoding_mean_margin")),
+                "encoding_ci95": _ci_text(
+                    row.get("encoding_ci95_low", ""),
+                    row.get("encoding_ci95_high", ""),
+                ),
+                "encoding_roi_support": encoding_support.get(subject, ""),
+                "geometry_cka_margin_label": row.get("geometry_cka_margin_label", ""),
+                "geometry_cka_mean_margin": _fmt_if_present(
+                    row.get("geometry_cka_mean_margin")
+                ),
+                "geometry_method_support": geometry_support.get(subject, ""),
+                "uncertainty_decision": row.get("uncertainty_decision_label", ""),
+                "accepted_interpretation": _subject_interpretation_text(
+                    row.get("uncertainty_decision_label", ""),
+                    subject,
+                ),
+                "artifact_role": "accepted_claim" if subject == "all_confirmatory_subjects" else "subject_evidence",
+            }
+        )
+    return table
+
+
+def _observer_control_summary_table(
+    *,
+    salicon_observer_controls: str | Path | None,
+    coco_observer_controls: str | Path | None,
+) -> list[dict[str, Any]]:
+    return [
+        _observer_control_summary_row(
+            dataset="SALICON",
+            viewing_regime="free_viewing",
+            path=salicon_observer_controls,
+        ),
+        _observer_control_summary_row(
+            dataset="COCO-Search18",
+            viewing_regime="task_search",
+            path=coco_observer_controls,
+        ),
+    ]
+
+
+def _observer_control_summary_row(
+    *,
+    dataset: str,
+    viewing_regime: str,
+    path: str | Path | None,
+) -> dict[str, Any]:
+    base = {
+        "dataset": dataset,
+        "viewing_regime": viewing_regime,
+        "control_type": "leave_one_observer_out",
+        "status": "incomplete",
+        "row_count": "0",
+        "image_count": "0",
+        "subject_count": "0",
+        "num_observers_min": "",
+        "num_observers_max": "",
+        "mean_inter_observer_nss": "",
+        "median_inter_observer_nss": "",
+        "mean_inter_observer_auc": "",
+        "median_inter_observer_auc": "",
+        "source_path": str(path or ""),
+        "interpretation": "missing observer-control file",
+    }
+    if path is None:
+        return base
+    csv_path = Path(path)
+    if not csv_path.is_file():
+        return base
+
+    row_count = 0
+    image_ids: set[str] = set()
+    subject_ids: set[str] = set()
+    observer_counts: list[int] = []
+    nss_values: list[float] = []
+    auc_values: list[float] = []
+    with csv_path.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            row_count += 1
+            if row.get("image_id"):
+                image_ids.add(str(row["image_id"]))
+            if row.get("subject_id"):
+                subject_ids.add(str(row["subject_id"]))
+            observer_count = _optional_int(row.get("num_observers"))
+            if observer_count is not None:
+                observer_counts.append(observer_count)
+            nss = _optional_float(row.get("inter_observer_nss"))
+            if nss is not None:
+                nss_values.append(nss)
+            auc = _optional_float(row.get("inter_observer_auc"))
+            if auc is not None:
+                auc_values.append(auc)
+
+    base.update(
+        {
+            "status": "complete" if row_count else "incomplete",
+            "row_count": str(row_count),
+            "image_count": str(len(image_ids)),
+            "subject_count": str(len(subject_ids)),
+            "num_observers_min": str(min(observer_counts)) if observer_counts else "",
+            "num_observers_max": str(max(observer_counts)) if observer_counts else "",
+            "mean_inter_observer_nss": _fmt_stat(nss_values, "mean"),
+            "median_inter_observer_nss": _fmt_stat(nss_values, "median"),
+            "mean_inter_observer_auc": _fmt_stat(auc_values, "mean"),
+            "median_inter_observer_auc": _fmt_stat(auc_values, "median"),
+            "interpretation": (
+                "human/interobserver context for free-viewing fixation alignment"
+                if viewing_regime == "free_viewing"
+                else "human/interobserver context for task-search fixation alignment"
+            ),
+        }
+    )
+    return base
+
+
+def _support_counts_by_subject(
+    rows: list[dict[str, str]],
+    *,
+    subject_field: str,
+    scope_filter: Any,
+) -> dict[str, str]:
+    counts: dict[str, dict[str, int]] = {}
+    for row in rows:
+        if not scope_filter(row):
+            continue
+        subject = row.get(subject_field, "")
+        label = row.get("support_label", "")
+        if not subject or not label:
+            continue
+        counts.setdefault(subject, {})[label] = counts.setdefault(subject, {}).get(label, 0) + 1
+    return {
+        subject: ";".join(f"{label}={count}" for label, count in sorted(label_counts.items()))
+        for subject, label_counts in counts.items()
+    }
+
+
+def _subject_interpretation_text(label: str, subject: str) -> str:
+    if label == "geometry_replicated_encoding_supported":
+        return "DINOv2 geometry and encoding support replicate for this subject"
+    if label == "geometry_replicated_encoding_resnet_supported":
+        return "DINOv2 geometry replicates, but encoding favors ResNet-50"
+    if label == "geometry_replicated_encoding_ambiguous":
+        if subject == "all_confirmatory_subjects":
+            return "accepted claim: geometry replicated, encoding ambiguous"
+        return "DINOv2 geometry replicates, but encoding support is ambiguous"
+    if label == "geometry_not_replicated_encoding_ambiguous":
+        return "geometry and encoding are not strong enough for the DINOv2 replication claim"
+    return "subject-robustness interpretation incomplete"
+
+
+def _ci_text(low: Any, high: Any) -> str:
+    if low in {"", None} or high in {"", None}:
+        return ""
+    return f"[{_fmt(low)}, {_fmt(high)}]"
+
+
+def _fmt_if_present(value: Any) -> str:
+    return _fmt(value) if value not in {"", None} else ""
+
+
+def _fmt_stat(values: list[float], statistic: str) -> str:
+    if not values:
+        return ""
+    if statistic == "median":
+        return _fmt(statistics.median(values))
+    return _fmt(sum(values) / len(values))
+
+
+def _optional_float(value: Any) -> float | None:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if math.isfinite(parsed) else None
+
+
+def _optional_int(value: Any) -> int | None:
+    parsed = _optional_float(value)
+    if parsed is None:
+        return None
+    return int(parsed)
 
 
 def _plot_behavior_nss(rows: list[dict[str, str]], output_stem: Path) -> dict[str, Path]:
@@ -1142,6 +1451,8 @@ def _write_readme(
     matched_geometry_table: list[dict[str, Any]] | None = None,
     geometry_agreement_table: list[dict[str, Any]] | None = None,
     cross_axis_decision_table: list[dict[str, Any]] | None = None,
+    subject_interpretation_table: list[dict[str, Any]] | None = None,
+    observer_control_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     best_behavior = behavior_table[0] if behavior_table else {}
     matched_rows = matched_panel_table or []
@@ -1170,6 +1481,8 @@ def _write_readme(
     matched_geometry_rows = matched_geometry_table or []
     geometry_agreement_rows = geometry_agreement_table or []
     cross_axis_decision_rows = cross_axis_decision_table or []
+    subject_interpretation_rows = subject_interpretation_table or []
+    observer_control_rows = observer_control_table or []
     top_geometry = next(
         (
             row
@@ -1182,6 +1495,21 @@ def _write_readme(
     decision_counts = _decision_counts(cross_axis_decision_rows)
     decision_text = ", ".join(
         f"{label}={count}" for label, count in sorted(decision_counts.items())
+    ) or "not available"
+    aggregate_subject_decision = next(
+        (
+            row
+            for row in subject_interpretation_rows
+            if row.get("subject_id") == "all_confirmatory_subjects"
+        ),
+        {},
+    )
+    complete_observer_rows = [
+        row for row in observer_control_rows if row.get("status") == "complete"
+    ]
+    observer_text = ", ".join(
+        f"{row.get('dataset')} {row.get('viewing_regime')} n={row.get('row_count')}"
+        for row in complete_observer_rows
     ) or "not available"
     complete_cross_level_rows = [
         row for row in matched_cross_level_rows if row.get("status") == "complete"
@@ -1204,6 +1532,14 @@ def _write_readme(
         "",
         "## Headline Readout",
         "",
+        (
+            "- Subject-robustness accepted claim: "
+            f"{aggregate_subject_decision.get('uncertainty_decision', '')}; "
+            f"{aggregate_subject_decision.get('accepted_interpretation', '')}."
+            if aggregate_subject_decision
+            else "- Subject-robustness accepted claim is not available in this pack."
+        ),
+        "- This pack supports geometry-first dissociation / measurement evidence, not a universal DINOv2 encoding-win narrative.",
         f"- Top displayed behavioral NSS row: {best_behavior.get('dataset', '')} / {best_behavior.get('model', '')} / {best_behavior.get('saliency_method', '')}, NSS={best_behavior.get('nss_mean', '')}.",
         (
             f"- {'Matched-panel ' if matched_panel_complete else ''}Noise-normalized neural encoding leader: {best_neural_encoding.get('model', '')}, "
@@ -1226,6 +1562,7 @@ def _write_readme(
             else "- Geometry sensitivity rows are not available yet; subset RSA may still be profiling-limited."
         ),
         f"- Cross-axis decision labels: {decision_text}.",
+        f"- Observer-control context rows: {observer_text}; these are human/interobserver context, not model performance rows.",
         (
             "- Matched full-image `flatten_pca` panel is complete and used for the encoding headline."
             if matched_panel_complete
@@ -1279,6 +1616,8 @@ def _write_readme(
         "- `tables/table11_geometry_method_agreement.md`",
         "- `tables/table12_cross_axis_decisions.md`",
         "- `tables/table13_cross_axis_sensitivity.md`",
+        "- `tables/table14_subject_robustness_interpretation.md`",
+        "- `tables/table15_observer_control_summary.md`",
         "",
         "## Academic SOTA Context",
         "",
@@ -1290,11 +1629,14 @@ def _write_readme(
         "## Behavioral Metric Boundary",
         "",
         "NSS/AUC rows are benchmark-equivalent only when `fixation_protocol` is `points` or `task_points`. Rows marked `density_fallback` or `unknown` should be treated as diagnostic and not compared to academic SOTA tables.",
+        "SALICON/CAT2000 free-viewing interpretations must remain separate from COCO-Search18 task-search interpretations.",
+        "Observer-control rows provide human/interobserver context for behavioral alignment ceilings; they are not saliency-model performance rows.",
         "Old static2000 NSS outputs generated before the point-fixation revision are superseded for scientific interpretation.",
         "",
         "## Interpretation Boundary",
         "",
         "Treat this pack as a paper-style inspection layer, not final evidence. The neural side is one subject with legacy ROI500 RSA diagnostics, validation-selected full-image-count PRF ROI encoding baselines, and matched scalable geometry when `table10` is present. Matched cross-level correlations are model-level summaries over a small six-model panel, not causal tests.",
+        "The confirmatory subject-robustness interpretation is geometry-first: DINOv2-vs-ResNet geometry support replicates across confirmatory subjects, but encoding is subject-sensitive and reverses to ResNet-50 in `subj04`.",
         "Use matched geometry tables for representational-geometry claims; keep ROI500 RSA as continuity diagnostics only.",
         "Use the matched full-image `flatten_pca` table for cross-model encoding comparisons once all expected model/ROI cells are complete. Use leader-overlap tables only as descriptive continuity diagnostics.",
         "",
@@ -1449,6 +1791,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--behavioral-csv", default=str(DEFAULT_BEHAVIORAL_CSV))
     parser.add_argument("--neural-dir", default=str(DEFAULT_NEURAL_DIR))
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
+    parser.add_argument("--v1-summary-dir", default=str(DEFAULT_V1_SUMMARY_DIR))
+    parser.add_argument(
+        "--salicon-observer-controls",
+        default=str(DEFAULT_SALICON_OBSERVER_CONTROLS),
+    )
+    parser.add_argument(
+        "--coco-observer-controls",
+        default=str(DEFAULT_COCO_OBSERVER_CONTROLS),
+    )
     return parser
 
 
@@ -1458,6 +1809,9 @@ def main() -> None:
         behavioral_csv=args.behavioral_csv,
         neural_dir=args.neural_dir,
         output_dir=args.output_dir,
+        v1_summary_dir=args.v1_summary_dir,
+        salicon_observer_controls=args.salicon_observer_controls,
+        coco_observer_controls=args.coco_observer_controls,
     )
     for name, path in outputs.items():
         print(f"{name}: {Path(path).resolve()}")

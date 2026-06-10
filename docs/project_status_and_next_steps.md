@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-06-08
+Updated: 2026-06-10
 
 ## Purpose And Codex Operating Contract
 
@@ -81,7 +81,7 @@ The repository now implements three active layers:
 - Neural encoding on local Algonauts / NSD `subj01` visual ROIs, including the complete six-model full-image-count `flatten_pca` PRF ROI diagnostic panel, full-image-count learned spatial readout provenance for DINOv2, and the V1 four-model x ten-ROI discovery matrix.
 - Paper-style inspection tables and figures that join corrected behavioral summaries with the matched full-image neural panel, matched geometry sensitivity outputs, V1 ROI-expanded geometry, V1 geometry-method sensitivity decisions, and matched cross-level correlation/regression outputs.
 
-The repository now implements both the diagnostic PRF-only matched full-image representational-geometry axis and the V1 ROI-expanded `subj01` geometry axis. The V1 artifact gate and geometry-method sensitivity gate pass, but interpretation is not yet paper-grade because the result is still one-subject evidence and must be checked on `subj02`-`subj04`.
+The repository now implements the diagnostic PRF-only matched full-image representational-geometry axis, the V1 ROI-expanded `subj01` geometry axis, the reduced `subj02`-`subj04` subject-robustness panel, and the DINOv2-vs-ResNet uncertainty/margin interpretation for that panel. The rank-only subject-robustness gate remains **partial**, but the uncertainty-aware decision is more specific: geometry replication is robust, while encoding is subject-sensitive and aggregate-labeled `geometry_replicated_encoding_ambiguous`.
 
 Main package: `src/hma/`.
 
@@ -103,6 +103,10 @@ Robustness/control artifacts:
 - Cross-axis sensitivity and decision diagnostics: `outputs/neural_roi_summary/matched_cross_axis_sensitivity.csv`, `outputs/neural_roi_summary/matched_cross_axis_decisions.csv`.
 - V1 ROI-expanded artifact audit: `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`; current status is all checks passing after `40` geometry cells x `10` geometry rows per cell, plus sensitivity-decision and failure-gate output checks.
 - V1 geometry-method sensitivity and failure-gate outputs: `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_sensitivity_decisions.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv`.
+- V1 subject-robustness outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_decisions.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_encoding_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_model_rankings.csv`, and `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_method_sensitivity_decisions.csv`.
+- V1 subject-robustness uncertainty outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_encoding_margin_uncertainty.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_margin_summary.csv`, and `outputs/paper1_experiment_v1/summary/subject_robustness_uncertainty_decisions.csv`.
+- V1 paper-facing synthesis outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_paper_interpretation.csv` and `outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv`.
+- Behavioral-control hardening outputs: `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`, `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`, and `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`.
 - Observer-control outputs: `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`, `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`.
 
 Diagnostics/provenance:
@@ -110,7 +114,7 @@ Diagnostics/provenance:
 - Core behavioral aggregate before SSL/VLM merge: `outputs/real_matrix_v2/aggregated/results.csv`.
 - Corrected SSL/VLM behavioral aggregate before merge: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`.
 - Full neural ROI summary directory, including learned-readout provenance rows: `outputs/neural_roi_summary/`.
-- Paper inspection pack: `outputs/paper_inspection_v1/README.md`.
+- Paper inspection pack: `outputs/paper_inspection_v1/README.md`, including `outputs/paper_inspection_v1/tables/table14_subject_robustness_interpretation.csv` and `outputs/paper_inspection_v1/tables/table15_observer_control_summary.csv`.
 
 Experiment-definition artifacts:
 
@@ -129,10 +133,10 @@ The corrected behavioral layer is now usable for diagnostic paper-style analysis
 
 The neural layer is now a stronger local baseline, but still not a leaderboard result:
 
-- Current neural outputs are one-subject, internal-split `subj01` results. The accepted cross-model comparison object is the complete six-model matched full-image-count PRF visual ROI `flatten_pca` panel. Four full-image-count learned-readout rows for DINOv2 are method provenance only.
+- Current neural outputs include one-subject diagnostic `subj01` results plus a reduced `subj02`-`subj04` PRF-ROI subject-robustness panel. The accepted diagnostic cross-model comparison object remains the complete six-model matched full-image-count PRF visual ROI `flatten_pca` panel. Four full-image-count learned-readout rows for DINOv2 are method provenance only.
 - They are not Algonauts leaderboard-equivalent scores because the official challenge averages held-out visual-cortex vertices across subjects and hemispheres.
 - The matched `flatten_pca` panel is the primary evidence for cross-model neural comparisons. The four-ROI DINOv2 learned-readout rows are the strongest local single-backbone method result and should be treated as method provenance, not as matched-panel ranking rows.
-- The matched cross-level correlation tables are now the primary descriptive cross-axis evidence, but they are still small-n one-subject model-level analyses, not causal tests.
+- The matched cross-level correlation tables are now primary descriptive cross-axis evidence, but they remain small-n model-level analyses and are not causal tests.
 
 Paper 1 should be held to these publication gates before strong top-venue claims:
 
@@ -147,9 +151,9 @@ Paper 1 should be held to these publication gates before strong top-venue claims
 
 Paper 1 is not yet top-venue ready. The current repository supports a serious diagnostic study, but the accepted evidence is still too narrow for a strong conference claim because it is mainly:
 
-* one-subject neural evidence;
+* one discovery subject plus a reduced three-subject PRF-ROI robustness panel with geometry replication but subject-sensitive encoding;
 * small model-level correlations (`n=4` for the V1 discovery matrix, `n=6` for the older PRF diagnostic panel);
-* one completed ROI-expanded discovery pass without subject replication;
+* one completed ROI-expanded discovery pass with subject robustness only on PRF visual ROIs, not the full stream-ROI scope;
 * limited behavioral SOTA controls;
 * limited transformer attribution coverage;
 * geometry-method-dependent cross-axis analysis.
@@ -160,19 +164,19 @@ The current project should therefore be treated as a publication-directed eviden
 
 The strongest currently defensible claim is:
 
-> The current pipeline can produce a complete ROI-expanded `subj01` discovery matrix, and V1 geometry-method sensitivity shows many CKA/subset-RSA-stable cross-axis relationships while preserving a small set of explicit direction conflicts.
+> In the current V1 PRF-ROI subject-robustness scope, representational geometry replicates more cleanly than neural encoding: DINOv2-vs-ResNet geometry margins support DINOv2 across confirmatory subjects, while encoding support is subject-sensitive and reverses to ResNet-50 in `subj04`.
 
-This is not yet a paper claim. It is a candidate convergence/dissociation pattern that has passed the V1 geometry-method failure gate and now needs subject robustness.
+This is now a claim-shaped but still not top-venue-complete pattern: full-image CKA and deterministic subset-RSA margins favor DINOv2 across `subj02`-`subj04`, while encoding is split by subject. `subj02` and `subj03` support DINOv2 encoding, but `subj04` supports ResNet-50 encoding, so the accepted aggregate interpretation is geometry-replicated and encoding-ambiguous.
 
-The current results should be used to decide whether the V1 pattern is worth confirming, not to support a top-venue conclusion.
+The current results should be used to drive behavioral-control hardening around the paper-facing geometry-first dissociation claim, not to support a universal best-model conclusion.
 
 ### Current weakest links
 
-These are reviewer risks in order of severity, not the implementation order. The next milestone should follow the current scientific decision gate: first test whether the sensitivity-gated `subj01` V1 pattern survives subject variation, then decide whether to spend effort on uncertainty, controls, attribution, efficiency, or model expansion.
+These are reviewer risks in order of severity, not the implementation order. The subject-robustness decision gate, DINOv2-vs-ResNet margin/uncertainty interpretation, paper-facing geometry-first synthesis, and observer-control integration are now complete, so the next milestone should strengthen behavioral controls before attribution, efficiency, or model expansion.
 
-1. **Small model-level ****`n`****:** behavior-encoding-geometry correlations over `n=4` in the V1 matrix remain descriptive. This is the highest reviewer risk, but generic model expansion is deferred because it would dilute the matched V1 panel before the subject-replication gate.
-2. **One-subject neural evidence:** current ROI-expanded encoding and geometry results are still local `subj01` evidence. Because the V1 geometry-method gate has passed, subject robustness on `subj02`-`subj04` is now the immediate decision gate.
-3. **Insufficient behavioral controls:** generated SALICON and COCO-Search18 observer-control outputs still need to be consumed in V1 summaries. DeepGaze IIE and center bias are useful, but human ceilings, DeepGaze MSDB/comparable modern fixation baseline, and task-specific COCO-Search18 controls remain important.
+1. **Small model-level ****`n`****:** behavior-encoding-geometry correlations over `n=4` in the V1 matrix remain descriptive. This is the highest reviewer risk, but generic model expansion is deferred until behavioral controls are stronger.
+2. **Behavioral-control hardening:** generated SALICON and COCO-Search18 observer-control outputs are now consumed in V1 summaries, and a target/task-conditioned COCO-Search18 baseline is now implemented. DeepGaze MSDB/comparable modern free-viewing fixation reference remains the main behavioral-control gap.
+3. **Paper-facing claim framing:** the paper inspection pack now explicitly supports geometry-first dissociation / measurement evidence and avoids a universal DINOv2 encoding-win narrative, but main-paper figures/tables still need later hardening.
 4. **Attribution ambiguity:** Grad-CAM, vanilla gradients, and attention rollout are different explanation objects. Attention rollout must not be treated as human-like attention.
 5. **Geometry metric dependence:** V1 full-image CKA and subset-RSA now have an explicit sensitivity synthesis, so this risk is reduced but not gone. Some relationships are stable across methods, while direction conflicts remain and must be reported.
 6. **Efficiency missing:** compute and alignment-per-compute remain untested, so the original efficient-attention axis is not yet active in Paper 1.
@@ -227,7 +231,7 @@ Current interpretation:
 - DeepGaze now beats center bias across all three datasets under the corrected point/task-point protocol.
 - DINOv2 gradient is a strong attribution/fixation-similarity row, especially on SALICON and CAT2000.
 - The behavioral layer is strong enough to serve as one axis in the broader alignment study. It should not be expanded into a larger leaderboard before the paper-grade matrix is defined.
-- Later behavioral upgrades should prioritize human/interobserver ceilings, DeepGaze MSDB or another modern fixation reference, and a task-specific COCO-Search18 baseline. Broad scanpath/video expansion belongs after Paper 1 unless the paper explicitly shifts away from static-image dissociation.
+- Later behavioral upgrades should prioritize DeepGaze MSDB or another modern free-viewing fixation reference, with human/interobserver ceilings already represented by current SALICON and COCO-Search18 observer-control summaries. Broad scanpath/video expansion belongs after Paper 1 unless the paper explicitly shifts away from static-image dissociation.
 
 ## Current Neural Status
 
@@ -278,7 +282,7 @@ Interpretation:
 - The project has a complete full-image-count matched `flatten_pca` panel for six model families, plus a stronger DINOv2 learned-readout method result.
 - The matched-panel ranking is now the accepted basis for cross-model neural comparisons: `vit_small_patch14_dinov2` first, `vit_base_patch16_clip_224` second, `resnet50` third, `deit_small_patch16_224` fourth, `vit_base_patch16_224` fifth, and `convnext_tiny` sixth by mean valid-target noise-normalized score.
 - The previous test-set feedback risk for layer choice has been addressed for the current one-subject PRF visual ROI baselines by validation-only layer selection.
-- The V1 discovery matrix changes the scientific state: encoding and full-image CKA converge on DINOv2 as the top model, while subset-RSA partially dissociates from that ranking. The accepted sensitivity synthesis now shows enough stable CKA/subset-RSA cross-axis relationships to justify subject robustness.
+- The V1 discovery, robustness, and uncertainty matrices change the scientific state: geometry robustly favors DINOv2 across confirmatory subjects, while encoding is subject-sensitive enough that the accepted aggregate label is `geometry_replicated_encoding_ambiguous`.
 
 ## Global Direction Rationale
 
@@ -294,7 +298,7 @@ The behavioral layer is an alignment axis, not the main paper by itself. The neu
 
 The current behavioral results show that the corrected scoring protocol is sane: DeepGaze beats center bias, and generic classifier explanation maps remain below dedicated fixation references. This supports the pipeline, but it is not central novelty.
 
-The current matched neural panel shows a plausible local ranking over six models and four PRF ROIs, with DINOv2, CLIP ViT, and ResNet-50 near the top. This is useful local evidence, but it is one-subject and should not be described as SOTA neural alignment.
+The current matched neural panel shows a plausible local ranking over six models and four PRF ROIs, with DINOv2, CLIP ViT, and ResNet-50 near the top. This is useful diagnostic evidence, while the reduced subject-robustness panel is now the claim-relevant check for the four-model V1 PRF-ROI scope.
 
 The DINOv2 learned spatial readout is a strong method-provenance result because it improves all four PRF visual ROIs over DINOv2 `flatten_pca`. It should motivate later readout/adaptive-sampling work, but it should not enter cross-model headline rankings until the same readout protocol exists for all compared models.
 
@@ -302,34 +306,33 @@ The matched geometry axis is the current most important addition because it can 
 
 ### Current priority
 
-The immediate priority is to move from a decision-clean `subj01` discovery matrix to subject robustness.
+The immediate priority is to convert the completed uncertainty-aware subject-robustness decision into paper-facing evidence and limitations.
 
-The current V1 behavioral, neural, geometry, and geometry-method sensitivity outputs are the first claim-relevant discovery matrix, but they are not yet a paper result. Future Codex sessions should not expand models, behavioral baselines, attribution methods, or efficiency before checking whether the `subj01` V1 pattern survives across subjects.
+The current V1 behavioral, neural, geometry, geometry-method sensitivity, subject-robustness, and margin-uncertainty outputs are claim-relevant, but they are not yet a clean paper-facing result. Future Codex sessions should not expand models, attribution methods, or efficiency before the geometry-first dissociation framing and observer-control context are integrated into V1 summaries or the paper inspection pack.
 
 The next Codex work should therefore focus on:
 
-1. **Reduced subject robustness**
+1. **Geometry-First Dissociation Summary**
 
-   Build a confirmatory `subj02`-`subj04` matrix for the existing four V1 models. Keep the scope reduced and method-matched so the result tests subject stability rather than creating a new benchmark.
+   Build a compact paper-facing summary from `subject_robustness_uncertainty_decisions.csv`, `subject_robustness_encoding_margin_uncertainty.csv`, and `subject_robustness_geometry_margin_summary.csv`. The summary must state that geometry replication is stronger than encoding replication and must preserve the `subj04` ResNet-50 encoding reversal.
 
-2. **Subject-level decision**
+2. **Observer-Control Integration**
 
-   Apply a subject-robustness gate before any expansion. The decision should answer whether the current result is:
+   Consume the generated SALICON and COCO-Search18 observer-control outputs in V1 behavioral summaries or the paper inspection pack. Keep free-viewing and task-search interpretations separate, and report observer controls as a reviewer-facing context rather than a broad behavioral leaderboard expansion.
 
-   * replicated across subjects;
-   * partially replicated and worth uncertainty hardening;
-   * failed to replicate and therefore needs downgraded framing;
-   * or not tested because the reduced subject matrix could not be completed.
+3. **Failure-Gate Wording**
 
-3. **Outcome-first implementation**
+   Refresh the failure-gate or paper-pack wording so Paper 1 proceeds as a geometry-first dissociation/measurement paper, not as a universal model-ranking paper.
+
+4. **Outcome-first implementation**
 
    Each Codex session should produce an artifact that changes the paper’s scientific state.
 
    Good session outputs include:
 
-   * a targeted robustness table that changes whether the V1 pattern is trusted;
-   * a documented decision to proceed to uncertainty/paper-pack hardening or pause for method repair;
-   * auditable subject-level config and summary artifacts.
+   * a behavioral-control gap audit that separates accepted controls, diagnostic controls, missing controls, and infeasible controls;
+   * a task-specific COCO-Search18 baseline or a documented infeasibility decision;
+   * a feasibility decision for DeepGaze MSDB or another modern free-viewing fixation reference.
 
    Poor session outputs include:
 
@@ -339,15 +342,15 @@ The next Codex work should therefore focus on:
    * small improvements to stale summaries;
    * broad model-zoo expansion without a claim-driven design.
 
-4. **Robustness before polishing**
+5. **Robustness before polishing**
 
-   Uncertainty, behavioral-control integration, and efficiency should be applied after subject robustness is summarized.
+   Subject-robustness uncertainty, paper-facing synthesis, and observer-control integration are summarized. The next cleanup should be behavioral-control hardening, not cosmetic plotting or model expansion.
 
    The correct order is:
 
-   1. run reduced subject robustness;
-   2. decide whether the V1 pattern replicates, partially replicates, or fails;
-   3. then choose uncertainty/paper-pack hardening or downgraded framing.
+   1. audit current behavioral controls against the paper claim;
+   2. add the task-specific COCO-Search18 baseline if feasible;
+   3. decide whether the remaining modern free-viewing fixation reference can be implemented or must be documented as infeasible.
 
    Do not reverse this order.
 
@@ -369,14 +372,15 @@ The current milestone order is:
 1. Freeze the current six-model/subj01/V1–hV4 results as diagnostic validation outputs, not paper-grade evidence.
 2. Complete the V1 four-model x ten-ROI discovery matrix for `subj01`.
 3. Apply geometry-method sensitivity and the V1 failure gate. **Complete.**
-4. Run subject robustness on the reduced `subj02`-`subj04` panel. **In progress:** `subj02` and `subj03` encoding are complete; `subj04`, geometry, and summary remain.
-5. If the pattern is ambiguous after subject robustness, add uncertainty/geometry repair before paper-pack hardening.
-6. Only after subject robustness is summarized, add behavioral controls, stronger attribution, and efficiency.
-7. If the V1 matrix does not produce a defensible claim after sensitivity, demote Paper 1 to a methods/workshop paper and shift the main publication effort toward Paper 2’s causal adaptive-attention intervention.
+4. Run subject robustness on the reduced `subj02`-`subj04` panel. **Complete:** aggregate decision is `partial`; geometry replicates across all confirmatory subjects, while encoding flips to ResNet-50 in `subj04`.
+5. Quantify DINOv2-vs-ResNet subject-robustness uncertainty and margins. **Complete:** aggregate decision is `geometry_replicated_encoding_ambiguous`.
+6. Build paper-facing geometry-first dissociation framing and integrate generated observer controls. **Complete.**
+7. Harden behavioral controls with a modern free-viewing fixation reference if feasible and a task-specific COCO-Search18 baseline before stronger task-search interpretation. **Partial complete:** the behavioral-control audit and COCO-Search18 target/task-conditioned baseline are implemented; the modern free-viewing reference feasibility decision remains.
+8. If the V1 matrix does not produce a defensible claim after those controls, demote Paper 1 to a methods/workshop paper and shift the main publication effort toward Paper 2’s causal adaptive-attention intervention.
 
 ### Decision rule
 
-Do not treat the V1 full-image CKA convergence as paper-grade evidence until subject robustness tests whether the sensitivity-gated `subj01` pattern replicates.
+Do not treat the V1 full-image CKA convergence as a universal model-ranking result. The accepted reading is narrower: geometry replicates for DINOv2 across confirmatory PRF-ROI subjects, but encoding remains subject-sensitive.
 
 Robustness can strengthen a decision-clean pattern. It cannot rescue an interpretation that depends on silently choosing one geometry method.
 
@@ -388,7 +392,7 @@ The desired paper-level statement is:
 
 > Under a controlled, sufficiently broad cross-axis experiment, fixation alignment, neural encoding, and representational geometry converge or dissociate in identifiable model/ROI/task regimes.
 
-That statement now requires subject robustness first, then uncertainty/paper-pack hardening only if the reduced `subj02`-`subj04` panel supports the sensitivity-gated `subj01` pattern.
+That statement now requires stronger behavioral controls around the already synthesized `geometry_replicated_encoding_ambiguous` result before broader controls or model expansion.
 
 ### Relevant SOTA references:
 
@@ -449,12 +453,12 @@ Reporting infrastructure:
 
 - Corrected behavioral aggregate and merged SSL/VLM aggregate.
 - Neural ROI summary tables.
-- Paper inspection pack with behavior, neural, matched cross-level, SSL/VLM candidate, benchmark sanity tables, and an academic SOTA context section comparing the current figures against MIT/Tuebingen saliency, DeepGaze IIE SALICON, COCO-Search18 task-search, and Algonauts 2023 evaluation references.
-- Paper inspection README now explicitly distinguishes mixed-scope diagnostics from the complete six-model matched full-image-count PRF ROI `flatten_pca` panel, and includes the four DINOv2 learned spatial readout rows only as method-provenance context.
+- Paper inspection pack with behavior, neural, matched cross-level, SSL/VLM candidate, benchmark sanity, subject-robustness interpretation, observer-control summary tables, and an academic SOTA context section comparing the current figures against MIT/Tuebingen saliency, DeepGaze IIE SALICON, COCO-Search18 task-search, and Algonauts 2023 evaluation references.
+- Paper inspection README now explicitly distinguishes mixed-scope diagnostics from the complete six-model matched full-image-count PRF ROI `flatten_pca` panel, includes the four DINOv2 learned spatial readout rows only as method-provenance context, states the geometry-first dissociation / measurement framing, and labels observer-control rows as human/interobserver context rather than model performance.
 
 ## Current Implementation Progress
 
-Updated: 2026-06-08
+Updated: 2026-06-10
 
 Current implementation state:
 
@@ -477,72 +481,64 @@ Current implementation state:
 - V1 deterministic subset-RSA rankings are method-sensitive: most subset-RSA variants rank `resnet50` first and `vit_small_patch14_dinov2` second, while two subset-RSA seeds rank DINOv2 first. CKA/subset-RSA across-ROI rank agreement is complete but moderate.
 - The V1 CKA-primary cross-axis summaries exist: `693` cross-level correlation rows and `2079` cross-axis decision rows. Current CKA-primary decision rows are dominated by `insufficient_models` (`1386`), with `627` `stable_convergence` and `66` `unstable` rows. The stable across-ROI rows are concentrated in `vanilla_gradient` behavior and `linear_cka_full9841` geometry.
 - The V1 geometry-method sensitivity synthesis now exists: `2079` rows in `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_sensitivity_decisions.csv`. Labels are `908` `stable_across_geometry_methods`, `693` `not_tested`, `462` `insufficient_models`, and `16` `direction_conflict`. The table preserves free-viewing versus task-search separation with `1386` free-viewing rows and `693` task-search rows, and includes `linear_cka_full9841` plus all nine deterministic subset-RSA variants.
-- The V1 failure-gate summary now exists at `outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv`. The current gate decision is `subject_robustness_subj02_subj04` because at least one geometry relationship is stable across CKA and subset-RSA.
+- The V1 failure-gate summary now exists at `outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv`. The current gate decision is `paper_pack_geometry_first_dissociation` because at least one geometry relationship is stable across CKA and subset-RSA, so Paper 1 should proceed as geometry-first dissociation or measurement evidence rather than universal model ranking.
 - The reduced V1 subject-robustness scaffold is implemented for `subj02`-`subj04`: `configs/paper1_experiment_v1.yaml` has an executable `confirmatory_matrix`, `scripts/create_paper1_v1_subject_robustness_configs.py` generates `48` subject/model/ROI configs under `configs/experiments/paper1_experiment_v1/neural_subject_robustness/`, and `outputs/paper1_experiment_v1/summary/subject_robustness_artifact_audit.csv` passes all scaffold checks.
-- Local subject-robustness encoding progress: `subj02` has `16/16` expected output directories with core encoding artifacts (`metadata.json`, `encoding_scores.csv`, `activations.npz`); `subj03` has `16/16`; `subj04` has `0/16`. No subject-robustness `geometry_scores.csv` files exist yet, and `outputs/paper1_experiment_v1/summary/subject_robustness_decisions.csv` has not been generated.
+- Local subject-robustness progress: `subj02`, `subj03`, and `subj04` each have `16/16` expected encoding output directories and completed confirmatory geometry. The regenerated rank-only decision table marks `subj02` and `subj03` as `replicated`, `subj04` as `partial`, and `all_confirmatory_subjects` as `partial`.
+- The subject-robustness geometry runner now prints progress by default at subject, cell, and geometry-method/subset granularity, with `--no-progress` available for quiet runs.
+- The geometry result is robust: `vit_small_patch14_dinov2` is the full-image CKA leader and the subset-RSA leader for all `30/30` subject x geometry-method rankings across `subj02`-`subj04`. The encoding result is ambiguous: `vit_small_patch14_dinov2` leads raw mean encoding by tiny margins in `subj02` and `subj03`, while `resnet50` leads in `subj04`.
+- Subject-robustness uncertainty is now implemented. `outputs/paper1_experiment_v1/summary/subject_robustness_uncertainty_decisions.csv` labels `subj02` and `subj03` as `geometry_replicated_encoding_supported`, `subj04` as `geometry_replicated_encoding_resnet_supported`, and the aggregate as `geometry_replicated_encoding_ambiguous`. The aggregate label is intentionally conservative because the subject-level encoding direction conflicts even though the pooled target-level DINOv2-minus-ResNet encoding margin is positive.
+- Paper-facing geometry-first synthesis and observer-control integration are now implemented. `outputs/paper1_experiment_v1/summary/subject_robustness_paper_interpretation.csv` preserves the `subj04` ResNet-50 encoding reversal and aggregate `geometry_replicated_encoding_ambiguous` decision, while `outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv` separates SALICON free-viewing observer context from COCO-Search18 task-search observer context.
 
 Latest session report:
 
-1. `Scientific change`: no new scientific claim has been made yet. The subject-robustness evidence gate is partially executed: `subj02` and `subj03` encoding are complete locally, but the confirmatory panel is still incomplete without `subj04` and geometry.
-2. `Accepted artifact`: local encoding outputs under `outputs/paper1_experiment_v1/neural_subj02_subject_robustness/` and `outputs/paper1_experiment_v1/neural_subj03_subject_robustness/`, each with `16/16` complete core encoding cells.
-3. `Claim impact`: still neutral until `subj04` encoding, confirmatory geometry, and `subject_robustness_decisions.csv` complete. Do not interpret `subj02`/`subj03` alone as a subject-robustness result.
-4. `Reviewer risk reduced`: execution risk is reduced because two of three confirmatory subjects have complete local encoding. The one-subject reviewer risk is not reduced scientifically until all planned subjects are summarized.
-5. `Next decisive step`: integrate the JHU DSAI cluster workflow, run the remaining `subj04` encoding jobs there, sync outputs back locally, then compute subject-robustness geometry and summary tables.
+1. `Scientific change`: the missing COCO-Search18 task-search control is now implemented as a target/task-conditioned train-split fixation prior and scored on the static2000 validation subset. The baseline achieves NSS `2.199`, AUC-Judd `0.838`, shuffled-AUC `0.674`, CC `0.448`, SIM `0.338`, and KL `1.538` on `2000` task-point rows, and the behavioral-control audit now marks the task-specific COCO-Search18 baseline as `accepted` while keeping DeepGaze IIE on COCO-Search18 as `diagnostic`.
+2. `Accepted artifact`: `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`, `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`, `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`, and `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`.
+3. `Claim impact`: strengthens task-search claim hygiene by adding a regime-appropriate COCO-Search18 control. It does not by itself prove model-human task-search agreement, but it gives future COCO-Search18 model rows a stronger search-specific baseline than free-viewing DeepGaze IIE or center bias.
+4. `Reviewer risk reduced`: addresses the objection that COCO-Search18 interpretations relied on free-viewing DeepGaze IIE or generic center bias rather than a task/category-aware search control.
+5. `Next decisive step`: document or implement the remaining modern free-viewing fixation reference decision, preferably DeepGaze MSDB or a comparable reference if feasible without turning the project into a generic saliency leaderboard.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
 ## Next Concrete Milestone
 
-Priority: **Integrate JHU DSAI Cluster Execution For Remaining `subj04` Subject Robustness Jobs**.
+Priority: **Modern Free-Viewing Reference Feasibility After Task-Search Baseline**.
 
-The previous milestone, V1 Geometry-Method Sensitivity And Failure-Gate Synthesis, is complete. Do not rerun `subj01` encoding or geometry unless an audit regresses or a concrete data-integrity blocker is discovered.
+The paper-pack geometry-first framing milestone is complete. Do not rerun `subj01` encoding, confirmatory subject encoding, confirmatory geometry, or observer-control generation unless an audit regresses or a concrete data-integrity blocker is discovered.
 
-The reduced confirmatory subject-robustness scaffold exists, and local encoding is complete for `subj02` and `subj03`. The next decisive task is to make the local project runnable on the JHU DSAI cluster, execute only the remaining `subj04` four-model x four-ROI encoding jobs, sync those outputs back to the local project, compute confirmatory geometry, and summarize whether the V1 candidate pattern survives subject variation before any model-zoo expansion, new behavioral controls, efficiency profiling, or attribution-method expansion.
-
-This ordering is intentional. Small model-level `n` remains the most severe reviewer risk, but adding models before subject robustness would make the project larger without testing whether the current cross-axis pattern is real. Subject robustness is the cleaner falsification gate for the current Paper 1 claim.
-
-The remaining encoding work should be cluster-managed because the jobs are independent by config and can likely run faster in parallel on cluster GPUs. The next Codex session should first establish a reproducible local-to-cluster sync and run procedure before launching jobs. Do not launch one unbounded all-subject job from Codex.
+The next decisive task is to finish behavioral-control hardening without expanding the generic model zoo: decide whether the next strongest free-viewing fixation reference is feasible, while using the implemented task-specific COCO-Search18 baseline before interpreting task-search alignment as model-human agreement.
 
 ### Required outcome
 
-By the end of this milestone, the project should produce subject-robustness evidence under `outputs/paper1_experiment_v1/summary/`:
+By the end of the next milestone, the project should have a reviewer-facing behavioral-control table that separates free-viewing from task-search evidence:
 
-- Done: a generator for reduced `subj02`-`subj04` confirmatory configs under `scripts/`, with outputs under `configs/experiments/paper1_experiment_v1/neural_subject_robustness/`.
-- Done: a subject-robustness audit table at `outputs/paper1_experiment_v1/summary/subject_robustness_artifact_audit.csv`, reporting expected and completed subject/model/ROI config cells.
-- Done: a `cmd`-only runbook below that splits long encoding and geometry jobs by subject.
-- Partial: local encoding outputs are complete for `subj02` and `subj03`; `subj04` remains pending.
-- A subject-level encoding ranking table for `subj02`, `subj03`, and `subj04`.
-- A subject-level geometry ranking/sensitivity table using `linear_cka_full9841` and the same deterministic subset-RSA variants where feasible.
-- A compact subject-robustness decision table that states whether the `subj01` V1 pattern replicates, partially replicates, or fails across subjects.
-- An updated failure-gate decision on whether Paper 1 should proceed to uncertainty/paper-pack hardening or be reframed as a weaker methods/workshop result.
+- Done: paper-facing subject-robustness interpretation at `outputs/paper1_experiment_v1/summary/subject_robustness_paper_interpretation.csv`.
+- Done: V1 observer-control summary at `outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv`.
+- Done: paper inspection tables `outputs/paper_inspection_v1/tables/table14_subject_robustness_interpretation.csv` and `outputs/paper_inspection_v1/tables/table15_observer_control_summary.csv`.
+- Done: a behavioral-control gap audit at `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`.
+- Done: a task-specific COCO-Search18 baseline, kept separate from SALICON/CAT2000 free-viewing claims, at `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`.
+- New next target: a feasibility decision table for adding DeepGaze MSDB or another modern free-viewing fixation reference without turning the project into a saliency leaderboard, expected at `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv`.
 
-### Required implementation work
+### Completed behavioral-control implementation work
 
-The scaffold implementation is complete. The remaining execution work is:
+The behavioral-control audit script is implemented at `scripts/audit_behavioral_controls.py` and writes `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`. The COCO-Search18 task-specific baseline is implemented as `coco_search18_task_prior` and configured at `configs/experiments/real_matrix_v2/coco_search18_static2000__coco_search18_task_prior_baseline_coco_search18_task_prior.yaml`.
 
-1. **Integrate cluster sync and runtime**
+The audit separates accepted controls, diagnostic controls, missing controls, and controls requiring a feasibility decision:
 
-   Set up a reproducible JHU DSAI cluster copy/run/sync path for this repo and required NSD/Algonauts data. Confirm Python environment, package install, model cache behavior, data paths, and write paths. The cluster run must preserve relative output paths so synced artifacts land under `outputs/paper1_experiment_v1/neural_subj04_subject_robustness/` locally.
+- Accepted: DeepGaze IIE and center bias for SALICON/CAT2000 free-viewing, center bias for COCO-Search18 task search, SALICON observer controls, COCO-Search18 observer controls, the task-specific COCO-Search18 target/task-conditioned prior, and the metric-boundary separation between point-fixation metrics and map-distribution metrics.
+- Diagnostic: COCO-Search18 DeepGaze IIE, because it is a free-viewing reference used on task-search data rather than a task-specific search baseline.
+- Needs feasibility decision: DeepGaze MSDB or another comparable modern free-viewing fixation reference.
 
-2. **Run only remaining `subj04` encoding on the cluster**
+### Next Codex session implementation plan
 
-   Run the existing `configs/experiments/paper1_experiment_v1/neural_subject_robustness/subj04/*.yaml` configs. Do not rerun `subj02`, `subj03`, or `subj01` unless a concrete artifact-integrity issue is discovered. Prefer a cluster job array or one job per config if the scheduler supports it.
+Implement or document the modern free-viewing fixation-reference decision, not neural reruns:
 
-3. **Sync `subj04` outputs back locally and audit**
-
-   After the cluster run, sync `outputs/paper1_experiment_v1/neural_subj04_subject_robustness/` back to the local workspace. Verify `16/16` `subj04` cells have `metadata.json`, `encoding_scores.csv`, and `activations.npz` before computing geometry.
-
-4. **Compute confirmatory geometry**
-
-   After encoding cells pass audit, compute `linear_cka_full9841` and deterministic subset-RSA for completed subject/model/ROI cells. If full geometry is too slow, stop and document the reduced geometry scope before interpreting replication.
-
-5. **Summarize subject robustness**
-
-   Add summary tables that compare each subject against `subj01` on model ranking, ROI ranking, CKA/subset-RSA agreement, and cross-axis decision labels.
-
-6. **Update status and next step**
-
-   Update this file with the subject robustness decision. If the pattern replicates, the next step becomes paper-grade uncertainty and paper-pack hardening. If it does not, downgrade Paper 1 framing or repair the failed axis before adding new work.
+1. Add a small feasibility-report script, for example `scripts/audit_free_viewing_reference_feasibility.py`.
+2. Inspect local repo support only: `pyproject.toml`, `scripts/export_deepgaze_maps.py`, `scripts/create_deepgaze_reference_configs.py`, existing `data/precomputed/deepgaze/` contents, and accepted SALICON/CAT2000 manifests.
+3. Write `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv` with columns `candidate_reference`, `viewing_regime`, `dataset_scope`, `local_support`, `requires_download`, `requires_new_dependency`, `estimated_run_scope`, `decision`, `next_action`, and `detail`.
+4. Required rows: `DeepGaze MSDB`, `DeepGaze IIE current reference`, and `comparable modern free-viewing reference`.
+5. If DeepGaze MSDB is feasible with current local dependencies/data, create only SALICON/CAT2000 free-viewing configs and user-run `cmd` commands for export/evaluation; do not run large exports in the same session unless explicitly requested.
+6. If infeasible without large downloads or dependency churn, mark the decision `defer_or_document_limitation`, keep DeepGaze IIE as the accepted DeepGaze-class reference, and update `behavioral_control_gap_audit.csv` detail/status accordingly.
+7. Do not add generic new models, attribution methods, efficiency runs, or neural reruns before this free-viewing control decision is documented.
 
 ### Subject-robustness runbook
 
@@ -552,7 +548,7 @@ Generate or refresh the config scaffold and audit:
 .\.venv\Scripts\python.exe scripts\create_paper1_v1_subject_robustness_configs.py --config configs\paper1_experiment_v1.yaml
 ```
 
-Local encoding already completed for `subj02` and `subj03`. Keep these commands for reproducibility, but do not rerun them unless an audit fails:
+Local encoding already completed for `subj02`, `subj03`, and `subj04`. Keep these commands for reproducibility, but do not rerun them unless an audit fails:
 
 ```cmd
 for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj02\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
@@ -562,21 +558,21 @@ for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\su
 for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj03\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
 ```
 
-Run remaining `subj04` encoding only if staying local:
+Historical local `subj04` encoding command, retained for reproducibility only:
 
 ```cmd
 for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj04\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
 ```
 
-For the JHU DSAI cluster path, the next Codex session should produce cluster-specific `cmd` commands for sync, scheduler submission, monitoring, and output retrieval after the remote account path, scheduler command, GPU partition, and storage layout are known.
+The JHU DSAI cluster path, local geometry regeneration, and subject-robustness synthesis are no longer active blockers for the current milestone. Do not rerun them unless an audit regresses.
 
-Compute geometry after encoding cells complete:
+Historical geometry regeneration command, retained for reproducibility only:
 
 ```cmd
 .\.venv\Scripts\python.exe scripts\compute_paper1_v1_subject_robustness_geometry.py --config configs\paper1_experiment_v1.yaml --skip-existing
 ```
 
-Summarize subject robustness:
+Subject-robustness summary and uncertainty regeneration command, retained for reproducibility:
 
 ```cmd
 .\.venv\Scripts\python.exe scripts\summarize_paper1_v1_subject_robustness_results.py --config configs\paper1_experiment_v1.yaml
@@ -586,18 +582,26 @@ Summarize subject robustness:
 
 - Keep `configs/paper1_config.yaml` unchanged as the diagnostic PRF-only result scope.
 - Keep V1 fLOC category ROIs out of scope unless `docs/paper1_experiment_spec_v1.md` is explicitly revised.
-- Do not add new models, new behavioral baselines, efficiency, or stronger attribution before subject robustness is summarized.
+- Do not add generic new models, efficiency, or stronger attribution before the modern free-viewing reference feasibility decision is documented.
 - Use cmd-form commands in any docs or handoff text.
 
 ### Acceptance criteria
 
-This milestone is complete only if:
+The behavioral-control audit and task-search baseline milestone is complete because:
 
-- The existing scaffold can generate all planned subject/model/ROI configs without touching the completed `subj01` discovery outputs.
-- `subj02`-`subj04` runs are auditable by subject, model, ROI, and method.
-- Subject summaries preserve the existing four-model panel and do not mix in learned-readout rows.
-- The subject decision explicitly marks `replicated`, `partial`, `failed`, or `incomplete`.
+- A behavioral-control gap audit exists under `outputs/paper1_experiment_v1/summary/` and separates `free_viewing` from `task_search`.
+- The audit marks current DeepGaze IIE, center bias, and observer-control summaries as `accepted`, `diagnostic`, `missing`, or `needs_feasibility_decision`.
+- The audit identifies DeepGaze MSDB or another modern free-viewing fixation reference as a feasibility gap, not an implemented control.
+- The audit identifies the task-specific COCO-Search18 baseline as accepted and keeps COCO-Search18 DeepGaze IIE diagnostic.
+- No SALICON/CAT2000 free-viewing row is pooled with COCO-Search18 task-search rows in a single behavioral headline.
 - Any long-running commands are split into copy-pastable `cmd` batches for the user.
+
+The next free-viewing-reference milestone is complete only if:
+
+- `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv` exists with rows for DeepGaze MSDB, current DeepGaze IIE, and a comparable modern free-viewing reference option.
+- The decision table explicitly marks whether each candidate is `feasible_now`, `requires_download_or_dependency`, or `defer_or_document_limitation`.
+- If feasible, SALICON/CAT2000-only configs and `cmd` runbook commands are documented without pooling with COCO-Search18.
+- If infeasible, the limitation is reflected in the behavioral-control audit/status text rather than left as an ambiguous TODO.
 
 ## Data/control readiness update:
 
@@ -613,28 +617,31 @@ This milestone is complete only if:
 - SALICON official JSON annotations are integrated. `data/manifests/salicon_observer_annotations_manifest.csv` has `893854` worker-level rows with explicit `worker_id`; the V2 subset `data/manifests/v2/salicon_static2000_observer_annotations_manifest.csv` has `125874` rows over `2000` images.
 - Observer-control outputs are generated:
   - `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`: `1867` rows.
-  - `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`: `20000` rows using at most `10` workers per image.
+  - `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`: `1384614` leave-one-observer-out rows over `2000` images; the paper-facing summary streams this file instead of loading it wholly into memory.
+- COCO-Search18 task-search baseline output is generated:
+  - `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`: `7` metric rows for `coco_search18_task_prior_baseline`.
+  - `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`: `2000` validation rows; NSS `2.199`, AUC-Judd `0.838`, shuffled-AUC `0.674`, CC `0.448`, SIM `0.338`, KL `1.538`.
 
 Current post-spec implementation priorities:
 
-The V1 spec and config now define the falsifiable paper-grade matrix, and the ROI-expanded encoding, geometry, and geometry-method sensitivity axes are complete for `subj01`. The immediate work is to finish the partially executed subject-robustness panel and test whether the sensitivity-gated `subj01` pattern survives subject variation.
+The V1 spec and config now define the falsifiable paper-grade matrix, the ROI-expanded encoding, geometry, and geometry-method sensitivity axes are complete for `subj01`, the reduced subject-robustness panel is complete with an uncertainty-aware aggregate decision of `geometry_replicated_encoding_ambiguous`, and the paper pack now includes geometry-first dissociation framing plus observer-control and task-search baseline context. The immediate work is the remaining modern free-viewing reference feasibility decision before broader model or attribution expansion.
 
-- Use the prepared additional subjects as a robustness follow-up:
-  - finish the reduced confirmatory panel: `subj02` and `subj03` encoding are complete locally, while `subj04` encoding is pending for cluster execution;
+- Use the completed additional subjects as a robustness follow-up:
+  - interpret the reduced confirmatory panel: all three confirmatory subjects have local encoding and geometry, with an aggregate uncertainty decision of `geometry_replicated_encoding_ambiguous`;
   - keep the completed `subj01` ROI-expanded encoding and geometry matrix as the discovery reference;
-  - do not add new models, behavioral baselines, attribution methods, or efficiency before the subject robustness decision exists.
-- Integrate generated observer controls before broader behavioral expansion:
-  - consume the generated SALICON and COCO-Search18 observer-control outputs in V1 behavioral summaries and paper-pack diagnostics;
-  - treat this as a near-term accepted-evidence cleanup after subject robustness, not as a broad saliency leaderboard expansion;
-  - add DeepGaze MSDB or another modern fixation reference if feasible;
-  - add a task-specific COCO-Search18 baseline before interpreting task-search alignment.
+  - do not add new models, attribution methods, or efficiency before behavioral-control hardening.
+- Harden behavioral controls before broader behavioral expansion:
+  - use the generated SALICON and COCO-Search18 observer-control summaries as accepted reviewer-facing context;
+  - treat the next behavioral control as targeted claim hardening, not as a broad saliency leaderboard expansion;
+  - decide whether DeepGaze MSDB or another modern fixation reference is feasible;
+  - use the implemented task-specific COCO-Search18 baseline before interpreting task-search alignment.
 - Improve transformer attribution coverage:
   - add one stronger transformer relevance method, preferably Chefer-style transformer attribution or AttnLRP-style relevance propagation;
   - keep gradients, rollout, perturbation, and relevance-style maps as separate saliency families.
-- Add paper-grade uncertainty only after the subject-robustness decision exists:
-  - add target bootstrap intervals for matched encoding summaries;
-  - add subset/image bootstrap or additional deterministic seeds for subset RSA;
-  - keep leave-one-model and leave-one-ROI sensitivity, but use them as robustness diagnostics.
+- Use paper-grade uncertainty now that the subject-robustness decision exists:
+  - report target-level bootstrap intervals for DINOv2-vs-ResNet matched encoding margins;
+  - report deterministic subset-RSA geometry margins across subjects, ROIs, subset sizes, and seeds;
+  - keep leave-one-subject, leave-one-ROI, and Kendall tau sensitivity as robustness diagnostics.
 - Add efficiency only after the above robustness pass:
   - collect FLOPs, latency, memory, token count, and retained-patch statistics for the matched panel;
   - regenerate alignment-per-compute summaries as exploratory diagnostics.
@@ -645,16 +652,17 @@ Completed milestones are archived in `docs/project_status_changelog.md`.
 
 Proceed in phases that map directly to the research question.
 
-Completed before this list: the V1 `subj01` geometry-method decision now exists and gates the project toward subject robustness. The phase order below is the execution order; it is deliberately different from the reviewer-risk severity list above.
+Completed before this list: the V1 `subj01` geometry-method decision exists, the reduced `subj02`-`subj04` subject-robustness gate is complete with a rank-only `partial` aggregate decision, and the DINOv2-vs-ResNet uncertainty decision is complete with aggregate `geometry_replicated_encoding_ambiguous`. The phase order below is the execution order; it is deliberately different from the reviewer-risk severity list above.
 
-1. **Subject robustness.** Use `subj02`-`subj04` to check whether the sensitivity-gated `subj01` candidate patterns replicate. Subject expansion is a robustness layer, not a model-zoo expansion path.
-2. **Uncertainty and sensitivity.** Estimate intervals over images, neural targets, and geometry subsets only after subject robustness is summarized; add leave-one-model-out, leave-one-ROI-out, Kendall tau, and model-label permutation checks as diagnostics rather than claim filters.
-3. **Observer-control integration and behavioral controls.** Integrate the generated observer-control outputs into V1 summaries first, then add a modern DeepGaze reference if feasible and a task-trained COCO-Search18 baseline before stronger task-search interpretation.
-4. **Attribution-family controls.** Add stronger transformer attribution before any attention-specific interpretation, while keeping gradient, Grad-CAM, rollout, perturbation, and relevance-style maps as separate evidence families.
-5. **Cross-axis decision gate.** Use the decision table to identify weak implementation areas, not to assert paper-ready conclusions. Revisit publication framing only after ROI-expanded results, subject robustness, controls, and uncertainty materially improve the evidence base.
-6. **Efficiency.** Add FLOPs, latency, token count, retained-patch statistics, and memory footprint for the matched model panel, then regenerate alignment-per-compute summaries. Keep efficiency exploratory unless it produces a clean dissociation or tradeoff.
-7. **Brain-Score or Brain-Score-style external positioning.** Use it as context and sanity checking, not as a substitute for the local fixation/fMRI/geometry cross-level tests.
-8. **Publication split.** Defer publication split decisions until the robustness expansion clarifies whether static-image cross-axis results are reliable. Keep causal adaptive attention, foveation, adaptive token routing, scanpaths, video, or recurrent policies out of the immediate implementation path unless the robustness pass exposes a sharply defined intervention target.
+1. **Subject robustness.** Complete. The reduced `subj02`-`subj04` panel shows robust geometry replication and ambiguous encoding replication.
+2. **Uncertainty and sensitivity.** Complete for the DINOv2-vs-ResNet subject-robustness gate. Keep leave-one-subject, leave-one-ROI, Kendall tau, and model-label permutation checks as later diagnostics rather than current claim filters.
+3. **Paper-facing synthesis and observer-control integration.** Complete. The paper pack now exposes the geometry-first dissociation claim and integrates generated observer-control summaries.
+4. **Behavioral controls.** Current next milestone. The task-trained COCO-Search18 baseline is implemented; add or document infeasibility for a modern DeepGaze reference before stronger free-viewing behavioral claims.
+5. **Attribution-family controls.** Add stronger transformer attribution before any attention-specific interpretation, while keeping gradient, Grad-CAM, rollout, perturbation, and relevance-style maps as separate evidence families.
+6. **Cross-axis decision gate.** Use the decision table to identify weak implementation areas, not to assert paper-ready conclusions. Revisit publication framing only after ROI-expanded results, subject robustness, uncertainty, and observer controls materially improve the evidence base.
+7. **Efficiency.** Add FLOPs, latency, token count, retained-patch statistics, and memory footprint for the matched model panel, then regenerate alignment-per-compute summaries. Keep efficiency exploratory unless it produces a clean dissociation or tradeoff.
+8. **Brain-Score or Brain-Score-style external positioning.** Use it as context and sanity checking, not as a substitute for the local fixation/fMRI/geometry cross-level tests.
+9. **Publication split.** Defer publication split decisions until the static-image cross-axis result and controls clarify whether Paper 1 is strong enough. Keep causal adaptive attention, foveation, adaptive token routing, scanpaths, video, or recurrent policies out of the immediate implementation path unless the robustness/control pass exposes a sharply defined intervention target.
 
 ## Code Pointers
 
@@ -688,6 +696,7 @@ Saliency methods:
 - `src/hma/saliency/occlusion.py`
 - `src/hma/saliency/precomputed.py`
 - `src/hma/saliency/postprocess.py`
+- `coco_search18_task_prior` in `src/hma/saliency/baselines.py` is the accepted task-specific COCO-Search18 behavioral-control baseline.
 
 Neural alignment:
 
@@ -710,11 +719,44 @@ Neural alignment:
 Reporting:
 
 - `scripts/create_paper_inspection_pack.py`
+- `scripts/audit_behavioral_controls.py`
 - `scripts/audit_neural_reliability_metadata.py`
 - `scripts/merge_behavioral_aggregates.py`
 - `scripts/merge_efficiency_profiles.py`
 
 ## Verification Baseline
+
+For the latest behavioral-control audit and COCO-Search18 task-prior baseline implementation, focused tests passed:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_saliency_extraction.py tests\test_saliency_benchmark.py tests\test_audit_behavioral_controls.py tests\test_fixation_parsers_and_observer_controls.py tests\test_merge_behavioral_aggregates.py tests\test_paper_inspection_pack.py
+```
+
+Last known result for this session: `49 passed` with existing non-blocking PyTorch Grad-CAM hook warnings.
+
+For the latest paper-pack geometry-first framing and observer-control integration, focused tests passed:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_paper_inspection_pack.py tests\test_paper1_v1_subject_robustness.py tests\test_fixation_parsers_and_observer_controls.py
+```
+
+Last known result for this session: `31 passed`.
+
+Failure-gate reporting verification also passed:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_paper1_v1_geometry_and_summary.py
+```
+
+Last known result for this session: `5 passed`.
+
+For the latest subject-robustness uncertainty implementation, focused tests passed:
+
+```cmd
+.\.venv\Scripts\python.exe -m pytest tests\test_paper1_v1_subject_robustness.py tests\test_paper1_v1_geometry_and_summary.py
+```
+
+Last known result for this session: `13 passed`.
 
 For the latest subject-robustness scaffold implementation, focused tests passed:
 
@@ -727,10 +769,10 @@ Last known subject-robustness scaffold result: `35 passed`.
 For future neural/reporting implementation changes, use this focused verification command:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper1_experiment_spec.py tests\test_paper1_v1_geometry_and_summary.py
+.\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper1_experiment_spec.py tests\test_paper1_v1_geometry_and_summary.py tests\test_paper1_v1_subject_robustness.py
 ```
 
-Last known focused result: `79 passed` with `--basetemp=C:\Users\pigby\AppData\Local\Temp\saliency_pytest_broad_impl`.
+Last known focused result: `87 passed`.
 
 For broader confidence after neural/reporting changes, run:
 

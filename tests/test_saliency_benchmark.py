@@ -299,6 +299,83 @@ def test_precomputed_map_saliency_runs_without_model(tmp_path, monkeypatch):
     assert aggregate["metrics"]["cc"] > 0.99
 
 
+def test_coco_search18_task_prior_runs_without_model(tmp_path, monkeypatch):
+    prior_manifest = tmp_path / "coco_prior.csv"
+    with prior_manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "split",
+                "width",
+                "height",
+                "target_category",
+                "task",
+                "fixation_points",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "split": "train",
+                "width": "8",
+                "height": "8",
+                "target_category": "cup",
+                "task": "present",
+                "fixation_points": json.dumps([[4, 4], [5, 4]]),
+            }
+        )
+
+    class TinyDataset:
+        def __iter__(self):
+            fixation_map = np.zeros((8, 8), dtype=np.float32)
+            fixation_map[4, 4] = 1.0
+            yield {
+                "image": Image.fromarray(np.zeros((8, 8, 3), dtype=np.uint8), mode="RGB"),
+                "image_id": "tiny_0",
+                "image_path": "tiny_0.jpg",
+                "fixation_map": fixation_map,
+                "fixation_points": np.asarray([[4, 4]], dtype=np.float32),
+                "metadata": {
+                    "dataset": "coco_search18",
+                    "target_category": "cup",
+                    "task": "present",
+                },
+            }
+
+    def fail_build_model(_config):
+        raise AssertionError("task-prior saliency should not build a model")
+
+    monkeypatch.setattr(benchmark_module, "build_dataset", lambda _config: TinyDataset())
+    monkeypatch.setattr(benchmark_module, "build_model", fail_build_model)
+
+    config_path = tmp_path / "task_prior.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {"name": "coco_search18", "label": "coco_search18_static2000"},
+            "model": {"name": "coco_search18_task_prior_baseline"},
+            "saliency": {
+                "method": "coco_search18_task_prior",
+                "prior_manifest_path": str(prior_manifest),
+                "image_size": [8, 8],
+                "fixation_sigma": 1.0,
+            },
+            "metrics": ["nss", "cc"],
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+
+    aggregate = run_saliency_benchmark(config_path)
+
+    assert aggregate["model"] == "coco_search18_task_prior_baseline"
+    assert aggregate["saliency_method"] == "coco_search18_task_prior"
+    assert aggregate["saliency_family"] == "task_search_baseline"
+    assert aggregate["fixation_protocol"] == "task_points"
+    assert aggregate["metrics"]["nss"] > 0.0
+
+
 def test_saliency_benchmark_supports_context_aware_metrics(tmp_path, monkeypatch):
     def target_saliency(_model, _image, target_map=None, **_kwargs):
         return np.asarray(target_map, dtype=np.float32)

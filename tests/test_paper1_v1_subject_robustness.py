@@ -10,7 +10,10 @@ from scripts.create_paper1_v1_subject_robustness_configs import (
     generate_paper1_v1_subject_robustness_configs,
 )
 from scripts.summarize_paper1_v1_subject_robustness_results import (
+    subject_robustness_encoding_margin_uncertainty_rows,
+    subject_robustness_geometry_margin_summary_rows,
     subject_robustness_decision_rows,
+    subject_robustness_uncertainty_decision_rows,
 )
 
 
@@ -246,6 +249,196 @@ def test_subject_robustness_decisions_use_subject_specific_leaders(
     assert {row["subject_id"] for row in decisions}.issuperset(set(SUBJECTS))
 
 
+def test_encoding_margin_uncertainty_pairs_targets_and_labels_dinov2_support():
+    rows = subject_robustness_encoding_margin_uncertainty_rows(
+        _target_rows(
+            "subj02",
+            "V1",
+            dinov2_scores=[0.50, 0.60, 0.70],
+            resnet_scores=[0.40, 0.45, 0.55],
+        ),
+        subjects=["subj02"],
+        rois=["V1"],
+        bootstrap_resamples=200,
+    )
+
+    by_scope = {(row["subject_id"], row["roi"]): row for row in rows}
+    roi_row = by_scope[("subj02", "V1")]
+    subject_row = by_scope[("subj02", "mean_prf_visualrois")]
+
+    assert roi_row["n_paired_targets"] == "3"
+    assert roi_row["support_label"] == "dinov2_supported"
+    assert roi_row["positive_target_count"] == "3"
+    assert subject_row["support_label"] == "dinov2_supported"
+
+
+def test_encoding_margin_uncertainty_labels_ambiguous_and_resnet_supported():
+    ambiguous = subject_robustness_encoding_margin_uncertainty_rows(
+        _target_rows(
+            "subj04",
+            "V1",
+            dinov2_scores=[0.50, 0.49, 0.51, 0.50],
+            resnet_scores=[0.50, 0.50, 0.50, 0.50],
+        ),
+        subjects=["subj04"],
+        rois=["V1"],
+        bootstrap_resamples=200,
+    )
+    resnet = subject_robustness_encoding_margin_uncertainty_rows(
+        _target_rows(
+            "subj04",
+            "V1",
+            dinov2_scores=[0.40, 0.41, 0.42],
+            resnet_scores=[0.50, 0.51, 0.52],
+        ),
+        subjects=["subj04"],
+        rois=["V1"],
+        bootstrap_resamples=200,
+    )
+
+    assert _scope_row(ambiguous, "subj04", "V1")["support_label"] == "ambiguous"
+    assert _scope_row(resnet, "subj04", "V1")["support_label"] == "resnet50_supported"
+
+
+def test_geometry_margin_summary_tracks_cka_and_subset_rsa_support():
+    rows = subject_robustness_geometry_margin_summary_rows(
+        _geometry_rows("subj02", "V1", "linear_cka_full9841", 0.30, 0.20)
+        + _geometry_rows(
+            "subj02",
+            "V1",
+            "subset_rsa_corr_rdm_spearman_size512_seed123",
+            0.25,
+            0.21,
+        )
+        + _geometry_rows("subj02", "V2", "linear_cka_full9841", 0.28, 0.19)
+        + _geometry_rows(
+            "subj02",
+            "V2",
+            "subset_rsa_corr_rdm_spearman_size512_seed123",
+            0.24,
+            0.20,
+        ),
+        subjects=["subj02"],
+        rois=["V1", "V2"],
+    )
+
+    cka = _geometry_scope_row(
+        rows,
+        "subj02",
+        "mean_prf_visualrois",
+        "linear_cka_full9841",
+    )
+    subset = _geometry_scope_row(
+        rows,
+        "subj02",
+        "mean_prf_visualrois",
+        "subset_rsa_corr_rdm_spearman_size512_seed123",
+    )
+
+    assert cka["support_label"] == "dinov2_supported"
+    assert cka["positive_count"] == "2"
+    assert subset["support_label"] == "dinov2_supported"
+
+
+def test_uncertainty_decisions_preserve_rank_decisions_and_add_claim_labels(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = _make_config(tmp_path)
+    config = load_yaml(config_path)
+    summary_dir = Path("outputs/paper1_experiment_v1/summary")
+    _write_csv(
+        summary_dir / "roi_expanded_encoding_model_rankings.csv",
+        [
+            {"model": "vit_small_patch14_dinov2", "rank_mean_noise_normalized": "1"},
+            {"model": "resnet50", "rank_mean_noise_normalized": "2"},
+        ],
+    )
+    _write_csv(
+        summary_dir / "roi_expanded_geometry_model_rankings.csv",
+        [
+            {
+                "model": "vit_small_patch14_dinov2",
+                "geometry_method": "linear_cka_full9841",
+                "rank_mean_geometry": "1",
+            },
+            {
+                "model": "resnet50",
+                "geometry_method": "linear_cka_full9841",
+                "rank_mean_geometry": "2",
+            },
+        ],
+    )
+    decision_rows = subject_robustness_decision_rows(
+        config=config,
+        encoding_rows=_ranking_rows(
+            "subj02",
+            "vit_small_patch14_dinov2",
+            "rank_mean_noise_normalized",
+        )
+        + _ranking_rows(
+            "subj03",
+            "vit_small_patch14_dinov2",
+            "rank_mean_noise_normalized",
+        )
+        + _ranking_rows("subj04", "resnet50", "rank_mean_noise_normalized"),
+        geometry_rows=_ranking_rows(
+            "subj02",
+            "vit_small_patch14_dinov2",
+            "rank_mean_geometry",
+            geometry_method="linear_cka_full9841",
+        )
+        + _ranking_rows(
+            "subj03",
+            "vit_small_patch14_dinov2",
+            "rank_mean_geometry",
+            geometry_method="linear_cka_full9841",
+        )
+        + _ranking_rows(
+            "subj04",
+            "vit_small_patch14_dinov2",
+            "rank_mean_geometry",
+            geometry_method="linear_cka_full9841",
+        ),
+    )
+    encoding_margin_rows = (
+        _encoding_summary_row("subj02", "dinov2_supported")
+        + _encoding_summary_row("subj03", "dinov2_supported")
+        + _encoding_summary_row("subj04", "resnet50_supported")
+        + _encoding_summary_row("all_confirmatory_subjects", "ambiguous", roi="all_prf_visualrois")
+    )
+    geometry_margin_rows = (
+        _geometry_summary_rows("subj02")
+        + _geometry_summary_rows("subj03")
+        + _geometry_summary_rows("subj04")
+        + _geometry_summary_rows("all_confirmatory_subjects", roi="all_prf_visualrois")
+    )
+
+    rows = subject_robustness_uncertainty_decision_rows(
+        decision_rows=decision_rows,
+        encoding_margin_rows=encoding_margin_rows,
+        geometry_margin_rows=geometry_margin_rows,
+        subjects=SUBJECTS,
+    )
+
+    by_subject = {row["subject_id"]: row for row in rows}
+    assert by_subject["subj02"]["decision_label"] == "replicated"
+    assert by_subject["subj04"]["decision_label"] == "partial"
+    assert (
+        by_subject["subj02"]["uncertainty_decision_label"]
+        == "geometry_replicated_encoding_supported"
+    )
+    assert (
+        by_subject["subj04"]["uncertainty_decision_label"]
+        == "geometry_replicated_encoding_resnet_supported"
+    )
+    assert (
+        by_subject["all_confirmatory_subjects"]["uncertainty_decision_label"]
+        == "geometry_replicated_encoding_ambiguous"
+    )
+
+
 def _ranking_rows(
     subject: str,
     leader: str,
@@ -264,3 +457,120 @@ def _ranking_rows(
             row["geometry_method"] = geometry_method
         rows.append(row)
     return rows
+
+
+def _target_rows(
+    subject: str,
+    roi: str,
+    *,
+    dinov2_scores: list[float],
+    resnet_scores: list[float],
+) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for model, scores in {
+        "vit_small_patch14_dinov2": dinov2_scores,
+        "resnet50": resnet_scores,
+    }.items():
+        for index, score in enumerate(scores):
+            rows.append(
+                {
+                    "model": model,
+                    "subject_id": subject,
+                    "roi": roi,
+                    "target_index": str(index),
+                    "pearson_r": str(score),
+                    "valid_prediction_variance": "true",
+                    "valid_target_variance": "true",
+                }
+            )
+    return rows
+
+
+def _geometry_rows(
+    subject: str,
+    roi: str,
+    method: str,
+    dinov2_score: float,
+    resnet_score: float,
+) -> list[dict[str, str]]:
+    return [
+        {
+            "model": "vit_small_patch14_dinov2",
+            "subject_id": subject,
+            "roi": roi,
+            "geometry_method": method,
+            "score": str(dinov2_score),
+            "valid": "true",
+            "status": "ok",
+        },
+        {
+            "model": "resnet50",
+            "subject_id": subject,
+            "roi": roi,
+            "geometry_method": method,
+            "score": str(resnet_score),
+            "valid": "true",
+            "status": "ok",
+        },
+    ]
+
+
+def _scope_row(rows: list[dict[str, str]], subject: str, roi: str) -> dict[str, str]:
+    return next(row for row in rows if row["subject_id"] == subject and row["roi"] == roi)
+
+
+def _geometry_scope_row(
+    rows: list[dict[str, str]],
+    subject: str,
+    roi: str,
+    method: str,
+) -> dict[str, str]:
+    return next(
+        row
+        for row in rows
+        if row["subject_id"] == subject
+        and row["roi"] == roi
+        and row["geometry_method"] == method
+    )
+
+
+def _encoding_summary_row(
+    subject: str,
+    label: str,
+    *,
+    roi: str = "mean_prf_visualrois",
+) -> list[dict[str, str]]:
+    return [
+        {
+            "subject_id": subject,
+            "roi": roi,
+            "support_label": label,
+            "mean_margin": "0.1",
+            "ci95_low": "-0.01" if label == "ambiguous" else "0.05",
+            "ci95_high": "0.2",
+            "n_paired_targets": "10",
+        }
+    ]
+
+
+def _geometry_summary_rows(
+    subject: str,
+    *,
+    roi: str = "mean_prf_visualrois",
+) -> list[dict[str, str]]:
+    return [
+        {
+            "subject_id": subject,
+            "roi": roi,
+            "geometry_method": "linear_cka_full9841",
+            "support_label": "dinov2_supported",
+            "mean_margin": "0.1",
+        },
+        {
+            "subject_id": subject,
+            "roi": roi,
+            "geometry_method": "subset_rsa_corr_rdm_spearman_size512_seed123",
+            "support_label": "dinov2_supported",
+            "mean_margin": "0.08",
+        },
+    ]
