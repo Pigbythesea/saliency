@@ -159,7 +159,12 @@ def build_behavioral_control_gap_audit(
             required_control="SALICON leave-one-observer-out control",
             observer_summary_artifact=observer_summary_artifact,
         ),
-        _modern_free_viewing_reference_row(feasibility, feasibility_artifact=feasibility_artifact),
+        _modern_free_viewing_reference_row(
+            behavior,
+            feasibility,
+            behavioral_artifact=behavioral_artifact,
+            feasibility_artifact=feasibility_artifact,
+        ),
         _behavior_control_row(
             behavior,
             viewing_regime="task_search",
@@ -226,10 +231,39 @@ def build_behavioral_control_gap_audit(
 
 
 def _modern_free_viewing_reference_row(
+    behavior_rows: list[dict[str, str]],
     feasibility_rows: list[dict[str, str]],
     *,
+    behavioral_artifact: str,
     feasibility_artifact: str,
 ) -> dict[str, str]:
+    matches = [
+        row
+        for row in _rows_for_regime(behavior_rows, "free_viewing")
+        if row.get("model") == "deepgaze_msdb_reference"
+        and row.get("saliency_method") == "deepgaze_precomputed"
+    ]
+    msdb_datasets = sorted({_dataset_label(row.get("dataset", "")) for row in matches})
+    msdb_metrics = sorted({row.get("metric", "") for row in matches if row.get("metric")})
+    if {"SALICON", "CAT2000"} <= set(msdb_datasets) and "nss" in msdb_metrics:
+        return {
+            "claim_axis": "behavioral_fixation_alignment",
+            "viewing_regime": "free_viewing",
+            "dataset_scope": "SALICON/CAT2000",
+            "required_control": "modern free-viewing fixation reference",
+            "current_artifact": behavioral_artifact,
+            "status": "accepted",
+            "evidence_role": "stronger DeepGaze-class reviewer control",
+            "next_action": (
+                "use DeepGaze MSDB as the accepted modern free-viewing reference "
+                "while preserving DeepGaze IIE as historical/reference context"
+            ),
+            "detail": (
+                f"DeepGaze MSDB rows: {len(matches)} summary rows across "
+                f"datasets={','.join(msdb_datasets)} metrics={','.join(msdb_metrics)}"
+            ),
+        }
+
     base = {
         "claim_axis": "behavioral_fixation_alignment",
         "viewing_regime": "free_viewing",

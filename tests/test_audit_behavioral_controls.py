@@ -144,6 +144,30 @@ def test_feasible_msdb_decision_requires_export_and_preserves_task_diagnostic():
     assert task_deepgaze["status"] == "diagnostic"
 
 
+def test_scored_msdb_rows_accept_modern_free_viewing_reference():
+    rows = build_behavioral_control_gap_audit(
+        [
+            *_behavior_rows(),
+            *_msdb_reference_rows(),
+        ],
+        _observer_rows(),
+        [_msdb_feasibility_row("feasible_now")],
+        behavioral_artifact="behavior.csv",
+        observer_summary_artifact="observers.csv",
+        feasibility_artifact="feasibility.csv",
+    )
+
+    modern = next(
+        row for row in rows if row["required_control"] == "modern free-viewing fixation reference"
+    )
+
+    assert modern["status"] == "accepted"
+    assert modern["current_artifact"] == "behavior.csv"
+    assert "DeepGaze MSDB rows" in modern["detail"]
+    assert "SALICON" in modern["detail"]
+    assert "CAT2000" in modern["detail"]
+
+
 def test_deferred_msdb_decision_documents_limitation():
     rows = build_behavioral_control_gap_audit(
         _behavior_rows(),
@@ -226,6 +250,25 @@ def _task_specific_baseline_rows():
         }
         for metric in ["nss", "auc_judd", "auc_borji", "shuffled_auc", "cc", "similarity", "kl"]
     ]
+
+
+def _msdb_reference_rows():
+    rows = []
+    for dataset in ["salicon_static2000", "cat2000_static2000"]:
+        for metric in ["nss", "auc_judd", "auc_borji", "shuffled_auc", "cc", "similarity", "kl"]:
+            rows.append(
+                {
+                    "dataset": dataset,
+                    "model": "deepgaze_msdb_reference",
+                    "saliency_method": "deepgaze_precomputed",
+                    "saliency_family": "reference",
+                    "metric": metric,
+                    "n": "2000",
+                    "mean": "1.0",
+                    "fixation_protocol": "points",
+                }
+            )
+    return rows
 
 
 def _observer_rows():
