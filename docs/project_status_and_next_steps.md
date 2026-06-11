@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-06-10
+Updated: 2026-06-11
 
 ## Purpose And Codex Operating Contract
 
@@ -107,6 +107,7 @@ Robustness/control artifacts:
 - V1 subject-robustness uncertainty outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_encoding_margin_uncertainty.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_margin_summary.csv`, and `outputs/paper1_experiment_v1/summary/subject_robustness_uncertainty_decisions.csv`.
 - V1 paper-facing synthesis outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_paper_interpretation.csv` and `outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv`.
 - Behavioral-control hardening outputs: `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`, `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`, and `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`.
+- Free-viewing reference feasibility output: `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv`.
 - Observer-control outputs: `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`, `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`.
 
 Diagnostics/provenance:
@@ -491,21 +492,23 @@ Current implementation state:
 
 Latest session report:
 
-1. `Scientific change`: the missing COCO-Search18 task-search control is now implemented as a target/task-conditioned train-split fixation prior and scored on the static2000 validation subset. The baseline achieves NSS `2.199`, AUC-Judd `0.838`, shuffled-AUC `0.674`, CC `0.448`, SIM `0.338`, and KL `1.538` on `2000` task-point rows, and the behavioral-control audit now marks the task-specific COCO-Search18 baseline as `accepted` while keeping DeepGaze IIE on COCO-Search18 as `diagnostic`.
-2. `Accepted artifact`: `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`, `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`, `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`, and `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`.
-3. `Claim impact`: strengthens task-search claim hygiene by adding a regime-appropriate COCO-Search18 control. It does not by itself prove model-human task-search agreement, but it gives future COCO-Search18 model rows a stronger search-specific baseline than free-viewing DeepGaze IIE or center bias.
-4. `Reviewer risk reduced`: addresses the objection that COCO-Search18 interpretations relied on free-viewing DeepGaze IIE or generic center bias rather than a task/category-aware search control.
-5. `Next decisive step`: document or implement the remaining modern free-viewing fixation reference decision, preferably DeepGaze MSDB or a comparable reference if feasible without turning the project into a generic saliency leaderboard.
+1. `Scientific change`: the modern free-viewing fixation-reference gap is now a concrete feasibility decision instead of an ambiguous TODO. DeepGaze MSDB is marked `feasible_now` for SALICON/CAT2000 because local `deepgaze_pytorch` exposes `DeepGazeMSDB`, the exporter supports `--model deepgaze_msdb`, scoped reference-config generation is available, and the static2000 free-viewing manifests are present. This is not yet a new behavioral-control result because MSDB maps have not been exported or scored.
+2. `Accepted artifact`: `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv` and refreshed `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`. The exporter now reports a clearer MSDB dependency-cache error if DINOv2 torch-hub setup fails.
+3. `Claim impact`: strengthens behavioral-control planning and reviewer-facing claim hygiene. It does not change model ranking evidence yet; it enables a focused SALICON/CAT2000 DeepGaze MSDB control run before stronger free-viewing behavioral claims.
+4. `Reviewer risk reduced`: addresses the objection that the project had identified DeepGaze MSDB as a needed modern free-viewing reference without deciding whether the current repository could actually run it.
+5. `Next decisive step`: run the SALICON/CAT2000-only DeepGaze MSDB smoke export, then full export, scoring, and separate aggregation using the `cmd` runbook below. Do not add COCO-Search18 MSDB rows, neural reruns, attribution methods, efficiency, or generic new models before this focused behavioral-control run is completed or explicitly deferred.
+
+Current MSDB smoke-run status: the first SALICON smoke export downloaded the main MSDB weights, then failed while `torch.hub` tried to download the DINOv2 source zip from `facebookresearch/dinov2:6a62615` with `ssl.SSLEOFError`. After cache priming, MSDB initialization reached prediction and exposed an implementation requirement: `DeepGazeMSDB.forward()` requires `pixel_per_dva`. The exporter now passes `--pixel-per-dva` with default `21.7` and averaged MSDB dataset parameters by default. A one-image SALICON MSDB export succeeded, so the next user-run step is the five-image smoke command followed by full SALICON/CAT2000 export.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
 ## Next Concrete Milestone
 
-Priority: **Modern Free-Viewing Reference Feasibility After Task-Search Baseline**.
+Priority: **DeepGaze MSDB Free-Viewing Control Export And Scoring**.
 
 The paper-pack geometry-first framing milestone is complete. Do not rerun `subj01` encoding, confirmatory subject encoding, confirmatory geometry, or observer-control generation unless an audit regresses or a concrete data-integrity blocker is discovered.
 
-The next decisive task is to finish behavioral-control hardening without expanding the generic model zoo: decide whether the next strongest free-viewing fixation reference is feasible, while using the implemented task-specific COCO-Search18 baseline before interpreting task-search alignment as model-human agreement.
+The next decisive task is to convert the documented feasibility decision into a scored free-viewing control, without expanding the generic model zoo: export DeepGaze MSDB maps for SALICON/CAT2000 only, score them through the existing precomputed-map benchmark path, and aggregate the rows separately before deciding whether to merge them into the accepted behavioral summary.
 
 ### Required outcome
 
@@ -516,29 +519,64 @@ By the end of the next milestone, the project should have a reviewer-facing beha
 - Done: paper inspection tables `outputs/paper_inspection_v1/tables/table14_subject_robustness_interpretation.csv` and `outputs/paper_inspection_v1/tables/table15_observer_control_summary.csv`.
 - Done: a behavioral-control gap audit at `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`.
 - Done: a task-specific COCO-Search18 baseline, kept separate from SALICON/CAT2000 free-viewing claims, at `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`.
-- New next target: a feasibility decision table for adding DeepGaze MSDB or another modern free-viewing fixation reference without turning the project into a saliency leaderboard, expected at `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv`.
+- Done: a feasibility decision table for adding DeepGaze MSDB or another modern free-viewing fixation reference without turning the project into a saliency leaderboard at `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv`.
+- Done: SALICON/CAT2000-only DeepGaze MSDB precomputed-map configs under `configs/experiments/real_matrix_v2_references_msdb/`.
+- New next target: SALICON/CAT2000-only DeepGaze MSDB map export, benchmark scoring, and separate aggregation under `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv`.
 
 ### Completed behavioral-control implementation work
 
 The behavioral-control audit script is implemented at `scripts/audit_behavioral_controls.py` and writes `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`. The COCO-Search18 task-specific baseline is implemented as `coco_search18_task_prior` and configured at `configs/experiments/real_matrix_v2/coco_search18_static2000__coco_search18_task_prior_baseline_coco_search18_task_prior.yaml`.
 
-The audit separates accepted controls, diagnostic controls, missing controls, and controls requiring a feasibility decision:
+The audit separates accepted controls, diagnostic controls, missing controls, and controls requiring export/evaluation:
 
 - Accepted: DeepGaze IIE and center bias for SALICON/CAT2000 free-viewing, center bias for COCO-Search18 task search, SALICON observer controls, COCO-Search18 observer controls, the task-specific COCO-Search18 target/task-conditioned prior, and the metric-boundary separation between point-fixation metrics and map-distribution metrics.
 - Diagnostic: COCO-Search18 DeepGaze IIE, because it is a free-viewing reference used on task-search data rather than a task-specific search baseline.
-- Needs feasibility decision: DeepGaze MSDB or another comparable modern free-viewing fixation reference.
+- Needs export and evaluation: DeepGaze MSDB for SALICON/CAT2000. The feasibility table marks it `feasible_now`, but it is not accepted evidence until maps are exported and scored.
 
 ### Next Codex session implementation plan
 
-Implement or document the modern free-viewing fixation-reference decision, not neural reruns:
+Run the feasible DeepGaze MSDB free-viewing control, not neural reruns:
 
-1. Add a small feasibility-report script, for example `scripts/audit_free_viewing_reference_feasibility.py`.
-2. Inspect local repo support only: `pyproject.toml`, `scripts/export_deepgaze_maps.py`, `scripts/create_deepgaze_reference_configs.py`, existing `data/precomputed/deepgaze/` contents, and accepted SALICON/CAT2000 manifests.
-3. Write `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv` with columns `candidate_reference`, `viewing_regime`, `dataset_scope`, `local_support`, `requires_download`, `requires_new_dependency`, `estimated_run_scope`, `decision`, `next_action`, and `detail`.
-4. Required rows: `DeepGaze MSDB`, `DeepGaze IIE current reference`, and `comparable modern free-viewing reference`.
-5. If DeepGaze MSDB is feasible with current local dependencies/data, create only SALICON/CAT2000 free-viewing configs and user-run `cmd` commands for export/evaluation; do not run large exports in the same session unless explicitly requested.
-6. If infeasible without large downloads or dependency churn, mark the decision `defer_or_document_limitation`, keep DeepGaze IIE as the accepted DeepGaze-class reference, and update `behavioral_control_gap_audit.csv` detail/status accordingly.
-7. Do not add generic new models, attribution methods, efficiency runs, or neural reruns before this free-viewing control decision is documented.
+1. Start with a smoke export on SALICON only to confirm MSDB weights/cache/device behavior.
+2. If smoke export succeeds, export full SALICON and CAT2000 static2000 MSDB maps under `data/precomputed/deepgaze_msdb/`.
+3. Use the existing SALICON/CAT2000-only reference configs under `configs/experiments/real_matrix_v2_references_msdb/`.
+4. Run the two precomputed-map saliency benchmarks and aggregate them separately under `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv`.
+5. Refresh `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv` and decide whether the MSDB rows should be merged into the accepted behavioral aggregate.
+6. Do not add COCO-Search18 MSDB rows, generic new models, attribution methods, efficiency runs, or neural reruns before this free-viewing control is completed or explicitly deferred.
+
+DeepGaze MSDB runbook:
+
+If the smoke export fails while downloading DINOv2 from GitHub, first retry just the DINOv2 torch-hub cache step:
+
+```cmd
+.\.venv\Scripts\python.exe -c "import torch; torch.hub.load('facebookresearch/dinov2:6a62615', 'dinov2_vitb14', skip_validation=True)"
+```
+
+Then rerun the smoke export:
+
+```cmd
+.\.venv\Scripts\python.exe scripts\export_deepgaze_maps.py --model deepgaze_msdb --manifest data\manifests\v2\salicon_static2000_manifest.csv --image-root data\raw\SALICON --output-dir data\precomputed\deepgaze_msdb\salicon_static2000 --filename-template "{image_id}.npy" --max-items 5 --device auto --pixel-per-dva 21.7 --msdb-dataset averaged
+```
+
+```cmd
+.\.venv\Scripts\python.exe scripts\export_deepgaze_maps.py --model deepgaze_msdb --manifest data\manifests\v2\salicon_static2000_manifest.csv --image-root data\raw\SALICON --output-dir data\precomputed\deepgaze_msdb\salicon_static2000 --filename-template "{image_id}.npy" --device auto --pixel-per-dva 21.7 --msdb-dataset averaged
+```
+
+```cmd
+.\.venv\Scripts\python.exe scripts\export_deepgaze_maps.py --model deepgaze_msdb --manifest data\manifests\v2\cat2000_static2000_manifest.csv --image-root data\raw\CAT2000 --output-dir data\precomputed\deepgaze_msdb\cat2000_static2000 --filename-template "{map_key}.npy" --device auto --pixel-per-dva 21.7 --msdb-dataset averaged
+```
+
+```cmd
+.\.venv\Scripts\python.exe scripts\create_deepgaze_reference_configs.py --config-dir configs\experiments\real_matrix_v2_references_msdb --precomputed-root data\precomputed\deepgaze_msdb --reference-name deepgaze_msdb_reference --reference-label deepgaze_msdb_precomputed --datasets salicon_static2000 cat2000_static2000
+```
+
+```cmd
+for %F in (configs\experiments\real_matrix_v2_references_msdb\*.yaml) do .\.venv\Scripts\python.exe scripts\run_saliency_benchmark.py --config "%F"
+```
+
+```cmd
+.\.venv\Scripts\python.exe scripts\aggregate_results.py outputs\real_matrix_v2\salicon_static2000\deepgaze_msdb_reference_deepgaze_msdb_precomputed outputs\real_matrix_v2\cat2000_static2000\deepgaze_msdb_reference_deepgaze_msdb_precomputed --output outputs\real_matrix_v2_msdb_reference\aggregated\results.csv --no-plots
+```
 
 ### Subject-robustness runbook
 
@@ -582,7 +620,7 @@ Subject-robustness summary and uncertainty regeneration command, retained for re
 
 - Keep `configs/paper1_config.yaml` unchanged as the diagnostic PRF-only result scope.
 - Keep V1 fLOC category ROIs out of scope unless `docs/paper1_experiment_spec_v1.md` is explicitly revised.
-- Do not add generic new models, efficiency, or stronger attribution before the modern free-viewing reference feasibility decision is documented.
+- Do not add generic new models, efficiency, or stronger attribution before the DeepGaze MSDB free-viewing export/evaluation is completed or explicitly deferred.
 - Use cmd-form commands in any docs or handoff text.
 
 ### Acceptance criteria
@@ -590,18 +628,25 @@ Subject-robustness summary and uncertainty regeneration command, retained for re
 The behavioral-control audit and task-search baseline milestone is complete because:
 
 - A behavioral-control gap audit exists under `outputs/paper1_experiment_v1/summary/` and separates `free_viewing` from `task_search`.
-- The audit marks current DeepGaze IIE, center bias, and observer-control summaries as `accepted`, `diagnostic`, `missing`, or `needs_feasibility_decision`.
-- The audit identifies DeepGaze MSDB or another modern free-viewing fixation reference as a feasibility gap, not an implemented control.
+- The audit marks current DeepGaze IIE, center bias, and observer-control summaries as `accepted`, `diagnostic`, `missing`, or `needs_export_and_evaluation`.
+- The audit identifies DeepGaze MSDB as feasible but not yet an implemented/scored control.
 - The audit identifies the task-specific COCO-Search18 baseline as accepted and keeps COCO-Search18 DeepGaze IIE diagnostic.
 - No SALICON/CAT2000 free-viewing row is pooled with COCO-Search18 task-search rows in a single behavioral headline.
 - Any long-running commands are split into copy-pastable `cmd` batches for the user.
 
-The next free-viewing-reference milestone is complete only if:
+The free-viewing-reference feasibility milestone is complete because:
 
 - `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv` exists with rows for DeepGaze MSDB, current DeepGaze IIE, and a comparable modern free-viewing reference option.
 - The decision table explicitly marks whether each candidate is `feasible_now`, `requires_download_or_dependency`, or `defer_or_document_limitation`.
-- If feasible, SALICON/CAT2000-only configs and `cmd` runbook commands are documented without pooling with COCO-Search18.
-- If infeasible, the limitation is reflected in the behavioral-control audit/status text rather than left as an ambiguous TODO.
+- DeepGaze MSDB is marked `feasible_now`; the current DeepGaze IIE reference is marked `feasible_now`; unnamed comparable references are marked `defer_or_document_limitation`.
+- The behavioral-control audit marks the modern free-viewing reference row as `needs_export_and_evaluation`, not accepted evidence.
+
+The next MSDB export/evaluation milestone is complete only if:
+
+- SALICON and CAT2000 MSDB maps exist under `data/precomputed/deepgaze_msdb/`.
+- SALICON/CAT2000-only configs continue to exist under `configs/experiments/real_matrix_v2_references_msdb/`.
+- `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv` exists and contains only SALICON/CAT2000 free-viewing rows for `deepgaze_msdb_reference`.
+- The behavioral-control audit is refreshed after scoring and either accepts the MSDB result or documents a concrete export/evaluation blocker.
 
 ## Data/control readiness update:
 
@@ -624,7 +669,7 @@ The next free-viewing-reference milestone is complete only if:
 
 Current post-spec implementation priorities:
 
-The V1 spec and config now define the falsifiable paper-grade matrix, the ROI-expanded encoding, geometry, and geometry-method sensitivity axes are complete for `subj01`, the reduced subject-robustness panel is complete with an uncertainty-aware aggregate decision of `geometry_replicated_encoding_ambiguous`, and the paper pack now includes geometry-first dissociation framing plus observer-control and task-search baseline context. The immediate work is the remaining modern free-viewing reference feasibility decision before broader model or attribution expansion.
+The V1 spec and config now define the falsifiable paper-grade matrix, the ROI-expanded encoding, geometry, and geometry-method sensitivity axes are complete for `subj01`, the reduced subject-robustness panel is complete with an uncertainty-aware aggregate decision of `geometry_replicated_encoding_ambiguous`, and the paper pack now includes geometry-first dissociation framing plus observer-control and task-search baseline context. The immediate work is the SALICON/CAT2000 DeepGaze MSDB export/evaluation before broader model or attribution expansion.
 
 - Use the completed additional subjects as a robustness follow-up:
   - interpret the reduced confirmatory panel: all three confirmatory subjects have local encoding and geometry, with an aggregate uncertainty decision of `geometry_replicated_encoding_ambiguous`;
@@ -633,7 +678,7 @@ The V1 spec and config now define the falsifiable paper-grade matrix, the ROI-ex
 - Harden behavioral controls before broader behavioral expansion:
   - use the generated SALICON and COCO-Search18 observer-control summaries as accepted reviewer-facing context;
   - treat the next behavioral control as targeted claim hardening, not as a broad saliency leaderboard expansion;
-  - decide whether DeepGaze MSDB or another modern fixation reference is feasible;
+  - run or explicitly defer the feasible SALICON/CAT2000 DeepGaze MSDB reference;
   - use the implemented task-specific COCO-Search18 baseline before interpreting task-search alignment.
 - Improve transformer attribution coverage:
   - add one stronger transformer relevance method, preferably Chefer-style transformer attribution or AttnLRP-style relevance propagation;

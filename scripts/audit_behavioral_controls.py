@@ -19,6 +19,9 @@ DEFAULT_OBSERVER_CONTROL_SUMMARY = (
 DEFAULT_OUTPUT = (
     "outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv"
 )
+DEFAULT_FREE_VIEWING_REFERENCE_FEASIBILITY = (
+    "outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv"
+)
 
 FIELDNAMES = [
     "claim_axis",
@@ -57,6 +60,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_OUTPUT,
         help="Output behavioral-control gap audit CSV.",
     )
+    parser.add_argument(
+        "--free-viewing-reference-feasibility",
+        default=DEFAULT_FREE_VIEWING_REFERENCE_FEASIBILITY,
+        help="Optional modern free-viewing reference feasibility decision CSV.",
+    )
     return parser
 
 
@@ -65,6 +73,7 @@ def main() -> None:
     rows = audit_behavioral_controls(
         behavioral_aggregate=args.behavioral_aggregate,
         observer_control_summary=args.observer_control_summary,
+        free_viewing_reference_feasibility=args.free_viewing_reference_feasibility,
         output=args.output,
     )
     print(f"Behavioral-control gap audit: {Path(args.output).resolve()} ({len(rows)} rows)")
@@ -74,19 +83,24 @@ def audit_behavioral_controls(
     *,
     behavioral_aggregate: str | Path = DEFAULT_BEHAVIORAL_AGGREGATE,
     observer_control_summary: str | Path = DEFAULT_OBSERVER_CONTROL_SUMMARY,
+    free_viewing_reference_feasibility: str | Path = DEFAULT_FREE_VIEWING_REFERENCE_FEASIBILITY,
     output: str | Path | None = DEFAULT_OUTPUT,
 ) -> list[dict[str, str]]:
     """Return and optionally write the behavioral-control gap audit rows."""
     behavioral_path = Path(behavioral_aggregate)
     observer_path = Path(observer_control_summary)
+    feasibility_path = Path(free_viewing_reference_feasibility)
     behavioral_rows = _load_optional_csv_rows(behavioral_path)
     observer_rows = _load_optional_csv_rows(observer_path)
+    feasibility_rows = _load_optional_csv_rows(feasibility_path)
 
     rows = build_behavioral_control_gap_audit(
         behavioral_rows,
         observer_rows,
+        feasibility_rows,
         behavioral_artifact=str(behavioral_path),
         observer_summary_artifact=str(observer_path),
+        feasibility_artifact=str(feasibility_path),
     )
     if output is not None:
         _write_rows(Path(output), rows)
@@ -96,13 +110,16 @@ def audit_behavioral_controls(
 def build_behavioral_control_gap_audit(
     behavioral_rows: Iterable[dict[str, str]],
     observer_rows: Iterable[dict[str, str]],
+    feasibility_rows: Iterable[dict[str, str]] | None = None,
     *,
     behavioral_artifact: str,
     observer_summary_artifact: str,
+    feasibility_artifact: str = "",
 ) -> list[dict[str, str]]:
     """Build deterministic audit rows from already-generated summaries."""
     behavior = list(behavioral_rows)
     observers = list(observer_rows)
+    feasibility = list(feasibility_rows or [])
     return [
         _behavior_control_row(
             behavior,
@@ -142,23 +159,7 @@ def build_behavioral_control_gap_audit(
             required_control="SALICON leave-one-observer-out control",
             observer_summary_artifact=observer_summary_artifact,
         ),
-        {
-            "claim_axis": "behavioral_fixation_alignment",
-            "viewing_regime": "free_viewing",
-            "dataset_scope": "SALICON/CAT2000",
-            "required_control": "modern free-viewing fixation reference",
-            "current_artifact": "",
-            "status": "needs_feasibility_decision",
-            "evidence_role": "stronger DeepGaze-class reviewer control",
-            "next_action": (
-                "decide whether DeepGaze MSDB or a comparable modern reference can be "
-                "added without expanding into a generic saliency leaderboard"
-            ),
-            "detail": (
-                "DeepGaze IIE is present as the current reference; no concrete DeepGaze "
-                "MSDB implementation/output path is present in the current accepted outputs"
-            ),
-        },
+        _modern_free_viewing_reference_row(feasibility, feasibility_artifact=feasibility_artifact),
         _behavior_control_row(
             behavior,
             viewing_regime="task_search",
@@ -222,6 +223,75 @@ def build_behavioral_control_gap_audit(
         ),
         _metric_boundary_row(behavior, behavioral_artifact=behavioral_artifact),
     ]
+
+
+def _modern_free_viewing_reference_row(
+    feasibility_rows: list[dict[str, str]],
+    *,
+    feasibility_artifact: str,
+) -> dict[str, str]:
+    base = {
+        "claim_axis": "behavioral_fixation_alignment",
+        "viewing_regime": "free_viewing",
+        "dataset_scope": "SALICON/CAT2000",
+        "required_control": "modern free-viewing fixation reference",
+        "current_artifact": feasibility_artifact if feasibility_rows else "",
+        "evidence_role": "stronger DeepGaze-class reviewer control",
+    }
+    msdb = next(
+        (
+            row
+            for row in feasibility_rows
+            if row.get("candidate_reference") == "DeepGaze MSDB"
+        ),
+        None,
+    )
+    if msdb is None:
+        return {
+            **base,
+            "status": "needs_feasibility_decision",
+            "next_action": (
+                "decide whether DeepGaze MSDB or a comparable modern reference can be "
+                "added without expanding into a generic saliency leaderboard"
+            ),
+            "detail": (
+                "DeepGaze IIE is present as the current reference; no concrete DeepGaze "
+                "MSDB feasibility decision is present in the current accepted outputs"
+            ),
+        }
+    decision = msdb.get("decision", "")
+    if decision == "feasible_now":
+        return {
+            **base,
+            "status": "needs_export_and_evaluation",
+            "next_action": (
+                "run SALICON/CAT2000-only DeepGaze MSDB smoke export, full export, "
+                "benchmark scoring, and separate aggregation before treating it as evidence"
+            ),
+            "detail": (
+                "DeepGaze MSDB feasibility decision is feasible_now; this is not an "
+                "accepted behavioral result until maps are exported and scored. "
+                f"Feasibility detail: {msdb.get('detail', '')}"
+            ),
+        }
+    if decision == "defer_or_document_limitation":
+        return {
+            **base,
+            "status": "defer_or_document_limitation",
+            "next_action": (
+                "keep DeepGaze IIE as the accepted DeepGaze-class free-viewing reference "
+                "and document the modern-reference limitation"
+            ),
+            "detail": msdb.get("detail", "DeepGaze MSDB feasibility was deferred."),
+        }
+    return {
+        **base,
+        "status": "requires_download_or_dependency",
+        "next_action": (
+            "resolve the required download/dependency before adding a modern free-viewing reference"
+        ),
+        "detail": msdb.get("detail", "DeepGaze MSDB requires additional setup."),
+    }
 
 
 def _behavior_control_row(

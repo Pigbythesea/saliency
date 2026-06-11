@@ -17,6 +17,7 @@ def test_behavioral_control_gap_audit_schema_order_and_statuses(tmp_path):
     rows = audit_behavioral_controls(
         behavioral_aggregate=behavior,
         observer_control_summary=observers,
+        free_viewing_reference_feasibility=tmp_path / "missing_feasibility.csv",
         output=output,
     )
     written = _read_csv(output)
@@ -48,6 +49,7 @@ def test_missing_observer_summary_marks_observer_controls_missing(tmp_path):
     rows = audit_behavioral_controls(
         behavioral_aggregate=behavior,
         observer_control_summary=tmp_path / "missing_observers.csv",
+        free_viewing_reference_feasibility=tmp_path / "missing_feasibility.csv",
         output=None,
     )
 
@@ -117,6 +119,47 @@ def test_task_specific_baseline_is_accepted_when_aggregate_rows_exist():
     assert baseline["viewing_regime"] == "task_search"
     assert baseline["dataset_scope"] == "COCO-Search18"
     assert "task-conditioned COCO-Search18 prior rows" in baseline["detail"]
+
+
+def test_feasible_msdb_decision_requires_export_and_preserves_task_diagnostic():
+    rows = build_behavioral_control_gap_audit(
+        _behavior_rows(),
+        _observer_rows(),
+        [_msdb_feasibility_row("feasible_now")],
+        behavioral_artifact="behavior.csv",
+        observer_summary_artifact="observers.csv",
+        feasibility_artifact="feasibility.csv",
+    )
+
+    modern = next(
+        row for row in rows if row["required_control"] == "modern free-viewing fixation reference"
+    )
+    task_deepgaze = next(
+        row for row in rows if row["required_control"] == "DeepGaze IIE task-search diagnostic reference"
+    )
+
+    assert modern["status"] == "needs_export_and_evaluation"
+    assert modern["current_artifact"] == "feasibility.csv"
+    assert "not an accepted behavioral result" in modern["detail"]
+    assert task_deepgaze["status"] == "diagnostic"
+
+
+def test_deferred_msdb_decision_documents_limitation():
+    rows = build_behavioral_control_gap_audit(
+        _behavior_rows(),
+        _observer_rows(),
+        [_msdb_feasibility_row("defer_or_document_limitation")],
+        behavioral_artifact="behavior.csv",
+        observer_summary_artifact="observers.csv",
+        feasibility_artifact="feasibility.csv",
+    )
+
+    modern = next(
+        row for row in rows if row["required_control"] == "modern free-viewing fixation reference"
+    )
+
+    assert modern["status"] == "defer_or_document_limitation"
+    assert "accepted DeepGaze-class free-viewing reference" in modern["next_action"]
 
 
 def _write_behavior_rows(path):
@@ -222,3 +265,18 @@ def _observer_rows():
             "interpretation": "human/interobserver context",
         },
     ]
+
+
+def _msdb_feasibility_row(decision):
+    return {
+        "candidate_reference": "DeepGaze MSDB",
+        "viewing_regime": "free_viewing",
+        "dataset_scope": "SALICON/CAT2000",
+        "local_support": "DeepGazeMSDB class available=yes",
+        "requires_download": "yes",
+        "requires_new_dependency": "no",
+        "estimated_run_scope": "4000 free-viewing images",
+        "decision": decision,
+        "next_action": "test action",
+        "detail": "test detail",
+    }

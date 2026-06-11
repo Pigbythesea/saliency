@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import time
+import urllib.error
 from pathlib import Path
 from typing import Any
 
@@ -19,11 +20,35 @@ DEFAULT_CENTERBIAS = "data/precomputed/deepgaze/centerbias_mit1003.npy"
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Export DeepGaze IIE maps as .npy files.")
+    parser.add_argument(
+        "--model",
+        choices=["deepgaze_iie", "deepgaze_msdb"],
+        default="deepgaze_iie",
+        help="DeepGaze model to export. Defaults to the current IIE reference.",
+    )
     parser.add_argument("--manifest", required=True, help="Manifest CSV with image_id and image_path.")
     parser.add_argument("--image-root", required=True, help="Root used to resolve relative image_path values.")
     parser.add_argument("--output-dir", required=True, help="Directory for <image_id>.npy outputs.")
     parser.add_argument("--centerbias", default=DEFAULT_CENTERBIAS)
     parser.add_argument("--device", default="auto", help="auto, cpu, cuda, or cuda:N.")
+    parser.add_argument(
+        "--pixel-per-dva",
+        type=float,
+        default=21.7,
+        help=(
+            "Pixels per degree of visual angle for DeepGaze MSDB. Ignored by IIE. "
+            "Default follows the MSDB generalized-parameter example."
+        ),
+    )
+    parser.add_argument(
+        "--msdb-dataset",
+        choices=["averaged", "mit1003", "cat2000", "coco_freeview", "daemons", "figrim"],
+        default="averaged",
+        help=(
+            "Optional DeepGaze MSDB dataset-specific parameter set. Defaults to averaged "
+            "parameters for cross-dataset generalization."
+        ),
+    )
     parser.add_argument("--max-items", type=int, default=None, help="Optional cap for smoke exports.")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing maps.")
     parser.add_argument("--dry-run", action="store_true", help="List planned work without loading DeepGaze.")
@@ -70,8 +95,9 @@ def main() -> None:
         return
 
     ensure_dir(output_dir)
-    torch, model, device = build_deepgaze_model(args.device)
+    torch, model, device = build_deepgaze_model(args.device, model_name=args.model)
     model.eval()
+    msdb_dataset = resolve_msdb_dataset_index(args.msdb_dataset)
 
     start = time.perf_counter()
     exported = 0
@@ -89,6 +115,9 @@ def main() -> None:
             image,
             centerbias_template,
             device=device,
+            model_name=args.model,
+            pixel_per_dva=args.pixel_per_dva,
+            msdb_dataset=msdb_dataset,
             save_log_density=args.save_log_density,
         )
         np.save(output_path, prediction.astype(np.float32, copy=False))
@@ -111,7 +140,11 @@ def load_manifest_rows(path: str | Path) -> list[dict[str, str]]:
         return [dict(row) for row in reader]
 
 
-def build_deepgaze_model(device_config: str) -> tuple[Any, Any, str]:
+def build_deepgaze_model(
+    device_config: str,
+    *,
+    model_name: str = "deepgaze_iie",
+) -> tuple[Any, Any, str]:
     try:
         import torch
         import deepgaze_pytorch
@@ -122,8 +155,37 @@ def build_deepgaze_model(device_config: str) -> tuple[Any, Any, str]:
         ) from exc
 
     device = resolve_device(torch, device_config)
-    model = deepgaze_pytorch.DeepGazeIIE(pretrained=True).to(device)
+    model_class = resolve_deepgaze_model_class(deepgaze_pytorch, model_name)
+    try:
+        model = model_class(pretrained=True).to(device)
+    except (urllib.error.URLError, OSError) as exc:
+        if model_name == "deepgaze_msdb":
+            raise RuntimeError(
+                "DeepGaze MSDB model setup failed while downloading or reading its "
+                "external pretrained assets. MSDB uses torch.hub to load DINOv2 from "
+                "facebookresearch/dinov2:6a62615, so the first run must successfully "
+                "cache that GitHub source package and its weights. Retry after network "
+                "stabilizes or pre-cache the DINOv2 torch hub dependency, then rerun "
+                "the export command."
+            ) from exc
+        raise
     return torch, model, device
+
+
+def resolve_deepgaze_model_class(deepgaze_module: Any, model_name: str) -> Any:
+    """Return the DeepGaze class for a supported export model name."""
+    classes = {
+        "deepgaze_iie": "DeepGazeIIE",
+        "deepgaze_msdb": "DeepGazeMSDB",
+    }
+    try:
+        class_name = classes[model_name]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported DeepGaze model: {model_name}") from exc
+    try:
+        return getattr(deepgaze_module, class_name)
+    except AttributeError as exc:
+        raise ImportError(f"deepgaze_pytorch does not provide {class_name}") from exc
 
 
 def predict_deepgaze_map(
@@ -133,6 +195,9 @@ def predict_deepgaze_map(
     centerbias_template: np.ndarray,
     *,
     device: str,
+    model_name: str = "deepgaze_iie",
+    pixel_per_dva: float = 21.7,
+    msdb_dataset: int | None = None,
     save_log_density: bool = False,
 ) -> np.ndarray:
     centerbias = resize_and_normalize_centerbias(centerbias_template, image.shape[:2])
@@ -143,7 +208,15 @@ def predict_deepgaze_map(
     )
     centerbias_tensor = torch.as_tensor(centerbias[None], dtype=torch.float32, device=device)
     with torch.no_grad():
-        log_density = model(image_tensor, centerbias_tensor)
+        if model_name == "deepgaze_msdb":
+            log_density = model(
+                image_tensor,
+                centerbias_tensor,
+                pixel_per_dva=float(pixel_per_dva),
+                dataset=msdb_dataset,
+            )
+        else:
+            log_density = model(image_tensor, centerbias_tensor)
     array = log_density.detach().cpu().numpy()[0]
     if array.ndim == 3:
         array = array[0]
@@ -225,6 +298,22 @@ def resolve_device(torch: Any, value: str) -> str:
     if value == "auto":
         return "cuda" if torch.cuda.is_available() else "cpu"
     return value
+
+
+def resolve_msdb_dataset_index(value: str) -> int | None:
+    """Return the DeepGaze MSDB dataset index, or None for averaged parameters."""
+    indices = {
+        "averaged": None,
+        "mit1003": 0,
+        "cat2000": 1,
+        "coco_freeview": 2,
+        "daemons": 3,
+        "figrim": 4,
+    }
+    try:
+        return indices[value]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported DeepGaze MSDB dataset: {value}") from exc
 
 
 def ensure_dir(path: Path) -> Path:
