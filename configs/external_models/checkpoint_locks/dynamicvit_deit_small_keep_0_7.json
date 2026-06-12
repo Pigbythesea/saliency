@@ -1,0 +1,7 @@
+{
+  "model_id": "dynamicvit_deit_small_keep_0_7",
+  "path_kind": "file",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "75d49cd658c630e4517ff2579de7a9516f765544a7550c532990eee82a5c19b8",
+  "source": "https://cloud.tsinghua.edu.cn/f/698896dfbcea430b9591/?dl=1"
+}

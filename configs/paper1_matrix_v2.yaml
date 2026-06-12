@@ -1,0 +1,144 @@
+version: paper1_matrix_v2
+status: implementation
+compatibility:
+  restore_v1_interpretation: false
+  v1_role: diagnostic_input_only
+  require_v1_backward_compatibility: false
+scientific_question: >
+  Does operational adaptive spatial computation improve behavioral alignment,
+  neural alignment, stream specificity, or only efficiency relative to a
+  matched DeiT-S control?
+external_registry: configs/external_models/registry.yaml
+installation_stages:
+  - source_ready
+  - environment_ready
+  - checkpoint_ready
+  - adapter_ready
+  - smoke_passed
+  - evidence_ready
+stage_policy:
+  dependency_mismatch_action: integration_required
+  defer_on_dependency_mismatch: false
+  evidence_requires:
+    - pinned_source
+    - reproducible_environment
+    - verified_checkpoint_hash
+    - deterministic_preprocessing
+    - ordered_image_ids
+    - audited_feature_shapes
+    - audited_operational_outputs
+    - complete_provenance
+first_evidence_run:
+  subject_id: subj01
+  execution_status:
+    adapter16: passed
+    scientific64: passed
+    full_matrix: cluster_readiness_implementation_pending
+  models:
+    - deit_small_static
+    - dynamicvit_deit_small_keep_0_7
+    - tome_deit_small_r13
+  roi_cells:
+    - roi: V1
+      roi_class: prf-visualrois
+      manifest_path: data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv
+    - roi: ventral
+      roi_class: streams
+      manifest_path: data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv
+    - roi: lateral
+      roi_class: streams
+      manifest_path: data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv
+    - roi: parietal
+      roi_class: streams
+      manifest_path: data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv
+  smoke_sequence:
+    - name: adapter_smoke
+      max_items: 16
+      required_models: 3
+      required_rois:
+        - V1
+    - name: scientific_smoke
+      max_items: 64
+      required_models: 3
+      required_rois:
+        - V1
+        - ventral
+        - lateral
+        - parietal
+    - name: full_matrix
+      max_items: 9841
+      required_models: 3
+      required_rois:
+        - V1
+        - ventral
+        - lateral
+        - parietal
+  paired_control_policy:
+    backbone: DeiT-S
+    preprocessing: identical
+    checkpoint_family: ImageNet-1K
+    resource_conditions:
+      deit_small_static: full_tokens
+      dynamicvit_deit_small_keep_0_7: learned_pruning
+      tome_deit_small_r13: token_merging
+analysis:
+  neural:
+    feature_reduction: flatten_pca
+    pca_components: 512
+    pca_solver: randomized
+    pca_whiten: false
+    validation_selected_layer: true
+    ridge_alphas:
+      - 0.001
+      - 0.01
+      - 0.1
+      - 1.0
+      - 10.0
+      - 100.0
+      - 1000.0
+      - 10000.0
+      - 100000.0
+      - 1000000.0
+      - 10000000.0
+  geometry:
+    - linear_cka_full_image
+    - deterministic_subset_rsa
+  behavior:
+    free_viewing:
+      - SALICON
+      - CAT2000
+    task_search:
+      - COCO-Search18
+    operational_outputs_only: true
+  efficiency:
+    - parameters
+    - theoretical_flops
+    - realized_flops
+    - latency
+    - peak_memory
+    - realized_tokens
+    - alignment_per_compute
+expansion_order:
+  - mambavision_t
+  - dinov3_small_patch16
+  - siglip_base_patch16
+  - hiera_tiny
+  - swin_tiny
+  - hat
+  - scandiff
+accepted_artifacts:
+  - outputs/paper1_matrix_v2/feasibility.json
+  - outputs/paper1_matrix_v2/environment_status.csv
+  - outputs/paper1_matrix_v2/axis_scope.csv
+  - outputs/paper1_matrix_v2/next_run.md
+  - outputs/paper1_matrix_v2/adaptive_matrix_cells.csv
+gates:
+  adaptive_resource_output: >
+    Adaptive models must expose actual per-image token retention or merge
+    decisions. Attribution maps do not satisfy this gate.
+  full_run: >
+    The 16-image adapter smoke and 64-image four-ROI scientific smoke must pass
+    before any full-image cluster job starts.
+  sequential_models: >
+    HAT and ScanDiff are behavioral models unless their internal visual
+    features independently pass the neural-feature audit.

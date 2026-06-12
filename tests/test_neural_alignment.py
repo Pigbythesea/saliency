@@ -783,6 +783,13 @@ def test_run_neural_alignment_selection_writes_artifacts_and_selected_scores(
     assert len(artifact["selection_validation_image_ids"]) == int(
         selected_row["selection_n_validation"]
     )
+    artifact_selected = [
+        candidate
+        for candidate in artifact["candidates"]
+        if candidate["validation"]["selected"] == "true"
+    ]
+    assert len(artifact_selected) == 1
+    assert artifact_selected[0]["candidate"]["layer"] == artifact["selected_candidate"]["layer"]
     assert feature_metadata["layers"][0]["n_train_fit"] == len(
         artifact["outer_train_image_ids"]
     )
@@ -1791,6 +1798,17 @@ def test_run_neural_alignment_learned_readout_selection_writes_selected_outputs(
     assert selected_row["layer"] == "good"
     assert selected_row["validation_score_type"] == "noise_normalized"
     assert selected_row["selected_ridge_alpha"] == ""
+
+    artifact = json.loads(
+        (output_dir / "selection_artifact.json").read_text(encoding="utf-8")
+    )
+    artifact_selected = [
+        candidate
+        for candidate in artifact["candidates"]
+        if candidate["validation"]["selected"] == "true"
+    ]
+    assert len(artifact_selected) == 1
+    assert artifact_selected[0]["candidate"]["layer"] == artifact["selected_candidate"]["layer"]
 
     encoding_rows = _read_csv(output_dir / "encoding_scores.csv")
     assert len(encoding_rows) == 1

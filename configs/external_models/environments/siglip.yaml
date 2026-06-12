@@ -1,0 +1,17 @@
+name: hma-siglip
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch>=2.3
+  - torchvision
+  - pytorch-cuda=12.1
+  - numpy
+  - pillow
+  - pyyaml
+  - pip:
+      - transformers>=4.50
+      - huggingface-hub

@@ -1,0 +1,14 @@
+name: hma-dinov3
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch>=2.7.1
+  - torchvision
+  - pytorch-cuda=12.6
+  - numpy
+  - pillow
+  - pyyaml

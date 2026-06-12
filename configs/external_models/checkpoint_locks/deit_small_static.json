@@ -1,0 +1,7 @@
+{
+  "model_id": "deit_small_static",
+  "path_kind": "file",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "cd65a15597004d0ce19d7a9daef969903972db5b398e3a5febcd3c4df1d8f59f",
+  "source": "https://dl.fbaipublicfiles.com/deit/deit_small_patch16_224-cd65a155.pth"
+}

@@ -12,6 +12,10 @@ from typing import Any
 import numpy as np
 
 from hma.datasets import build_dataset
+from hma.external.artifacts import (
+    load_external_features,
+    load_external_features_to_memmaps,
+)
 from hma.models import build_model
 from hma.neural import (
     SpatialReadoutConfig,
@@ -89,29 +93,49 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         raise ValueError("Multi-layer learned_spatial_readout smoke runs must keep RSA disabled")
 
     dataset = build_dataset(config)
-    model = build_model(config)
-    device = resolve_device(config.get("device", "auto"))
-    _move_model_to_device(model, device)
-
-    collection = _collect_features_and_responses(
-        dataset=dataset,
-        model=model,
-        config=config,
-        layers=layers,
-        response_key=response_key,
-        noise_ceiling_key=noise_ceiling_key,
-        device=device,
-        feature_reduction=(
-            "selection_raw"
-            if selection_enabled or encoding_method == "learned_spatial_readout"
-            else feature_reduction
-        ),
-        feature_storage_dir=(
-            output_dir / "feature_cache"
-            if selection_enabled or encoding_method == "learned_spatial_readout"
-            else None
-        ),
+    external_artifact_config = dict(config.get("external_artifact", {}))
+    external_artifact_path = external_artifact_config.get("path")
+    external_artifact_manifest: dict[str, Any] | None = None
+    collection_feature_reduction = (
+        "selection_raw"
+        if selection_enabled or encoding_method == "learned_spatial_readout"
+        else feature_reduction
     )
+    if external_artifact_path:
+        device = "external_artifact"
+        collection, external_artifact_manifest = _collect_external_features_and_responses(
+            dataset=dataset,
+            artifact_path=resolve_path(external_artifact_path),
+            layers=layers,
+            response_key=response_key,
+            noise_ceiling_key=noise_ceiling_key,
+            feature_reduction=collection_feature_reduction,
+            verify_hashes=bool(external_artifact_config.get("verify_hashes", True)),
+            feature_storage_dir=(
+                output_dir / "feature_cache"
+                if collection_feature_reduction == "selection_raw"
+                else None
+            ),
+        )
+    else:
+        model = build_model(config)
+        device = resolve_device(config.get("device", "auto"))
+        _move_model_to_device(model, device)
+        collection = _collect_features_and_responses(
+            dataset=dataset,
+            model=model,
+            config=config,
+            layers=layers,
+            response_key=response_key,
+            noise_ceiling_key=noise_ceiling_key,
+            device=device,
+            feature_reduction=collection_feature_reduction,
+            feature_storage_dir=(
+                output_dir / "feature_cache"
+                if selection_enabled or encoding_method == "learned_spatial_readout"
+                else None
+            ),
+        )
     image_ids, responses, features_by_layer, feature_shapes, item_metadata, noise_ceiling = collection
     if len(image_ids) < 2:
         raise ValueError("Neural alignment requires at least two response-bearing items")
@@ -271,6 +295,19 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "model_name": config.get("model", {}).get("name"),
         "model_backend": config.get("model", {}).get("backend", "timm"),
         "model_pretrained": bool(config.get("model", {}).get("pretrained", False)),
+        "external_artifact": (
+            str(resolve_path(external_artifact_path)) if external_artifact_path else None
+        ),
+        "external_artifact_schema": (
+            external_artifact_manifest.get("schema_version")
+            if external_artifact_manifest
+            else None
+        ),
+        "external_artifact_provenance": (
+            external_artifact_manifest.get("provenance")
+            if external_artifact_manifest
+            else None
+        ),
         "num_items": len(image_ids),
         "layers": layers,
         "response_key": response_key,
@@ -466,6 +503,122 @@ def _collect_features_and_responses(
         feature_shapes,
         item_metadata,
         noise_ceiling_array,
+    )
+
+
+def _collect_external_features_and_responses(
+    *,
+    dataset: Any,
+    artifact_path: Path,
+    layers: list[str],
+    response_key: str,
+    noise_ceiling_key: str,
+    feature_reduction: str,
+    verify_hashes: bool,
+    feature_storage_dir: Path | None,
+) -> tuple[
+    tuple[
+        list[str],
+        np.ndarray,
+        dict[str, np.ndarray],
+        dict[str, list[int]],
+        list[dict[str, Any]],
+        np.ndarray | None,
+    ],
+    dict[str, Any],
+]:
+    if feature_reduction == "selection_raw":
+        if feature_storage_dir is None:
+            raise ValueError("External selection_raw import requires feature storage")
+        artifact_image_ids, raw_features, manifest = (
+            load_external_features_to_memmaps(
+                artifact_path,
+                layers=layers,
+                storage_dir=feature_storage_dir,
+                verify_hashes=verify_hashes,
+            )
+        )
+    else:
+        artifact_image_ids, raw_features, manifest = load_external_features(
+            artifact_path,
+            layers=layers,
+            verify_hashes=verify_hashes,
+        )
+    dataset_image_ids: list[str] = []
+    responses: list[np.ndarray] = []
+    noise_ceilings: list[np.ndarray | None] = []
+    item_metadata: list[dict[str, Any]] = []
+    for index, item in enumerate(dataset):
+        response = _response_for_item(item, response_key)
+        if response is None:
+            raise ValueError(
+                f"Dataset item {item.get('image_id', index)} is missing neural response "
+                f"'{response_key}'"
+            )
+        dataset_image_ids.append(str(item.get("image_id", f"item_{index:04d}")))
+        responses.append(np.asarray(response, dtype=np.float32).ravel())
+        metadata = item.get("metadata", {})
+        item_metadata.append(metadata if isinstance(metadata, dict) else {})
+        noise_ceiling = _response_for_item(item, noise_ceiling_key)
+        noise_ceilings.append(
+            None
+            if noise_ceiling is None
+            else np.asarray(noise_ceiling, dtype=np.float32).ravel()
+        )
+    if dataset_image_ids != artifact_image_ids:
+        mismatch = next(
+            (
+                index
+                for index, (dataset_id, artifact_id) in enumerate(
+                    zip(dataset_image_ids, artifact_image_ids)
+                )
+                if dataset_id != artifact_id
+            ),
+            min(len(dataset_image_ids), len(artifact_image_ids)),
+        )
+        raise ValueError(
+            "External artifact image order does not match the neural dataset at "
+            f"index {mismatch}; dataset={dataset_image_ids[mismatch:mismatch + 1]}, "
+            f"artifact={artifact_image_ids[mismatch:mismatch + 1]}"
+        )
+    response_matrix = _stack_consistent(responses, "ROI responses")
+    feature_shapes = {
+        layer: [int(value) for value in np.asarray(values).shape[1:]]
+        for layer, values in raw_features.items()
+    }
+    if feature_reduction == "selection_raw":
+        features_by_layer = raw_features
+    elif feature_reduction == "flatten_pca":
+        features_by_layer = {
+            layer: np.asarray(values).reshape(len(dataset_image_ids), -1)
+            for layer, values in raw_features.items()
+        }
+    else:
+        features_by_layer = {
+            layer: _stack_consistent(
+                [
+                    _reduce_feature_array(item, method=feature_reduction)
+                    for item in np.asarray(values)
+                ],
+                f"features for layer {layer}",
+            )
+            for layer, values in raw_features.items()
+        }
+    noise_ceiling_array = _validate_noise_ceiling(
+        noise_ceilings,
+        num_targets=response_matrix.shape[1],
+        key=noise_ceiling_key,
+    )
+    return (
+        (
+            dataset_image_ids,
+            response_matrix,
+            features_by_layer,
+            feature_shapes,
+            item_metadata,
+            noise_ceiling_array,
+        ),
+        manifest,
     )
 
 
@@ -920,6 +1073,7 @@ def _select_candidate_and_score_final(
         raise ValueError("neural.selection requires at least one candidate")
     selected_index = _selected_candidate_index(candidate_rows)
     candidate_rows[selected_index]["selected"] = "true"
+    candidate_artifacts[selected_index]["validation"]["selected"] = "true"
     selected_candidate = candidates[selected_index]
     selected_alpha = float(candidate_rows[selected_index]["selected_ridge_alpha"])
     selected_layer = str(selected_candidate["layer"])
@@ -1090,6 +1244,7 @@ def _select_learned_readout_candidate_and_score_final(
         raise ValueError("neural.selection requires at least one candidate")
     selected_index = _selected_candidate_index(candidate_rows)
     candidate_rows[selected_index]["selected"] = "true"
+    candidate_artifacts[selected_index]["validation"]["selected"] = "true"
     selected_candidate = candidates[selected_index]
     selected_layer = str(selected_candidate["layer"])
 
@@ -2063,6 +2218,10 @@ def _write_geometry_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "centering",
         "model_feature_reduction",
         "response_metric",
+        "feature_rdm_metric",
+        "response_rdm_metric",
+        "rdm_compare_method",
+        "subset_index_policy",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)

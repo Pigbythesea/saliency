@@ -1,0 +1,84 @@
+seed: 123
+device: cpu
+experiment:
+  name: dynamicvit_deit_small_keep_0_7_lateral_scientific64
+  matrix_version: paper1_matrix_v2
+  stage: scientific64
+dataset:
+  name: nsd_algonauts
+  label: dynamicvit_deit_small_keep_0_7_lateral_scientific64
+  root: data/raw/nsd_algonauts
+  manifest_path: data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv
+  split: train
+  subject_id: subj01
+  roi: lateral
+  max_items: 64
+  validate_files: true
+model:
+  name: dynamicvit_deit_small_keep_0_7
+  backend: external_artifact
+  pretrained: true
+  eval_mode: true
+external_artifact:
+  path: outputs/paper1_matrix_v2/external_artifacts/scientific64/dynamicvit_deit_small_keep_0_7
+  verify_hashes: true
+preprocessing:
+  input_size:
+  - 224
+  - 224
+  interpolation: bicubic
+  crop_pct: 0.875
+  mean:
+  - 0.485
+  - 0.456
+  - 0.406
+  std:
+  - 0.229
+  - 0.224
+  - 0.225
+neural:
+  layers:
+  - blocks.0
+  - blocks.3
+  - blocks.6
+  - blocks.9
+  - blocks.11
+  response_key: roi_responses
+  noise_ceiling_key: noise_ceiling
+  feature_reduction: flatten_pca
+  pca_components: 32
+  pca_solver: randomized
+  pca_whiten: false
+  feature_reduction_seed: 123
+  train_fraction: 0.8
+  ridge_alpha: 1.0
+  ridge_alphas:
+  - 0.001
+  - 0.01
+  - 0.1
+  - 1.0
+  - 10.0
+  - 100.0
+  - 1000.0
+  - 10000.0
+  - 100000.0
+  - 1000000.0
+  - 10000000.0
+  validation_fraction: 0.2
+  metric: correlation
+  selection:
+    enabled: true
+    validation_fraction: 0.2
+    primary_score: mean_noise_normalized_score
+  rsa:
+    enabled: false
+  geometry:
+    enabled: true
+    methods:
+    - linear_cka
+    - subset_rsa
+    subset_sizes:
+    - 32
+    subset_seed: 123
+output:
+  dir: outputs/paper1_matrix_v2/neural/scientific64/dynamicvit_deit_small_keep_0_7/lateral

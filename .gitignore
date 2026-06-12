@@ -20,6 +20,7 @@ uv.lock
 venv/
 env/
 .env
+/external/
 
 # Project outputs
 data/

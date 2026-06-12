@@ -1,0 +1,49 @@
+seed: 123
+device: cpu
+experiment:
+  name: coco_search18_static2000_deit_small_static_operational_routing
+  matrix_version: paper1_matrix_v2
+  object_type: operational_resource_allocation
+dataset:
+  name: coco_search18
+  label: coco_search18_static2000
+  root: data/raw/COCO-Search18
+  manifest_path: data/manifests/v2/coco_search18_static2000_manifest.csv
+  split: val
+  generate_fixation_map: true
+  fixation_sigma: 10.0
+  image_size:
+  - 224
+  - 224
+  max_items: null
+  validate_files: true
+model:
+  name: deit_small_static
+saliency:
+  method: precomputed_map
+  root: outputs/paper1_matrix_v2/routing_maps/coco_search18_static2000/deit_small_static
+  path_template: '{image_id}.npy'
+  object_type: operational_resource_allocation
+metric_controls:
+  seed: 123
+  auc_borji_splits: 100
+  shuffled_auc_splits: 100
+  max_positive_fixations_per_image: 256
+  shuffled_auc_pool_points_per_image: 256
+  emd_downsample: 32
+cache:
+  enabled: true
+  dir: saliency_maps
+  reuse: true
+metrics:
+- nss
+- shuffled_auc
+- auc_borji
+- auc_judd
+- cc
+- similarity
+- kl
+output:
+  dir: outputs/paper1_matrix_v2/behavior/coco_search18_static2000/deit_small_static_operational_routing
+  save_visualizations: false
+  num_visualizations: 0

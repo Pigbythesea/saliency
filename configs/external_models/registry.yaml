@@ -1,0 +1,280 @@
+schema_version: hma.external.registry.v1
+workspace:
+  root: external
+  sources: external/sources
+  environments: external/environments
+  checkpoints: external/checkpoints
+  reports: outputs/paper1_matrix_v2/installations
+artifact_schema: hma.external.artifact.v1
+models:
+  deit_small_static:
+    track: adaptive_token_computation
+    role: paired_control
+    source:
+      repository: https://github.com/facebookresearch/ToMe.git
+      commit: af95e4b1befa172dadccd8c81e223b10090f9579
+      license: CC-BY-NC-4.0
+    environment: configs/external_models/environments/tome.yaml
+    adapter: hma.external.adapters:ToMeAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: deit_small_patch16_224
+      merge_r: 0
+      trace_source: false
+      full_token_flops: 4600000000
+    checkpoint:
+      url: https://dl.fbaipublicfiles.com/deit/deit_small_patch16_224-cd65a155.pth
+      filename: deit_small_patch16_224-cd65a155.pth
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      interpolation: bicubic
+      crop_pct: 0.9
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    feature_layers:
+      - blocks.0
+      - blocks.3
+      - blocks.6
+      - blocks.9
+      - blocks.11
+    mechanism_outputs:
+      - full_token_mask
+      - realized_token_counts
+  dynamicvit_deit_small_keep_0_7:
+    aliases: [dynamicvit]
+    track: adaptive_token_computation
+    role: learned_token_pruning
+    source:
+      repository: https://github.com/raoyongming/DynamicViT.git
+      commit: 1322e626d1e9eca18cc150569908fb4af29e15f7
+      license: MIT
+    environment: configs/external_models/environments/dynamicvit.yaml
+    adapter: hma.external.adapters:DynamicViTAdapter
+    adapter_status: implemented
+    adapter_config:
+      architecture: deit-s
+      keep_ratio: 0.7
+      pruning_locations: [3, 6, 9]
+      full_token_flops: 4600000000
+    checkpoint:
+      url: https://cloud.tsinghua.edu.cn/f/698896dfbcea430b9591/?dl=1
+      filename: dynamicvit_deit_small_ratio0.7.pth
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      interpolation: bicubic
+      crop_pct: 0.875
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    feature_layers:
+      - blocks.0
+      - blocks.3
+      - blocks.6
+      - blocks.9
+      - blocks.11
+    mechanism_outputs:
+      - prediction_masks
+      - retained_original_token_indices
+      - realized_token_counts
+  tome_deit_small_r13:
+    aliases: [tome]
+    track: adaptive_token_computation
+    role: token_merging
+    source:
+      repository: https://github.com/facebookresearch/ToMe.git
+      commit: af95e4b1befa172dadccd8c81e223b10090f9579
+      license: CC-BY-NC-4.0
+    environment: configs/external_models/environments/tome.yaml
+    adapter: hma.external.adapters:ToMeAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: deit_small_patch16_224
+      merge_r: 13
+      trace_source: true
+      proportional_attention: true
+      full_token_flops: 4600000000
+    checkpoint:
+      url: https://dl.fbaipublicfiles.com/tome/f367470145_deit_S_r13.pth
+      filename: tome_deit_small_r13.pth
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      interpolation: bicubic
+      crop_pct: 0.9
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    feature_layers:
+      - blocks.0
+      - blocks.3
+      - blocks.6
+      - blocks.9
+      - blocks.11
+    mechanism_outputs:
+      - token_source_assignments
+      - realized_token_counts
+  dinov3_small_patch16:
+    aliases: [dinov3]
+    track: modern_frontier_backbones
+    role: self_supervised_semantic
+    source:
+      repository: https://github.com/facebookresearch/dinov3.git
+      commit: 50001c6db58dbca7e7d06a5c5a9f1e078ca29197
+      license: DINOv3-LICENSE
+    environment: configs/external_models/environments/dinov3.yaml
+    adapter: hma.external.adapters:DINOv3Adapter
+    adapter_status: checkpoint_api_audit_pending
+    adapter_config:
+      architecture: vit_small_patch16
+    checkpoint:
+      url:
+      filename:
+      sha256:
+      access: official_gated_download
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      source: official
+    feature_layers: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    mechanism_outputs: []
+  siglip_base_patch16:
+    aliases: [siglip]
+    track: modern_frontier_backbones
+    role: vision_language_semantic
+    source:
+      repository: https://github.com/google-research/big_vision.git
+      commit: 0127fb6b337ee2a27bf4e54dea79cff176527356
+      license: Apache-2.0
+    environment: configs/external_models/environments/siglip.yaml
+    adapter: hma.external.adapters:SigLIPAdapter
+    adapter_status: implemented
+    adapter_config:
+      checkpoint_id: google/siglip-base-patch16-224
+    checkpoint:
+      url: https://huggingface.co/google/siglip-base-patch16-224
+      filename: huggingface_snapshot
+      sha256:
+      hash_policy: snapshot_revision_and_hash_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      source: official_processor
+    feature_layers: [encoder.layers.0, encoder.layers.3, encoder.layers.6, encoder.layers.9, encoder.layers.11]
+    mechanism_outputs: []
+  mambavision_t:
+    aliases: [mambavision]
+    track: modern_frontier_backbones
+    role: hybrid_sequence_model
+    source:
+      repository: https://github.com/NVlabs/MambaVision.git
+      commit: 7860a506b2eb844eaaae676f08461ce8c3c26f43
+      license: NVIDIA-Source-Code-License
+    environment: configs/external_models/environments/mambavision.yaml
+    adapter: hma.external.adapters:MambaVisionAdapter
+    adapter_status: implemented
+    adapter_config:
+      checkpoint_id: nvidia/MambaVision-T-1K
+    checkpoint:
+      url: https://huggingface.co/nvidia/MambaVision-T-1K/resolve/main/mambavision_tiny_1k.pth.tar
+      filename: mambavision_tiny_1k.pth.tar
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      interpolation: bicubic
+      crop_pct: 1.0
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    feature_layers: [levels.0, levels.1, levels.2, levels.3]
+    mechanism_outputs: []
+  hiera_tiny:
+    aliases: [hiera]
+    track: modern_frontier_backbones
+    role: hierarchical_control
+    source:
+      repository: https://github.com/facebookresearch/hiera.git
+      commit: 75230c3b6c7c5de54659a826d54baf526707ef70
+      license: CC-BY-NC-4.0
+    environment: configs/external_models/environments/frontier_torch.yaml
+    adapter: hma.external.adapters:HieraAdapter
+    adapter_status: checkpoint_api_audit_pending
+    checkpoint:
+      url:
+      filename:
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      source: official
+    feature_layers: [stages.0, stages.1, stages.2, stages.3]
+    mechanism_outputs: []
+  swin_tiny:
+    aliases: [swin]
+    track: modern_frontier_backbones
+    role: hierarchical_control
+    source:
+      repository: https://github.com/microsoft/Swin-Transformer.git
+      commit: f82860bfb5225915aca09c3227159ee9e1df874d
+      license: MIT
+    environment: configs/external_models/environments/frontier_torch.yaml
+    adapter: hma.external.adapters:SwinAdapter
+    adapter_status: checkpoint_api_audit_pending
+    checkpoint:
+      url:
+      filename:
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      source: official
+    feature_layers: [layers.0, layers.1, layers.2, layers.3]
+    mechanism_outputs: []
+  hat:
+    track: sequential_foveated_behavior
+    role: foveated_top_down_bottom_up_scanpaths
+    execution: cluster_required
+    source:
+      repository: https://github.com/cvlab-stonybrook/HAT.git
+      commit: 557205d3136a63120041c700ee717196a429e89b
+      license: research_only_audit_required
+    environment: configs/external_models/environments/hat.yaml
+    adapter: hma.external.adapters:HATAdapter
+    adapter_status: cluster_build_and_checkpoint_audit_pending
+    checkpoint:
+      url:
+      filename:
+      sha256:
+      access: official_release_assets
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      source: official
+    feature_layers: []
+    mechanism_outputs:
+      - scanpaths
+      - foveation_maps
+      - task_condition
+  scandiff:
+    track: sequential_foveated_behavior
+    role: stochastic_scanpath_diffusion
+    execution: linux_gpu
+    source:
+      repository: https://github.com/aimagelab/ScanDiff.git
+      commit: 9eff26cf2df140c09b868e7351f02d3797a37d1f
+      license: license_audit_required
+    environment: configs/external_models/environments/scandiff.yaml
+    adapter: hma.external.adapters:ScanDiffAdapter
+    adapter_status: checkpoint_api_audit_pending
+    checkpoint:
+      url: https://huggingface.co/aimagelab/ScanDiff
+      filename: huggingface_snapshot
+      sha256:
+      hash_policy: snapshot_revision_and_hash_before_evidence
+    preprocessing:
+      source: official_hydra_config
+    feature_layers: []
+    mechanism_outputs:
+      - stochastic_scanpaths
+      - task_condition
+      - sampling_seed

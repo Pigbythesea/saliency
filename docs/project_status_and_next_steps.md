@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-06-11
+Updated: 2026-06-12
 
 ## Purpose And Codex Operating Contract
 
@@ -112,13 +112,15 @@ Current diagnostic outcome:
 - transformer relevance improves over rollout and vanilla gradients behaviorally on SALICON/CAT2000, but it remains a post-hoc attribution family rather than operational attention;
 - the current evidence is useful as a pilot scaffold, but it is too narrow to define the final paper story.
 
-Active missing layers for Paper 1 Matrix V2:
+Active missing evidence for Paper 1 Matrix V2:
 
-- modern model-family coverage beyond the current conservative anchors;
-- explicit ventral/dorsal or stream-level neural analysis beyond PRF-only confirmatory robustness;
-- efficiency and alignment-per-compute;
-- adaptive, foveated, token-pruning, scanpath, or selective-computation models/mechanisms;
-- a direct quadrant-style cross-axis analysis that classifies models by behavioral alignment versus neural/geometry alignment.
+- installed, pinned external environments and verified checkpoints for the first adaptive-computation comparison;
+- accepted 16-image artifacts for DeiT-S, DynamicViT-DeiT-S/0.7, and ToMe-DeiT-S/r13;
+- a passed 64-image `subj01` scientific smoke over V1, ventral, lateral, and parietal cells;
+- full adaptive-computation neural, geometry, behavioral-routing, and efficiency results;
+- frontier-family evidence from DINOv3, SigLIP, MambaVision, Hiera, and Swin after the adaptive comparison passes;
+- sequential/foveated behavioral evidence from HAT and ScanDiff;
+- a direct quadrant-style cross-axis analysis after accepted Matrix V2 evidence exists.
 
 Main package: `src/hma/`.
 
@@ -153,13 +155,23 @@ Diagnostics/provenance:
 - Corrected SSL/VLM behavioral aggregate before merge: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`.
 - Full neural ROI summary directory, including learned-readout provenance rows: `outputs/neural_roi_summary/`.
 - Paper inspection pack: `outputs/paper_inspection_v1/README.md`, including `outputs/paper_inspection_v1/tables/table14_subject_robustness_interpretation.csv` and `outputs/paper_inspection_v1/tables/table15_observer_control_summary.csv`.
-- Paper 1 outcome interpretation: `docs/paper1_outcome_interpretation_v1.md`.
+- The deleted V1 outcome-interpretation document is intentionally not restored or
+  archived. Its geometry-first claims are not active steering for Matrix V2.
 
 Experiment-definition artifacts:
 
 - Paper-grade experiment specification V1: `docs/paper1_experiment_spec_v1.md`.
 - Forward-looking experiment contract: `configs/paper1_experiment_v1.yaml`.
 - Scope decision table: `outputs/planning/paper1_experiment_scope_decisions.csv`.
+- Matrix V2 experiment contract: `configs/paper1_matrix_v2.yaml`.
+- External-model registry and environment manifests:
+  `configs/external_models/registry.yaml` and
+  `configs/external_models/environments/`.
+- Matrix V2 planning/status artifacts: `outputs/paper1_matrix_v2/feasibility.json`,
+  `outputs/paper1_matrix_v2/environment_status.csv`,
+  `outputs/paper1_matrix_v2/axis_scope.csv`,
+  `outputs/paper1_matrix_v2/adaptive_matrix_cells.csv`, and
+  `outputs/paper1_matrix_v2/next_run.md`.
 
 ## Scientific Boundary
 
@@ -393,17 +405,19 @@ The reduced subject-robustness result is useful pilot evidence. It should be tre
 
 ### Current priority
 
-The immediate priority is **Paper 1 Matrix V2 Redesign And Feasibility Audit**.
+The immediate priority is **Matrix V2 full-run cluster readiness**.
 
-Do not generate a claim-decision table from the superseded outcome interpretation. The next Codex session should produce an actionable Matrix V2 plan and, if feasible, the first machine-readable config/audit files that define:
+The adapter16 and scientific64 gates have passed for:
 
-- model categories and candidate models;
-- which candidates are feasible with current dependencies and GPU constraints;
-- required model wrappers/features/attribution objects;
-- ROI/stream groups and which subjects have required data;
-- efficiency metrics and how they will be measured;
-- accepted behavioral, neural, geometry, and efficiency artifacts for Matrix V2;
-- the exact next run order.
+- static DeiT-S as the full-token paired control;
+- DynamicViT-DeiT-S/0.7 with retained-token masks;
+- ToMe-DeiT-S/r13 with source-traced merge assignments.
+
+The next work is not another local evidence run. It is an implementation pass
+that makes the full `9841`-image neural matrix and the nine operational-routing
+behavior cells reproducible and practical on the JHU cluster. This includes
+resource-only behavioral export, reusable train-only PCA reductions across ROI
+cells, Slurm orchestration, preflight validation, and a bounded cluster smoke.
 
 ### Explicit non-priorities
 
@@ -481,44 +495,73 @@ Reporting infrastructure:
 
 ## Current Implementation Progress
 
-Updated: 2026-06-10
+Updated: 2026-06-12
 
 Current implementation state:
 
-- Benchmark-style neural scoring, NSD-derived noise-ceiling metadata, full-image-count manifests, train-only `flatten_pca`, validation-only layer/pooling selection, learned spatial readout, matched geometry scoring, and paper inspection reporting are implemented.
-- The matched neural panel is complete for all `24` expected six-model x four-ROI `subj01` cells and is the accepted cross-model neural comparison object.
-- The matched geometry axis is complete for all `24` expected cells using full-image `linear_cka`; it is useful diagnostic evidence but still not a complete geometry claim without method/seed stability.
-- The DINOv2 learned spatial readout rows are retained as method provenance because the readout is not method-matched across all backbones.
-- The current paper inspection figures are diagnostic figures, not final main-paper figures. They should be replaced or supplemented after the paper-grade experiment spec defines the actual accepted evidence tables.
-- Paper-Grade Experiment Definition V1 is now complete as a planning milestone. The new spec fixes the next falsifiable matrix as `subj01`, four method-matched models, PRF ROIs plus stream ROIs, full-image `flatten_pca` encoding, and `linear_cka_full9841` plus deterministic `subset_rsa` geometry.
-- The V1 config is a forward-looking experiment contract, not a replacement for `configs/paper1_config.yaml`, which remains the scope file for the current diagnostic PRF-only results.
-- The new validation test `tests/test_paper1_experiment_spec.py` locks required model names, ROI names, accepted artifact paths, exclusion rules, and cmd-only verification-command documentation.
-- The `subj01` V1 stream-ROI manifest/config readiness path is now implemented. The stream manifest exists, the ROI-expanded config directory contains the expected `40` full-image `flatten_pca` validation-selection configs, and the readiness audit passes.
-- The V1 readiness generator is `scripts/create_paper1_v1_roi_expanded_configs.py`; it reads `configs/paper1_experiment_v1.yaml`, generates the stream manifest/configs, and writes `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`.
-- Stream ROI noise ceilings are now generated from NSD ncsnr files and attached to `data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv`. The `resnet50`/`midventral` V1 smoke rerun has `noise_ceiling_available=true`, `1913` valid noise-ceiling targets, `4` zero-ceiling targets, and downstream summaries use the populated noise-normalized score.
-- The full V1 ROI-expanded `subj01` encoding matrix is now complete for all `40` expected cells: four models x ten ROIs. The generated summary is in `outputs/paper1_experiment_v1/summary/`.
-- V1 ROI-expanded mean noise-normalized encoding ranking across ten ROIs is: `vit_small_patch14_dinov2` `0.556`, `resnet50` `0.537`, `vit_base_patch16_clip_224` `0.521`, and `vit_base_patch16_224` `0.502`.
-- The V1 encoding summary has `40` encoding rows and `148144` target rows. Target-level noise-ceiling scope is mostly normalized: `148108` normalized target rows and `36` non-normalized target rows caused by zero ceilings.
-- The full V1 ROI-expanded `subj01` geometry matrix is now complete for all `40` expected cells. Each cell has `10` valid geometry rows: `linear_cka_full9841` plus deterministic `subset_rsa` at sizes `512`, `1024`, and `2048` with seeds `123`, `456`, and `789`.
-- V1 ROI-expanded full-image CKA ranking across ten ROIs is: `vit_small_patch14_dinov2` `0.194`, `resnet50` `0.187`, `vit_base_patch16_clip_224` `0.099`, and `vit_base_patch16_224` `0.089`.
-- V1 deterministic subset-RSA rankings are method-sensitive: most subset-RSA variants rank `resnet50` first and `vit_small_patch14_dinov2` second, while two subset-RSA seeds rank DINOv2 first. CKA/subset-RSA across-ROI rank agreement is complete but moderate.
-- The V1 CKA-primary cross-axis summaries exist: `693` cross-level correlation rows and `2079` cross-axis decision rows. Current CKA-primary decision rows are dominated by `insufficient_models` (`1386`), with `627` `stable_convergence` and `66` `unstable` rows. The stable across-ROI rows are concentrated in `vanilla_gradient` behavior and `linear_cka_full9841` geometry.
-- The V1 geometry-method sensitivity synthesis now exists: `2079` rows in `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_sensitivity_decisions.csv`. Labels are `908` `stable_across_geometry_methods`, `693` `not_tested`, `462` `insufficient_models`, and `16` `direction_conflict`. The table preserves free-viewing versus task-search separation with `1386` free-viewing rows and `693` task-search rows, and includes `linear_cka_full9841` plus all nine deterministic subset-RSA variants.
-- The V1 failure-gate summary now exists at `outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv`. The current gate decision is `paper_pack_geometry_first_dissociation` because at least one geometry relationship is stable across CKA and subset-RSA, so Paper 1 should proceed as geometry-first dissociation or measurement evidence rather than universal model ranking.
-- The reduced V1 subject-robustness scaffold is implemented for `subj02`-`subj04`: `configs/paper1_experiment_v1.yaml` has an executable `confirmatory_matrix`, `scripts/create_paper1_v1_subject_robustness_configs.py` generates `48` subject/model/ROI configs under `configs/experiments/paper1_experiment_v1/neural_subject_robustness/`, and `outputs/paper1_experiment_v1/summary/subject_robustness_artifact_audit.csv` passes all scaffold checks.
-- Local subject-robustness progress: `subj02`, `subj03`, and `subj04` each have `16/16` expected encoding output directories and completed confirmatory geometry. The regenerated rank-only decision table marks `subj02` and `subj03` as `replicated`, `subj04` as `partial`, and `all_confirmatory_subjects` as `partial`.
-- The subject-robustness geometry runner now prints progress by default at subject, cell, and geometry-method/subset granularity, with `--no-progress` available for quiet runs.
-- The geometry result is robust: `vit_small_patch14_dinov2` is the full-image CKA leader and the subset-RSA leader for all `30/30` subject x geometry-method rankings across `subj02`-`subj04`. The encoding result is ambiguous: `vit_small_patch14_dinov2` leads raw mean encoding by tiny margins in `subj02` and `subj03`, while `resnet50` leads in `subj04`.
-- Subject-robustness uncertainty is now implemented. `outputs/paper1_experiment_v1/summary/subject_robustness_uncertainty_decisions.csv` labels `subj02` and `subj03` as `geometry_replicated_encoding_supported`, `subj04` as `geometry_replicated_encoding_resnet_supported`, and the aggregate as `geometry_replicated_encoding_ambiguous`. The aggregate label is intentionally conservative because the subject-level encoding direction conflicts even though the pooled target-level DINOv2-minus-ResNet encoding margin is positive.
-- Paper-facing geometry-first synthesis and observer-control integration are now implemented. `outputs/paper1_experiment_v1/summary/subject_robustness_paper_interpretation.csv` preserves the `subj04` ResNet-50 encoding reversal and aggregate `geometry_replicated_encoding_ambiguous` decision, while `outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv` separates SALICON free-viewing observer context from COCO-Search18 task-search observer context.
+- Matrix V2 now has a machine-readable experiment contract in `configs/paper1_matrix_v2.yaml` and an external-model registry in `configs/external_models/registry.yaml`.
+- Pinned isolated-environment manifests exist for DynamicViT, ToMe, DINOv3, SigLIP, MambaVision, Hiera, Swin, HAT, ScanDiff, and the static DeiT-S control. Environments, source checkouts, and checkpoints remain outside Git.
+- `scripts/setup_external_model.py` implements source checkout, micromamba environment creation, checkpoint download/hash locking, installation reports, and adapter smokes. Its entry point is bootstrap-safe under bare WSL Python: it no longer imports NumPy/Pillow-backed adapter code before environment creation, creates a small PyYAML runtime only when needed, and automatically downloads the pinned official micromamba `2.8.1-0` Linux binary into `external/tools/` with SHA-256 verification when micromamba is absent from `PATH`.
+- `scripts/run_external_model.py` and `src/hma/external/` implement the shared external artifact contract, ordered chunked feature export, operational resource outputs, efficiency/provenance metadata, validation, and core-environment import.
+- First-run adapters exist for static DeiT-S, DynamicViT-DeiT-S/0.7, and ToMe-DeiT-S/r13. DynamicViT exports learned pruning decisions; ToMe exports source-traced merge assignments.
+- Forty-five stage-specific configs exist under `configs/experiments/paper1_matrix_v2/`: `12` adapter16, `12` scientific64, `12` full neural cells, and `9` behavioral-routing configs.
+- The audit emits `feasibility.json`, `environment_status.csv`, `axis_scope.csv`, `adaptive_matrix_cells.csv`, and `next_run.md` under `outputs/paper1_matrix_v2/`.
+- All three adaptive-computation models pass `source_ready`,
+  `environment_ready`, `checkpoint_ready`, `adapter_ready`, and `smoke_passed`.
+- The three accepted adapter16 artifacts contain the same `16` ordered image
+  IDs, five hash-verified feature layers, complete provenance, logits,
+  efficiency metadata, and required operational outputs. DynamicViT masks retain
+  `137`, `96`, and `67` patch tokens across its three pruning stages. ToMe
+  source assignments reduce realized tokens from `184` at `blocks.0` to `41`
+  at `blocks.11`.
+- The three adapter16 shared-core analyses pass. Each produces one selected
+  encoding row, `2973` V1 target rows, full-image CKA, deterministic subset RSA,
+  noise-ceiling metadata, and finite scores. These outputs validate the
+  integration path but are not claim evidence because `n=16`.
+- `scripts/run_paper1_matrix_v2_scientific64.py` now provides a sequential local
+  runner for three 64-image exports, artifact validation, twelve ROI analyses,
+  audit refresh, per-job logs, failure continuation, and Windows sleep
+  prevention.
+- The scientific64 runner completed all `16` jobs in about `8m55s`: three
+  exports, twelve V1/ventral/lateral/parietal analyses, and the audit refresh.
+  All three artifacts contain the same ordered `64` image IDs, all artifact
+  hashes validate, and all encoding, CKA, and subset-RSA scores are finite.
+- A selection-provenance defect found during inspection was fixed: the winning
+  candidate is now marked consistently in both `selection_candidates.csv` and
+  embedded `selection_artifact.json` candidate metadata. All twelve analyses
+  were regenerated in about `5m36s`, and all twelve artifacts now have exactly
+  one embedded winner matching `selected_candidate_index`.
+- The scientific64 layer choices vary across model and ROI, so smoke-selected
+  layers must not be frozen for the full run. The full matrix retains
+  validation-based layer and ridge-alpha selection.
+- Full-run capacity projection from the accepted artifacts is approximately
+  `27.5 GiB` for the three compressed external artifacts plus `29.5 GiB` for
+  raw feature memmaps. The largest outer-train layer matrix is approximately
+  `2.2 GiB` before randomized-PCA workspace. The full matrix is therefore a
+  cluster job, not a laptop job.
+- Verification status: the full repository suite passed with `299` tests before
+  the setup refinements. The selection metadata regression tests pass; a full
+  suite rerun is required after the cluster-readiness implementation.
 
 Latest session report:
 
-1. `Scientific change`: no new experiment was run; the session corrected the project handoff away from implementation-success framing. The accepted outputs already contain enough claim-facing evidence to force a scientific interpretation pass. The next step is to decide what Paper 1 can honestly claim, not to produce another engineering success marker.
-2. `Accepted artifact`: this updated status file, plus the already accepted attribution-family interpretation outputs: `outputs/paper1_experiment_v1/summary/attribution_family_cross_axis_interpretation.csv`, `outputs/paper_inspection_v1/tables/table16_attribution_family_cross_axis_interpretation.csv`, and regenerated `outputs/paper_inspection_v1/README.md`.
-3. `Claim impact`: clarifies that the current evidence most plausibly supports a constrained geometry-first dissociation / multi-axis measurement story. It does **not** support a strong claim that human-like visual attention predicts cortical alignment, that transformer relevance is operational attention, or that DINOv2 universally wins neural encoding.
-4. `Reviewer risk reduced`: reduces the risk of self-referential engineering claims by forcing the next session to classify scientific outcomes as `supported`, `partially_supported`, `diagnostic_only`, or `not_supported`.
-5. `Next decisive step`: write the actual Paper 1 outcome interpretation: strongest defensible claim, unsupported claims, remaining reviewer objections, and recommended paper framing.
+1. `Scientific change`: the four-ROI adaptive-computation pipeline has passed
+   its final local smoke gate. This is execution evidence, not claim evidence;
+   `n=64` is too small for model ranking or stream conclusions.
+2. `Accepted artifact`: three hash-verified scientific64 external artifacts
+   under `outputs/paper1_matrix_v2/external_artifacts/scientific64/`, twelve
+   regenerated neural/geometry outputs under
+   `outputs/paper1_matrix_v2/neural/scientific64/`, and the successful runner
+   summary under `logs/paper1_matrix_v2_scientific64/summary.json`.
+3. `Claim impact`: no headline claim changes. The full matched comparison is
+   now justified operationally, while the varied smoke-selected layers reinforce
+   the need to preserve validation-based selection in the full analysis.
+4. `Reviewer risk reduced`: verifies cross-ROI image-order identity, finite
+   encoding/geometry outputs, operational token decisions, complete provenance,
+   and internally consistent selection metadata.
+5. `Next decisive step`: implement and test cluster-ready full execution,
+   including resource-only behavioral artifacts, reusable PCA reductions,
+   Slurm dependency orchestration, and a bounded cluster smoke.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
@@ -571,83 +614,61 @@ Cluster-side Slurm policy:
 
 ## Next Concrete Milestone
 
-Priority: **Paper 1 Matrix V2 Redesign And Feasibility Audit**.
+Priority: **implement and validate full-matrix cluster execution**.
 
-The previous immediate milestone, “Paper 1 Outcome Interpretation And Claim Decision,” is superseded. Do not generate claim-decision tables from the archived outcome interpretation. Do not treat the current geometry-first framing as the active destination.
+The local scientific64 milestone is complete. Do not submit the full matrix
+with the current collection of one-off commands: it would duplicate expensive
+PCA work across four ROI cells and would store unnecessary feature tensors for
+behavior-only routing runs.
 
-### Required outcome
+### Next-session implementation plan
 
-Create a Matrix V2 planning artifact set:
+1. Add an external export mode that writes only logits/task outputs,
+   operational resource decisions, efficiency, image order, and provenance for
+   behavioral datasets. It must not write five neural feature tensors.
+2. Add a content-addressed train-only PCA cache keyed by artifact hash, layer,
+   image order, split indices, PCA settings, and seed. Reuse the same reduced
+   features across V1, ventral, lateral, and parietal while preserving separate
+   response-driven layer and ridge-alpha selection.
+3. Prove cached and uncached scientific64 analyses select the same candidates
+   and produce numerically equivalent encoding, CKA, and subset-RSA scores.
+4. Add cluster preflight tooling that checks source pins, environments,
+   checkpoints, manifests, dataset files, free disk, and expected job outputs.
+5. Add tracked Slurm scripts or a generator for:
+   three full NSD external exports; nine behavior-only exports followed by
+   routing-map conversion and scoring; reusable PCA preparation; and twelve
+   neural/geometry cells with dependency ordering and resumable logs.
+6. Run the repository tests and a dry-run audit locally.
+7. Sync code and required data to the cluster, recreate the three isolated
+   environments there, and pass a bounded cluster smoke before submitting the
+   full matrix.
 
-- `configs/paper1_matrix_v2.yaml`
-- `outputs/planning/paper1_matrix_v2_model_feasibility.csv`
-- `outputs/planning/paper1_matrix_v2_axis_scope.csv`
-- `outputs/planning/paper1_matrix_v2_next_run_order.md`
+### User/agent split
 
-These artifacts must define the next real experiment before any new large run.
+- Codex next session: implement items 1-6 and provide exact generated Slurm
+  commands.
+- User after implementation: run the supplied `cmd.exe`-compatible sync,
+  environment setup, bounded smoke, submission, monitoring, and output-return
+  commands.
+- No user-run full command is valid yet; the cluster runner and cache contract
+  must exist first.
 
-### Matrix V2 feasibility audit must answer
+### Stop conditions
 
-1. Which current artifacts are retained as diagnostic scaffold?
-2. Which model families are required?
-3. Which exact model candidates are feasible in the current repo?
-4. Which model candidates require new dependencies, wrappers, checkpoints, or cluster execution?
-5. Which candidates expose usable feature tensors for encoding/geometry?
-6. Which candidates expose usable attribution, routing, retained-token, scanpath, foveation, or adaptive-computation outputs?
-7. Which ROIs can be grouped into early, ventral, lateral/dorsal, and parietal/stream categories?
-8. Which subjects can support those ROI groups?
-9. Which efficiency metrics can be measured now?
-10. What is the first minimal Matrix V2 run that can falsify or support the revised paper story?
+- Do not interpret adapter16 or scientific64 scores as final evidence.
+- Do not launch the full matrix before cached/uncached equivalence passes.
+- Do not store neural feature tensors for behavior-only routing exports.
+- Do not submit jobs without disk-space, manifest, environment, checkpoint, and
+  output-resume preflight checks.
+- Do not restore the deleted V1 interpretation or add V1 compatibility work.
+- Do not run the full `9841`-image matrix on the laptop.
 
-### Required model-category table
+### Milestone completion
 
-The feasibility audit must include at least these categories:
-
-| category | role | examples / candidates | required decision |
-| --- | --- | --- | --- |
-| CNN anchor | local hierarchy baseline | ResNet-50, ConvNeXt | keep one or two |
-| plain ViT anchor | standard transformer baseline | ViT-B, DeiT | keep one |
-| SSL dense feature | modern self-supervised representation | DINOv2, newer DINO-family if feasible | include current plus audit newer candidate |
-| VLM / semantic | language/semantic training axis | CLIP, SigLIP-like if feasible | include current plus audit stronger candidate |
-| efficient/hybrid | nonstandard efficient sequence modeling | MambaVision-like if feasible | audit feasibility |
-| hierarchical/multiscale | multiscale visual hierarchy | Swin/Hiera-like if feasible | audit feasibility |
-| adaptive/foveated/selective | actual attention/resource-allocation mechanism | token-pruning, foveated, scanpath, glimpse model | highest-priority feasibility audit |
-| dedicated fixation/scanpath reference | behavioral upper/reference model | DeepGaze / scanpath model | behavioral reference only unless features are justified |
-
-### Required axis-scope table
-
-The axis-scope artifact must include:
-
-| axis | required status |
-| --- | --- |
-| free-viewing fixation alignment | already has SALICON/CAT2000 scaffold; keep separate |
-| task-search alignment | already has COCO-Search18 scaffold; keep separate |
-| scanpath/sequential alignment | audit feasibility |
-| neural encoding | expand from PRF-only robustness toward stream grouping |
-| representational geometry | keep CKA and subset RSA separate |
-| efficiency | implement minimal profile now, not after another paper artifact |
-| adaptive computation | audit retained tokens, foveation, scanpath, glimpse, or routing availability |
-
-### Acceptance criteria
-
-The milestone is complete only if:
-
-- the archived outcome interpretation is no longer referenced as active steering;
-- `configs/paper1_matrix_v2.yaml` exists;
-- a model feasibility table exists and separates `ready_now`, `needs_wrapper`, `needs_dependency`, `needs_checkpoint`, `defer`, and `reject`;
-- an axis-scope table exists and explicitly includes efficiency and stream/ROI grouping;
-- the next run order begins with the smallest experiment that tests the revised cross-axis quadrant story;
-- no new paper-facing claim table is generated before Matrix V2 exists.
-
-### First Codex implementation plan
-
-1. Remove `docs/paper1_outcome_interpretation_v1.md` from active docs references.
-2. Create `configs/paper1_matrix_v2.yaml`.
-3. Write `scripts/audit_paper1_matrix_v2_feasibility.py`.
-4. Inspect existing model wrappers, manifests, outputs, and dependencies.
-5. Emit the model feasibility table and axis-scope table.
-6. Propose the smallest next executable Matrix V2 run.
-7. Update this status file with the scientific change and next decisive step.
+This milestone is complete when the cluster runner, resource-only behavioral
+export, shared PCA cache, preflight checks, tests, and bounded cluster smoke all
+pass. The following milestone is full cluster execution and evidence
+aggregation.
 
 ## Data/control readiness update:
 
@@ -680,15 +701,15 @@ The milestone is complete only if:
 
 Current post-spec implementation priorities:
 
-The V1 outputs are now retained as diagnostic scaffold. They should no longer define the active paper destination.
+The V1 outputs remain diagnostic scaffold. Matrix V2 adapter16 and scientific64
+integration evidence is accepted, but full scientific evidence has not started.
 
 Active priority:
 
-- build Paper 1 Matrix V2 before any additional paper-facing interpretation;
-- audit modern model-family candidates instead of expanding generic model count;
-- add stream/ROI grouping as a first-class axis;
-- add minimal efficiency profiling as a first-class axis;
-- audit adaptive/foveated/token-pruning/scanpath mechanisms as the strongest route back to the original proposal;
+- implement resource-only behavioral exports;
+- implement reusable train-only PCA reductions across the four ROI cells;
+- implement cluster preflight and resumable Slurm orchestration;
+- pass cached/uncached equivalence and a bounded cluster smoke;
 - preserve existing behavioral controls, attribution-family separation, CKA/subset-RSA sensitivity, and subject-robustness outputs as controls/provenance.
 
 Do not:
@@ -696,7 +717,9 @@ Do not:
 - generate the old claim-decision table;
 - harden the `geometry_replicated_encoding_ambiguous` result into the main story;
 - rerun old subject robustness, observer controls, transformer relevance, or MSDB scoring unless an audit fails;
-- add new summary tables whose only purpose is to restate the old result.
+- add new summary tables whose only purpose is to restate the old result;
+- begin DINOv3/SigLIP/MambaVision expansion before the full adaptive-computation
+  execution path is cluster-ready.
 
 Completed milestones are archived in `docs/project_status_changelog.md`.
 
@@ -710,7 +733,7 @@ The V1 milestones are now treated as completed scaffold work. They should not de
 
 ### Phase 0 — Archive stale steering and freeze V1 as scaffold
 
-Status: immediate cleanup.
+Status: complete. The deleted interpretation is intentionally not restored.
 
 Purpose:
 
@@ -720,7 +743,7 @@ Purpose:
 
 Required actions:
 
-1. Move `docs/paper1_outcome_interpretation_v1.md` to `docs/archive_stale/`.
+1. Keep the user-deleted `docs/paper1_outcome_interpretation_v1.md` absent.
 2. Remove all active references to `geometry_first_dissociation_candidate` as the Paper 1 destination.
 3. Remove `paper1_claim_decision_table.csv` as the next milestone.
 4. Mark V1 subject robustness, transformer relevance, DeepGaze MSDB, observer controls, CKA/RSA, and paper-pack outputs as completed scaffold/provenance.
@@ -729,11 +752,11 @@ Required actions:
 Completion artifact:
 
 * updated `docs/project_status_and_next_steps.md`;
-* archived stale interpretation file.
+* explicit record that the deleted interpretation remains absent.
 
 ### Phase 1 — Paper 1 Matrix V2 redesign and feasibility audit
 
-Status: current next milestone.
+Status: complete, including the accepted adapter16 integration gate.
 
 Purpose:
 
@@ -742,19 +765,22 @@ Define the real next experiment before any additional large run.
 Required outputs:
 
 * `configs/paper1_matrix_v2.yaml`
-* `outputs/planning/paper1_matrix_v2_model_feasibility.csv`
-* `outputs/planning/paper1_matrix_v2_axis_scope.csv`
-* `outputs/planning/paper1_matrix_v2_next_run_order.md`
+* `outputs/paper1_matrix_v2/feasibility.json`
+* `outputs/paper1_matrix_v2/environment_status.csv`
+* `outputs/paper1_matrix_v2/axis_scope.csv`
+* `outputs/paper1_matrix_v2/adaptive_matrix_cells.csv`
+* `outputs/paper1_matrix_v2/next_run.md`
 
-The model feasibility table must classify candidates as:
+The environment-status table tracks actionable stages:
 
-* `ready_now`
-* `needs_wrapper`
-* `needs_dependency`
-* `needs_checkpoint`
-* `needs_cluster`
-* `defer`
-* `reject`
+* `source_ready`
+* `environment_ready`
+* `checkpoint_ready`
+* `adapter_ready`
+* `smoke_passed`
+* `evidence_ready`
+
+A dependency mismatch cannot by itself classify a model as deferred.
 
 Required model categories:
 
@@ -777,13 +803,15 @@ Required axis categories:
 6. efficiency and alignment-per-compute;
 7. adaptive computation / resource allocation.
 
-Acceptance rule:
+Completion evidence:
 
-Phase 1 is complete only when Codex can name the smallest executable Matrix V2 run that tests the revised paper story.
+The smallest executable Matrix V2 run is fixed as static DeiT-S versus
+DynamicViT-DeiT-S/0.7 versus ToMe-DeiT-S/r13, beginning with adapter16 V1 and
+then scientific64 V1/ventral/lateral/parietal cells.
 
 ### Phase 2 — Stream/ROI grouping and neural-scope upgrade
 
-Status: after Matrix V2 audit.
+Status: scientific64 integration gate passed; full cluster execution pending.
 
 Purpose:
 
@@ -806,8 +834,11 @@ Required actions:
 
 Completion artifacts:
 
-* `outputs/planning/paper1_matrix_v2_roi_groups.csv`
+* `outputs/paper1_matrix_v2/axis_scope.csv`
+* `outputs/paper1_matrix_v2/adaptive_matrix_cells.csv`
 * updated `configs/paper1_matrix_v2.yaml`
+* generated `scientific64` and `full` configs under
+  `configs/experiments/paper1_matrix_v2/`
 
 Acceptance rule:
 
@@ -815,7 +846,9 @@ The paper must be able to ask whether fixation-like or adaptive mechanisms align
 
 ### Phase 3 — Modern model-family expansion with designed contrasts
 
-Status: after Phase 1 feasibility audit.
+Status: registry and environment integration scaffold implemented; start
+MambaVision, DINOv3, and SigLIP after the adaptive full-run execution path is
+cluster-ready.
 
 Purpose:
 
@@ -841,7 +874,8 @@ Rules:
 
 Completion artifact:
 
-* `outputs/planning/paper1_matrix_v2_model_feasibility.csv`
+* `outputs/paper1_matrix_v2/feasibility.json`
+* `configs/external_models/registry.yaml`
 * first executable Matrix V2 model panel in `configs/paper1_matrix_v2.yaml`
 
 Acceptance rule:
@@ -856,7 +890,8 @@ The model panel must make at least one of these dissociations testable:
 
 ### Phase 4 — Efficiency and alignment-per-compute
 
-Status: no longer deferred behind old claim-table work.
+Status: adapter16 and scientific64 profiling are validated; full cluster
+execution and alignment-per-compute aggregation remain.
 
 Purpose:
 
@@ -883,7 +918,8 @@ Efficiency must be merged into the Matrix V2 cross-axis table. It should not app
 
 ### Phase 5 — Behavioral axis upgrade: scanpath/task/adaptive attention where feasible
 
-Status: after model feasibility audit, can run in parallel with Phase 3 if lightweight.
+Status: DynamicViT/ToMe routing-map integration is implemented but unrun; HAT
+and ScanDiff remain later external integrations after adaptive evidence.
 
 Purpose:
 
@@ -1016,6 +1052,23 @@ Saliency methods:
 - `src/hma/saliency/precomputed.py`
 - `src/hma/saliency/postprocess.py`
 - `coco_search18_task_prior` in `src/hma/saliency/baselines.py` is the accepted task-specific COCO-Search18 behavioral-control baseline.
+
+Matrix V2 external integration:
+
+- `configs/paper1_matrix_v2.yaml`
+- `configs/external_models/registry.yaml`
+- `configs/external_models/environments/`
+- `src/hma/external/registry.py`
+- `src/hma/external/artifacts.py`
+- `src/hma/external/adapters.py`
+- `scripts/setup_external_model.py`
+- `scripts/run_external_model.py`
+- `scripts/apply_external_patches.py`
+- `scripts/export_external_routing_maps.py`
+- `scripts/create_paper1_matrix_v2_configs.py`
+- `scripts/audit_paper1_matrix_v2.py`
+- `scripts/run_paper1_matrix_v2_scientific64.py`
+- `tests/test_external_model_integration.py`
 
 Neural alignment:
 

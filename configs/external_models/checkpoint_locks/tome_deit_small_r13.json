@@ -1,0 +1,7 @@
+{
+  "model_id": "tome_deit_small_r13",
+  "path_kind": "file",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "06cb92b675ab79f5513702f387129b60073a0d15eff2ffcf61521ba1f1a79bf7",
+  "source": "https://dl.fbaipublicfiles.com/tome/f367470145_deit_S_r13.pth"
+}
