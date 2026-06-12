@@ -1,0 +1,14 @@
+name: hma-paper1-matrix-v2-core
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - numpy=1.26
+  - scipy=1.13
+  - scikit-learn=1.5
+  - pillow=10
+  - pyyaml=6
+  - pandas=2.2
+  - matplotlib=3.9
+  - pytest=8

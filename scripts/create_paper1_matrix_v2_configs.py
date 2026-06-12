@@ -97,6 +97,16 @@ def _experiment_config(
         "external_artifact": {
             "path": f"outputs/paper1_matrix_v2/external_artifacts/{stage}/{model_id}",
             "verify_hashes": True,
+            **(
+                {
+                    "feature_cache_dir": (
+                        f"outputs/paper1_matrix_v2/cache/{stage}/"
+                        f"{model_id}/raw_features"
+                    )
+                }
+                if stage in {"scientific64", "full"}
+                else {}
+            ),
         },
         "preprocessing": dict(model.get("preprocessing", {})),
         "neural": {
@@ -108,6 +118,16 @@ def _experiment_config(
             "pca_solver": "randomized",
             "pca_whiten": False,
             "feature_reduction_seed": 123,
+            **(
+                {
+                    "pca_cache_dir": (
+                        f"outputs/paper1_matrix_v2/cache/{stage}/"
+                        f"{model_id}/pca"
+                    )
+                }
+                if stage in {"scientific64", "full"}
+                else {}
+            ),
             "train_fraction": 0.8,
             "ridge_alpha": 1.0,
             "ridge_alphas": [

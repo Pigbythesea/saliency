@@ -12,6 +12,7 @@ from hma.external.hashing import sha256_file, sha256_tree
 
 
 ARTIFACT_SCHEMA_VERSION = "hma.external.artifact.v1"
+ARTIFACT_SCOPES = {"full", "resource_only"}
 REQUIRED_PROVENANCE_KEYS = {
     "model_id",
     "repository",
@@ -34,6 +35,7 @@ class ExternalArtifactWriter:
         model_id: str,
         provenance: dict[str, Any],
         expected_mechanism_outputs: Iterable[str] = (),
+        artifact_scope: str = "full",
     ) -> None:
         self.output_dir = Path(output_dir).expanduser().resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -47,6 +49,11 @@ class ExternalArtifactWriter:
         self.expected_mechanism_outputs = sorted(
             str(value) for value in expected_mechanism_outputs
         )
+        self.artifact_scope = str(artifact_scope)
+        if self.artifact_scope not in ARTIFACT_SCOPES:
+            raise ValueError(
+                f"artifact_scope must be one of {sorted(ARTIFACT_SCOPES)}"
+            )
         self.image_ids: list[str] = []
         self.feature_chunks: dict[str, list[dict[str, Any]]] = {}
         self.output_chunks: dict[str, list[dict[str, Any]]] = {}
@@ -159,6 +166,7 @@ class ExternalArtifactWriter:
         manifest = {
             "schema_version": ARTIFACT_SCHEMA_VERSION,
             "model_id": self.model_id,
+            "artifact_scope": self.artifact_scope,
             "num_images": len(self.image_ids),
             "image_ids_file": image_ids_path.name,
             "features": self.feature_chunks,
@@ -222,6 +230,9 @@ def validate_external_artifact(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema_version") != ARTIFACT_SCHEMA_VERSION:
         raise ValueError("Unsupported external artifact schema_version")
+    artifact_scope = str(manifest.get("artifact_scope", "full"))
+    if artifact_scope not in ARTIFACT_SCOPES:
+        raise ValueError("Unsupported external artifact artifact_scope")
     image_ids_path = root / str(manifest.get("image_ids_file", "image_ids.json"))
     image_ids = json.loads(image_ids_path.read_text(encoding="utf-8"))
     if len(image_ids) != int(manifest.get("num_images", -1)):
@@ -260,6 +271,10 @@ def validate_external_artifact(
             "External artifact is missing required operational outputs: "
             f"{missing_outputs}"
         )
+    if artifact_scope == "full" and not manifest.get("features"):
+        raise ValueError("Full external artifacts must contain feature tensors")
+    if artifact_scope == "resource_only" and manifest.get("features"):
+        raise ValueError("Resource-only external artifacts may not contain features")
     return manifest
 
 
@@ -308,7 +323,21 @@ def load_external_features_to_memmaps(
         raise KeyError(f"External artifact is missing requested feature layers: {missing}")
     destination = Path(storage_dir).expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
+    cache_index_path = destination / "memmap_index.json"
+    cache_key = _memmap_cache_key(root, manifest, requested)
+    cache_index = _load_memmap_index(cache_index_path)
     features: dict[str, np.memmap] = {}
+    if cache_index.get("cache_key") == cache_key:
+        cached = _open_cached_memmaps(
+            destination,
+            cache_index,
+            layers=requested,
+            num_images=len(image_ids),
+        )
+        if cached is not None:
+            return [str(value) for value in image_ids], cached, manifest
+
+    cache_layers: dict[str, dict[str, Any]] = {}
     for layer in requested:
         chunks = manifest["features"][layer]
         first_shape = tuple(int(value) for value in chunks[0]["shape"][1:])
@@ -325,6 +354,23 @@ def load_external_features_to_memmaps(
                 memmap[int(chunk["start"]) : int(chunk["stop"])] = payload["values"]
         memmap.flush()
         features[layer] = memmap
+        cache_layers[layer] = {
+            "file": path.name,
+            "dtype": str(dtype),
+            "shape": [len(image_ids), *first_shape],
+        }
+    cache_index_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "hma.external.memmap_cache.v1",
+                "cache_key": cache_key,
+                "layers": cache_layers,
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
     return [str(value) for value in image_ids], features, manifest
 
 
@@ -404,6 +450,66 @@ def _mechanism_outputs_satisfied(expected: set[str], actual: set[str]) -> bool:
         any(name == required or name.startswith(required + ".") for name in actual)
         for required in expected
     )
+
+
+def _memmap_cache_key(
+    root: Path,
+    manifest: dict[str, Any],
+    layers: list[str],
+) -> str:
+    payload = {
+        "manifest_sha256": sha256_file(root / "manifest.json"),
+        "layers": layers,
+        "feature_chunks": {
+            layer: manifest["features"][layer]
+            for layer in layers
+        },
+    }
+    return _sha256_json(payload)
+
+
+def _load_memmap_index(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _open_cached_memmaps(
+    destination: Path,
+    cache_index: dict[str, Any],
+    *,
+    layers: list[str],
+    num_images: int,
+) -> dict[str, np.memmap] | None:
+    cached_layers = cache_index.get("layers")
+    if not isinstance(cached_layers, dict):
+        return None
+    opened: dict[str, np.memmap] = {}
+    for layer in layers:
+        entry = cached_layers.get(layer)
+        if not isinstance(entry, dict):
+            return None
+        shape = tuple(int(value) for value in entry.get("shape", []))
+        if not shape or shape[0] != num_images:
+            return None
+        dtype = np.dtype(entry.get("dtype"))
+        path = destination / str(entry.get("file", ""))
+        expected_size = int(np.prod(shape, dtype=np.int64)) * int(dtype.itemsize)
+        if not path.is_file() or path.stat().st_size != expected_size:
+            return None
+        opened[layer] = np.memmap(path, mode="r", dtype=dtype, shape=shape)
+    return opened
+
+
+def _sha256_json(value: Any) -> str:
+    import hashlib
+
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _validate_provenance_values(provenance: dict[str, Any]) -> None:

@@ -181,15 +181,16 @@ def _next_run_markdown(matrix: dict[str, Any]) -> str:
 
 The adapter16 and scientific64 gates are complete for {models}.
 
-The next task is cluster-readiness implementation before the full `9841`-image
-adaptive-computation matrix is submitted:
+Cluster-readiness implementation is complete. The next gate is the bounded JHU
+cluster smoke before the full `9841`-image adaptive-computation matrix:
 
-1. add resource-only external exports for SALICON, CAT2000, and COCO-Search18;
-2. cache train-only PCA reductions across the four ROI analyses for each model;
-3. add cluster preflight validation and Slurm jobs for three neural exports,
-   nine behavioral exports/map conversions/scores, and twelve neural analyses;
-4. prove cached and uncached scientific64 outputs are numerically equivalent;
-5. pass a bounded cluster smoke before full submission.
+1. sync tracked code and the four required data roots to the cluster;
+2. recreate the three pinned external environments and the core analysis
+   environment;
+3. run `cluster/paper1_matrix_v2/submit_smoke.sh`;
+4. require all neural and behavioral smoke arrays to complete successfully;
+5. inspect preflight JSON, Slurm logs, artifacts, routing maps, and scores before
+   running `cluster/paper1_matrix_v2/submit_full.sh`.
 
 Do not launch the full matrix directly from the laptop. The projected external
 artifacts are approximately `27.5 GiB`, with approximately `29.5 GiB` of raw

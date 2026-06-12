@@ -22,6 +22,7 @@ model:
 external_artifact:
   path: outputs/paper1_matrix_v2/external_artifacts/scientific64/dynamicvit_deit_small_keep_0_7
   verify_hashes: true
+  feature_cache_dir: outputs/paper1_matrix_v2/cache/scientific64/dynamicvit_deit_small_keep_0_7/raw_features
 preprocessing:
   input_size:
   - 224
@@ -50,6 +51,7 @@ neural:
   pca_solver: randomized
   pca_whiten: false
   feature_reduction_seed: 123
+  pca_cache_dir: outputs/paper1_matrix_v2/cache/scientific64/dynamicvit_deit_small_keep_0_7/pca
   train_fraction: 0.8
   ridge_alpha: 1.0
   ridge_alphas:

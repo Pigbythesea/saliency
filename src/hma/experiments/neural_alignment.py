@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import gc
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -103,6 +104,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     )
     if external_artifact_path:
         device = "external_artifact"
+        configured_feature_cache = external_artifact_config.get("feature_cache_dir")
         collection, external_artifact_manifest = _collect_external_features_and_responses(
             dataset=dataset,
             artifact_path=resolve_path(external_artifact_path),
@@ -112,7 +114,9 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
             feature_reduction=collection_feature_reduction,
             verify_hashes=bool(external_artifact_config.get("verify_hashes", True)),
             feature_storage_dir=(
-                output_dir / "feature_cache"
+                resolve_path(configured_feature_cache)
+                if configured_feature_cache
+                else output_dir / "feature_cache"
                 if collection_feature_reduction == "selection_raw"
                 else None
             ),
@@ -139,6 +143,14 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     image_ids, responses, features_by_layer, feature_shapes, item_metadata, noise_ceiling = collection
     if len(image_ids) < 2:
         raise ValueError("Neural alignment requires at least two response-bearing items")
+    if external_artifact_manifest is not None:
+        _configure_pca_cache(
+            selection_candidates,
+            feature_reduction_config,
+            neural_config=neural_config,
+            artifact_manifest=external_artifact_manifest,
+            image_ids=image_ids,
+        )
 
     selection_result: dict[str, Any] | None = None
     learned_readout_result: dict[str, Any] | None = None
@@ -1440,6 +1452,45 @@ def _feature_reduction_config(
     }
 
 
+def _configure_pca_cache(
+    selection_candidates: list[dict[str, Any]],
+    feature_reduction_config: dict[str, Any],
+    *,
+    neural_config: dict[str, Any],
+    artifact_manifest: dict[str, Any],
+    image_ids: list[str],
+) -> None:
+    cache_dir = neural_config.get("pca_cache_dir")
+    if not cache_dir:
+        return
+    source_payload = {
+        "schema_version": artifact_manifest.get("schema_version"),
+        "model_id": artifact_manifest.get("model_id"),
+        "num_images": artifact_manifest.get("num_images"),
+        "features": artifact_manifest.get("features"),
+        "provenance": artifact_manifest.get("provenance"),
+        "image_ids": image_ids,
+    }
+    source = hashlib.sha256(
+        json.dumps(
+            source_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    resolved_cache = str(resolve_path(cache_dir))
+    feature_reduction_config.update(
+        {
+            "pca_cache_dir": resolved_cache,
+            "pca_cache_source": source,
+        }
+    )
+    for candidate in selection_candidates:
+        if str(candidate.get("feature_reduction")) == "flatten_pca":
+            candidate["pca_cache_dir"] = resolved_cache
+            candidate["pca_cache_source"] = source
+
+
 def _selection_candidate_configs(
     neural_config: dict[str, Any],
     *,
@@ -1522,6 +1573,8 @@ def _candidate_feature_reduction_config(candidate: dict[str, Any]) -> dict[str, 
         "pca_solver": str(candidate.get("pca_solver", "randomized")),
         "pca_whiten": bool(candidate.get("pca_whiten", False)),
         "feature_reduction_seed": int(candidate.get("feature_reduction_seed", 0)),
+        "pca_cache_dir": candidate.get("pca_cache_dir"),
+        "pca_cache_source": candidate.get("pca_cache_source"),
     }
 
 
@@ -1544,6 +1597,8 @@ def _prepare_layer_features(
             pca_solver=str(feature_reduction_config["pca_solver"]),
             pca_whiten=bool(feature_reduction_config["pca_whiten"]),
             random_seed=int(feature_reduction_config["feature_reduction_seed"]),
+            cache_dir=feature_reduction_config.get("pca_cache_dir"),
+            cache_source=feature_reduction_config.get("pca_cache_source"),
         )
 
     reduced = _reduce_feature_matrix(features, method=feature_reduction)
@@ -1574,6 +1629,8 @@ def _fit_transform_flatten_pca(
     pca_solver: str,
     pca_whiten: bool,
     random_seed: int,
+    cache_dir: str | Path | None = None,
+    cache_source: str | None = None,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     try:
         from sklearn.decomposition import PCA
@@ -1594,6 +1651,26 @@ def _fit_transform_flatten_pca(
             "neural.pca_components must be <= min(n_train, n_features): "
             f"{pca_components} > {max_components}"
         )
+    cache_key = _pca_cache_key(
+        cache_source=cache_source,
+        layer=layer,
+        input_shape=input_shape,
+        matrix_shape=matrix.shape,
+        matrix_dtype=matrix.dtype,
+        train_idx=train_idx,
+        pca_components=pca_components,
+        pca_solver=pca_solver,
+        pca_whiten=pca_whiten,
+        random_seed=random_seed,
+    )
+    cached = _load_pca_cache(cache_dir, cache_key, expected_rows=matrix.shape[0])
+    if cached is not None:
+        reduced, metadata = cached
+        return reduced, {
+            **metadata,
+            "cache_hit": True,
+            "cache_key": cache_key,
+        }
 
     train_matrix = np.asarray(matrix[train_idx], dtype=np.float32, order="C")
     pca = PCA(
@@ -1618,7 +1695,10 @@ def _fit_transform_flatten_pca(
         "random_seed": int(random_seed),
         "pca_solver": pca_solver,
         "pca_whiten": bool(pca_whiten),
+        "cache_hit": False,
+        "cache_key": cache_key,
     }
+    _write_pca_cache(cache_dir, cache_key, reduced, metadata)
     return reduced, metadata
 
 
@@ -1644,6 +1724,90 @@ def _transform_pca_in_batches(
             transformed = transformed / scale
         reduced[start:end] = transformed.astype(np.float32, copy=False)
     return reduced
+
+
+def _pca_cache_key(
+    *,
+    cache_source: str | None,
+    layer: str,
+    input_shape: list[int],
+    matrix_shape: tuple[int, ...],
+    matrix_dtype: np.dtype,
+    train_idx: np.ndarray,
+    pca_components: int,
+    pca_solver: str,
+    pca_whiten: bool,
+    random_seed: int,
+) -> str:
+    payload = {
+        "schema_version": "hma.neural.flatten_pca_cache.v1",
+        "source": cache_source or "uncached",
+        "layer": layer,
+        "input_shape": [int(value) for value in input_shape],
+        "matrix_shape": [int(value) for value in matrix_shape],
+        "matrix_dtype": str(matrix_dtype),
+        "train_indices_sha256": hashlib.sha256(
+            np.asarray(train_idx, dtype=np.int64).tobytes()
+        ).hexdigest(),
+        "pca_components": int(pca_components),
+        "pca_solver": pca_solver,
+        "pca_whiten": bool(pca_whiten),
+        "random_seed": int(random_seed),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _load_pca_cache(
+    cache_dir: str | Path | None,
+    cache_key: str,
+    *,
+    expected_rows: int,
+) -> tuple[np.ndarray, dict[str, Any]] | None:
+    if not cache_dir:
+        return None
+    root = Path(cache_dir).expanduser().resolve()
+    array_path = root / f"{cache_key}.npy"
+    metadata_path = root / f"{cache_key}.json"
+    if not array_path.is_file() or not metadata_path.is_file():
+        return None
+    try:
+        reduced = np.load(array_path, mmap_mode="r", allow_pickle=False)
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+    if (
+        reduced.ndim != 2
+        or reduced.shape[0] != expected_rows
+        or int(metadata.get("effective_components", -1)) != reduced.shape[1]
+    ):
+        return None
+    return reduced, metadata
+
+
+def _write_pca_cache(
+    cache_dir: str | Path | None,
+    cache_key: str,
+    reduced: np.ndarray,
+    metadata: dict[str, Any],
+) -> None:
+    if not cache_dir:
+        return
+    root = Path(cache_dir).expanduser().resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    array_path = root / f"{cache_key}.npy"
+    metadata_path = root / f"{cache_key}.json"
+    array_tmp = root / f"{cache_key}.npy.tmp"
+    metadata_tmp = root / f"{cache_key}.json.tmp"
+    with array_tmp.open("wb") as handle:
+        np.save(handle, np.asarray(reduced, dtype=np.float32), allow_pickle=False)
+    metadata_tmp.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    array_tmp.replace(array_path)
+    metadata_tmp.replace(metadata_path)
 
 
 def _reduce_feature_matrix(features: np.ndarray, method: str = "flatten") -> np.ndarray:

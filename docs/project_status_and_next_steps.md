@@ -405,7 +405,7 @@ The reduced subject-robustness result is useful pilot evidence. It should be tre
 
 ### Current priority
 
-The immediate priority is **Matrix V2 full-run cluster readiness**.
+The immediate priority is the **bounded Matrix V2 JHU cluster smoke**.
 
 The adapter16 and scientific64 gates have passed for:
 
@@ -413,11 +413,11 @@ The adapter16 and scientific64 gates have passed for:
 - DynamicViT-DeiT-S/0.7 with retained-token masks;
 - ToMe-DeiT-S/r13 with source-traced merge assignments.
 
-The next work is not another local evidence run. It is an implementation pass
-that makes the full `9841`-image neural matrix and the nine operational-routing
-behavior cells reproducible and practical on the JHU cluster. This includes
-resource-only behavioral export, reusable train-only PCA reductions across ROI
-cells, Slurm orchestration, preflight validation, and a bounded cluster smoke.
+Cluster-readiness implementation is complete locally. The next gate recreates
+the pinned environments on the cluster and runs the generated smoke workflow:
+three 64-image neural exports, twelve cached neural/geometry analyses, nine
+16-unique-image resource-only behavioral exports, routing-map conversion, and
+bounded behavioral scoring.
 
 ### Explicit non-priorities
 
@@ -539,29 +539,48 @@ Current implementation state:
   raw feature memmaps. The largest outer-train layer matrix is approximately
   `2.2 GiB` before randomized-PCA workspace. The full matrix is therefore a
   cluster job, not a laptop job.
-- Verification status: the full repository suite passed with `299` tests before
-  the setup refinements. The selection metadata regression tests pass; a full
-  suite rerun is required after the cluster-readiness implementation.
+- Resource-only external artifacts now preserve logits/task outputs,
+  operational routing decisions, efficiency, image order, and provenance while
+  forbidding neural feature tensors. This is the artifact mode used by the nine
+  SALICON/CAT2000/COCO-Search18 behavioral cells.
+- External raw features now use a validated persistent memmap cache. Train-only
+  PCA reductions use a content-addressed cache keyed by artifact provenance and
+  chunk hashes, image order, layer, split indices, PCA settings, and seed.
+- Cached/uncached equivalence passed for all twelve scientific64 cells.
+  Selected scientific candidates, ridge alphas, selection scores, encoding
+  scores, CKA, and subset RSA agree within `1e-7`; encoding and geometry CSVs
+  were identical in the accepted audit.
+- Cluster tooling now includes a pinned core environment, source/checkpoint/data
+  preflight, behavioral runtime-config preparation, and ten generated files
+  under `cluster/paper1_matrix_v2/` for bounded smoke and full execution.
+- JHU inventory: `l40s` is the default GPU partition with eight L40S GPUs per
+  node and about `755 GiB` RAM; `cpu` nodes provide `112` CPUs and about
+  `503 GiB` RAM; both allow jobs up to three days. Scratch has about `11 TiB`
+  free. The login environment has Python `3.13.13`, no micromamba, and no
+  environment modules, so the pinned project-local micromamba bootstrap is
+  required.
+- Verification status: `305` repository tests pass. Generated Python files
+  compile, `git diff --check` reports no whitespace errors, and the PCA cache
+  equivalence audit passes `12/12`.
 
 Latest session report:
 
-1. `Scientific change`: the four-ROI adaptive-computation pipeline has passed
-   its final local smoke gate. This is execution evidence, not claim evidence;
-   `n=64` is too small for model ranking or stream conclusions.
-2. `Accepted artifact`: three hash-verified scientific64 external artifacts
-   under `outputs/paper1_matrix_v2/external_artifacts/scientific64/`, twelve
-   regenerated neural/geometry outputs under
-   `outputs/paper1_matrix_v2/neural/scientific64/`, and the successful runner
-   summary under `logs/paper1_matrix_v2_scientific64/summary.json`.
+1. `Scientific change`: no claim change. The execution path now covers both
+   neural features and operational resource-allocation behavior without using
+   attribution maps as substitutes.
+2. `Accepted artifact`: the prior scientific64 artifacts plus
+   `outputs/paper1_matrix_v2/cache_equivalence/scientific64/summary.json`,
+   resource-only artifact tests, generated full configs with shared caches, and
+   the JHU-specific Slurm/preflight files.
 3. `Claim impact`: no headline claim changes. The full matched comparison is
    now justified operationally, while the varied smoke-selected layers reinforce
    the need to preserve validation-based selection in the full analysis.
-4. `Reviewer risk reduced`: verifies cross-ROI image-order identity, finite
-   encoding/geometry outputs, operational token decisions, complete provenance,
-   and internally consistent selection metadata.
-5. `Next decisive step`: implement and test cluster-ready full execution,
-   including resource-only behavioral artifacts, reusable PCA reductions,
-   Slurm dependency orchestration, and a bounded cluster smoke.
+4. `Reviewer risk reduced`: adds explicit behavior-only artifact scope,
+   deterministic cache identity, cached/uncached numerical equivalence, and
+   partition/resource-specific execution provenance.
+5. `Next decisive step`: sync code and the four required data roots, recreate
+   the three external environments plus the core environment, run
+   `submit_smoke.sh`, and inspect every Slurm task before full submission.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
@@ -576,6 +595,10 @@ Cluster account and workspace:
 - Use git for tracked source/config/test changes whenever possible.
 - Use WSL `rsync` for large or untracked data, generated maps, model caches, and output directories.
 - Do not rely on git alone for raw datasets, precomputed artifacts, or generated outputs.
+- Observed partitions: use `l40s` for external-model inference and `cpu` for
+  PCA/ridge/geometry and behavioral scoring.
+- Generated requests: one L40S, `14` CPUs, and `48 GiB` for export tasks;
+  `32` CPUs and `120 GiB` for each model's sequential four-ROI analysis task.
 
 Recommended laptop-to-cluster pattern:
 
@@ -586,10 +609,10 @@ Recommended laptop-to-cluster pattern:
 5. Copy only the required outputs back to the laptop.
 6. Run local audits/summaries after outputs return, then update this status file.
 
-Generic working-tree sync from Windows `cmd.exe` through WSL:
+Working-tree sync from Windows `cmd.exe` through WSL:
 
 ```cmd
-wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -av --delete --exclude '.git/' --exclude '.venv/' --exclude '.pytest_tmp/' --exclude '__pycache__/' --exclude 'outputs/' ./ zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/"
+wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --delete --exclude '.git/' --exclude '.venv/' --exclude 'external/' --exclude 'data/' --exclude 'outputs/' --exclude 'logs/' --exclude '.pytest_tmp/' --exclude '__pycache__/' ./ zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/"
 ```
 
 Generic data sync template:
@@ -614,49 +637,97 @@ Cluster-side Slurm policy:
 
 ## Next Concrete Milestone
 
-Priority: **implement and validate full-matrix cluster execution**.
+Priority: **pass the generated bounded JHU cluster smoke**.
 
-The local scientific64 milestone is complete. Do not submit the full matrix
-with the current collection of one-off commands: it would duplicate expensive
-PCA work across four ROI cells and would store unnecessary feature tensors for
-behavior-only routing runs.
+The local implementation milestone is complete. Full submission remains
+blocked until all smoke arrays pass on the actual L40S and CPU nodes.
 
 ### Next-session implementation plan
 
-1. Add an external export mode that writes only logits/task outputs,
-   operational resource decisions, efficiency, image order, and provenance for
-   behavioral datasets. It must not write five neural feature tensors.
-2. Add a content-addressed train-only PCA cache keyed by artifact hash, layer,
-   image order, split indices, PCA settings, and seed. Reuse the same reduced
-   features across V1, ventral, lateral, and parietal while preserving separate
-   response-driven layer and ridge-alpha selection.
-3. Prove cached and uncached scientific64 analyses select the same candidates
-   and produce numerically equivalent encoding, CKA, and subset-RSA scores.
-4. Add cluster preflight tooling that checks source pins, environments,
-   checkpoints, manifests, dataset files, free disk, and expected job outputs.
-5. Add tracked Slurm scripts or a generator for:
-   three full NSD external exports; nine behavior-only exports followed by
-   routing-map conversion and scoring; reusable PCA preparation; and twelve
-   neural/geometry cells with dependency ordering and resumable logs.
-6. Run the repository tests and a dry-run audit locally.
-7. Sync code and required data to the cluster, recreate the three isolated
-   environments there, and pass a bounded cluster smoke before submitting the
-   full matrix.
+1. Sync tracked code without local environments, outputs, logs, or data.
+2. Sync `data/manifests/`, `data/raw/nsd_algonauts/subj01/`,
+   `data/raw/SALICON/`, `data/raw/CAT2000/`, and
+   `data/raw/COCO-Search18/`.
+3. Run the three existing external setup commands on the cluster. The first
+   command bootstraps pinned micromamba because neither micromamba nor modules
+   are installed globally.
+4. Create `external/environments/paper1_matrix_v2_core` from
+   `configs/cluster/paper1_matrix_v2_core.yaml`, then install this repository
+   editable into that environment.
+5. Run `cluster/paper1_matrix_v2/submit_smoke.sh`.
+6. Require all four submitted job arrays and every array task to finish
+   `COMPLETED`. Inspect preflight JSON and Slurm logs for warnings, tracebacks,
+   missing maps, invalid artifacts, or cache inconsistencies.
+7. Return smoke outputs/logs locally for Codex inspection. Only then run
+   `submit_full.sh`.
 
 ### User/agent split
 
-- Codex next session: implement items 1-6 and provide exact generated Slurm
-  commands.
-- User after implementation: run the supplied `cmd.exe`-compatible sync,
-  environment setup, bounded smoke, submission, monitoring, and output-return
-  commands.
-- No user-run full command is valid yet; the cluster runner and cache contract
-  must exist first.
+- User: perform the sync, cluster environment setup, and bounded smoke commands.
+- Codex next session: inspect returned smoke artifacts/logs, fix any
+  cluster-specific defect, and decide whether full submission is accepted.
+- `submit_full.sh` exists but remains blocked until that inspection.
+
+### User-run cluster smoke commands
+
+Run these sequentially from Windows `cmd.exe`.
+
+1. Sync code without local environments, data, outputs, or logs:
+
+```cmd
+wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --delete --exclude '.git/' --exclude '.venv/' --exclude 'external/' --exclude 'data/' --exclude 'outputs/' --exclude 'logs/' --exclude '.pytest_tmp/' --exclude '__pycache__/' ./ zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/"
+```
+
+2. Sync the required manifests and approximately `14 GiB` of `subj01`,
+SALICON, CAT2000, and COCO-Search18 data:
+
+```cmd
+wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --info=progress2 -R data/./manifests/ data/./raw/nsd_algonauts/subj01/ data/./raw/SALICON/ data/./raw/CAT2000/ data/./raw/COCO-Search18/ zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/data/"
+```
+
+3. Bootstrap pinned micromamba and recreate the three external environments:
+
+```cmd
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && python3 scripts/setup_external_model.py --model deit_small_static --install --download-checkpoint --smoke && python3 scripts/setup_external_model.py --model dynamicvit_deit_small_keep_0_7 --install --download-checkpoint --smoke && python3 scripts/setup_external_model.py --model tome_deit_small_r13 --install --download-checkpoint --smoke'"
+```
+
+4. Create the core analysis environment and install the project:
+
+```cmd
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && external/tools/micromamba/2.8.1-0/micromamba create --yes --prefix external/environments/paper1_matrix_v2_core --file configs/cluster/paper1_matrix_v2_core.yaml && external/tools/micromamba/2.8.1-0/micromamba run --prefix external/environments/paper1_matrix_v2_core python -m pip install -e .'"
+```
+
+5. Validate every generated Bash/Slurm file remotely, submit the bounded smoke,
+and retain the four printed job IDs:
+
+```cmd
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && for f in cluster/paper1_matrix_v2/*.sh cluster/paper1_matrix_v2/*.sbatch; do bash -n $f || exit 1; done && bash cluster/paper1_matrix_v2/submit_smoke.sh'"
+```
+
+6. Monitor:
+
+```cmd
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'squeue -u zzhan330'"
+```
+
+After the arrays leave `squeue`, inspect them by replacing `<JOB_IDS>` with the
+four comma-separated IDs printed by step 5:
+
+```cmd
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'sacct -j <JOB_IDS> --format=JobID,JobName,Partition,State,ExitCode,Elapsed,MaxRSS'"
+```
+
+7. Return outputs and logs for Codex inspection:
+
+```cmd
+wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --info=progress2 zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/outputs/paper1_matrix_v2/ outputs/paper1_matrix_v2/ && rsync -az --info=progress2 zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/slurm_logs/ slurm_logs/"
+```
 
 ### Stop conditions
 
 - Do not interpret adapter16 or scientific64 scores as final evidence.
-- Do not launch the full matrix before cached/uncached equivalence passes.
+- Do not launch the full matrix before the cluster smoke passes and is
+  inspected.
 - Do not store neural feature tensors for behavior-only routing exports.
 - Do not submit jobs without disk-space, manifest, environment, checkpoint, and
   output-resume preflight checks.
@@ -665,10 +736,9 @@ behavior-only routing runs.
 
 ### Milestone completion
 
-This milestone is complete when the cluster runner, resource-only behavioral
-export, shared PCA cache, preflight checks, tests, and bounded cluster smoke all
-pass. The following milestone is full cluster execution and evidence
-aggregation.
+This milestone is complete when every bounded cluster smoke task passes and its
+artifacts/logs are inspected locally. The following milestone is full cluster
+execution and evidence aggregation.
 
 ## Data/control readiness update:
 
@@ -706,10 +776,10 @@ integration evidence is accepted, but full scientific evidence has not started.
 
 Active priority:
 
-- implement resource-only behavioral exports;
-- implement reusable train-only PCA reductions across the four ROI cells;
-- implement cluster preflight and resumable Slurm orchestration;
-- pass cached/uncached equivalence and a bounded cluster smoke;
+- sync code and required data to the JHU workspace;
+- recreate the pinned external and core environments;
+- submit and monitor the generated bounded cluster smoke;
+- return smoke outputs and logs for acceptance inspection;
 - preserve existing behavioral controls, attribution-family separation, CKA/subset-RSA sensitivity, and subject-robustness outputs as controls/provenance.
 
 Do not:
@@ -811,7 +881,8 @@ then scientific64 V1/ventral/lateral/parietal cells.
 
 ### Phase 2 — Stream/ROI grouping and neural-scope upgrade
 
-Status: scientific64 integration gate passed; full cluster execution pending.
+Status: scientific64 and local cluster-readiness gates passed; bounded cluster
+smoke pending.
 
 Purpose:
 

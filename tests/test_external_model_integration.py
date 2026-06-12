@@ -14,9 +14,10 @@ from hma.external.artifacts import (
 )
 from hma.external.registry import load_external_registry
 from hma.experiments.neural_alignment import run_neural_alignment
-from hma.utils.config import save_yaml
+from hma.utils.config import load_yaml, save_yaml
 from scripts.create_paper1_matrix_v2_configs import create_configs
 from scripts.create_paper1_matrix_v2_behavior_configs import create_behavior_configs
+from scripts.create_paper1_matrix_v2_cluster_jobs import create_cluster_jobs
 from scripts.export_external_routing_maps import export_routing_maps
 from scripts import setup_external_model
 from scripts.audit_paper1_matrix_v2 import (
@@ -149,6 +150,14 @@ def test_external_artifact_round_trip_preserves_order_and_shape(tmp_path):
     assert mapped_ids == image_ids
     assert isinstance(mapped["blocks.0"], np.memmap)
     assert mapped["blocks.0"].shape == (3, 3, 4)
+    cached_ids, cached, _ = load_external_features_to_memmaps(
+        tmp_path / "artifact",
+        layers=["blocks.0"],
+        storage_dir=tmp_path / "memmaps",
+    )
+    assert cached_ids == mapped_ids
+    assert np.array_equal(cached["blocks.0"], mapped["blocks.0"])
+    assert (tmp_path / "memmaps" / "memmap_index.json").is_file()
 
 
 def test_external_artifact_rejects_missing_operational_output(tmp_path):
@@ -164,6 +173,30 @@ def test_external_artifact_rejects_missing_operational_output(tmp_path):
     )
     with pytest.raises(ValueError, match="operational outputs"):
         writer.finalize()
+
+
+def test_resource_only_artifact_omits_features_but_preserves_routing(tmp_path):
+    writer = ExternalArtifactWriter(
+        tmp_path / "artifact",
+        model_id="fake_external",
+        provenance=_provenance(),
+        expected_mechanism_outputs=["prediction_masks"],
+        artifact_scope="resource_only",
+    )
+    writer.write_batch(
+        image_ids=["a", "b"],
+        features={},
+        logits=np.ones((2, 5), dtype=np.float32),
+        resource_allocation={
+            "prediction_masks.stage_0": np.ones((2, 196), dtype=np.uint8)
+        },
+    )
+    manifest_path = writer.finalize()
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["artifact_scope"] == "resource_only"
+    assert manifest["features"] == {}
+    assert "prediction_masks.stage_0" in manifest["resource_allocation"]
 
 
 def test_routing_map_export_uses_final_dynamicvit_mask(tmp_path):
@@ -239,6 +272,7 @@ def test_neural_runner_imports_external_features_without_building_model(
                 "response_key": "roi_responses",
                 "feature_reduction": "flatten_pca",
                 "pca_components": 4,
+                "pca_cache_dir": str(tmp_path / "pca_cache"),
                 "train_fraction": 0.75,
                 "ridge_alpha": 1.0,
                 "geometry": {
@@ -261,6 +295,7 @@ def test_neural_runner_imports_external_features_without_building_model(
     )
 
     result = run_neural_alignment(config_path)
+    cached_result = run_neural_alignment(config_path)
 
     metadata = json.loads(
         (tmp_path / "output" / "metadata.json").read_text(encoding="utf-8")
@@ -269,6 +304,14 @@ def test_neural_runner_imports_external_features_without_building_model(
     assert metadata["model_backend"] == "external_artifact"
     assert metadata["external_artifact_schema"] == "hma.external.artifact.v1"
     assert len(result["geometry_rows"]) == 2
+    assert result["score_rows"] == cached_result["score_rows"]
+    assert result["geometry_rows"] == cached_result["geometry_rows"]
+    reduction = json.loads(
+        (tmp_path / "output" / "feature_reduction_metadata.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert reduction["layers"][0]["cache_hit"] is True
 
 
 def test_matrix_v2_registry_and_generated_configs_are_complete(tmp_path):
@@ -296,6 +339,18 @@ def test_matrix_v2_registry_and_generated_configs_are_complete(tmp_path):
         if "scientific64" in path.parts and "dynamicvit" in path.name
     ]
     assert len(scientific) == 4
+    full_config = next(
+        path
+        for path in generated
+        if "full" in path.parts and path.name == "deit_small_static_v1_full.yaml"
+    )
+    full_payload = load_yaml(full_config)
+    assert full_payload["external_artifact"]["feature_cache_dir"].endswith(
+        "deit_small_static/raw_features"
+    )
+    assert full_payload["neural"]["pca_cache_dir"].endswith(
+        "deit_small_static/pca"
+    )
 
     behavior = create_behavior_configs(output_root=tmp_path / "behavior")
     assert len(behavior) == 9
@@ -311,7 +366,30 @@ def test_matrix_v2_audit_advances_after_scientific64_acceptance():
     assert len(rows) == 12
     assert {row["scientific64_status"] for row in rows} == {"passed"}
     assert {row["full_status"] for row in rows} == {
-        "cluster_readiness_implementation_pending"
+        "cluster_smoke_pending"
     }
-    assert "cluster-readiness implementation" in next_run
+    assert "Cluster-readiness implementation is complete" in next_run
     assert "run_paper1_matrix_v2_scientific64.py" not in next_run
+
+
+def test_cluster_jobs_match_observed_jhu_partitions(tmp_path):
+    paths = create_cluster_jobs(tmp_path / "cluster")
+    names = {path.name for path in paths}
+
+    assert len(paths) == 10
+    assert {"submit_smoke.sh", "submit_full.sh"} <= names
+    neural = (tmp_path / "cluster" / "full_neural_analysis.sbatch").read_text(
+        encoding="utf-8"
+    )
+    behavior = (tmp_path / "cluster" / "full_behavior_exports.sbatch").read_text(
+        encoding="utf-8"
+    )
+    submit = (tmp_path / "cluster" / "submit_full.sh").read_text(encoding="utf-8")
+    assert "#SBATCH --partition=cpu" in neural
+    assert "#SBATCH --cpus-per-task=32" in neural
+    assert "#SBATCH --mem=120G" in neural
+    assert "#SBATCH --partition=l40s" in behavior
+    assert "#SBATCH --cpus-per-task=14" in behavior
+    assert "#SBATCH --gres=gpu:l40s:1" in behavior
+    assert "--artifact-scope resource_only" in behavior
+    assert "--dependency=afterok:$NEURAL_EXPORT" in submit

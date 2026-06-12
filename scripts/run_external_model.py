@@ -36,6 +36,7 @@ def run_external_model(
     batch_size: int = 8,
     device: str = "cuda",
     seed: int = 123,
+    artifact_scope: str = "full",
 ) -> Path:
     registry = load_external_registry(registry_path)
     model = registry.model(model_id)
@@ -84,6 +85,7 @@ def run_external_model(
         model_id=canonical_id,
         provenance=provenance,
         expected_mechanism_outputs=model.get("mechanism_outputs", []),
+        artifact_scope=artifact_scope,
     )
     first_images: list[Image.Image] = []
     for start in range(0, len(rows), batch_size):
@@ -95,7 +97,7 @@ def run_external_model(
         output = adapter.run_batch(images, image_ids)
         writer.write_batch(
             image_ids=image_ids,
-            features=output.features,
+            features=output.features if artifact_scope == "full" else {},
             logits=output.logits,
             task_outputs=output.task_outputs,
             resource_allocation=output.resource_allocation,
@@ -197,6 +199,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed", type=int, default=123)
+    parser.add_argument(
+        "--artifact-scope",
+        choices=["full", "resource_only"],
+        default="full",
+    )
     parser.add_argument("--smoke-only", action="store_true")
     return parser.parse_args()
 
@@ -227,6 +234,7 @@ def main() -> int:
         batch_size=args.batch_size,
         device=args.device,
         seed=args.seed,
+        artifact_scope=args.artifact_scope,
     )
     print(manifest)
     return 0
