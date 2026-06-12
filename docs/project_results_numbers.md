@@ -1,585 +1,354 @@
-# HMA Project Numeric Handoff
+# HMA Project Results Numbers
 
-Updated: 2026-06-02
+Updated: 2026-06-12
 
-This is a self-contained numeric handoff of the current Human-Machine Visual Alignment project. It contains counts, metrics, rankings, model/dataset setup, and verification numbers only.
+This document contains scientific outcomes and the sample sizes needed to interpret them. It excludes implementation milestones, test results, artifact audits, runtime measurements, and validation bookkeeping.
 
-## Behavioral Benchmark Scope
+## Headline Outcomes
 
-The corrected behavioral benchmark contains `378` aggregate result rows.
-
-Datasets:
-
-| dataset | aggregate rows | images per benchmark row | fixation protocol |
-| --- | ---: | ---: | --- |
-| SALICON static subset | 126 | 2000 | point fixations |
-| CAT2000 static subset | 126 | 2000 | point fixations |
-| COCO-Search18 static subset | 126 | 2000 | task-driven point fixations |
-
-Protocol counts:
-
-| protocol | rows |
-| --- | ---: |
-| point fixations | 252 |
-| task-driven point fixations | 126 |
-
-Metric counts:
-
-| metric | rows |
-| --- | ---: |
-| AUC-Borji | 54 |
-| AUC-Judd | 54 |
-| CC | 54 |
-| KL | 54 |
-| NSS | 54 |
-| shuffled AUC | 54 |
-| similarity | 54 |
-
-Evaluated model rows cover `11` model/control identities:
-
-| model/control |
-| --- |
-| center-bias baseline |
-| ConvNeXt-T |
-| DeepGaze IIE reference |
-| DeiT-S/16 |
-| random baseline |
-| ResNet-50 |
-| CLIP ResNet-50 |
-| Swin-T |
-| ViT-B/16 |
-| CLIP ViT-B/16 |
-| DINOv2 ViT-S/14 |
-
-Saliency/explanation methods:
-
-| method | family |
+| outcome | current result |
 | --- | --- |
-| center bias | baseline |
-| random saliency | baseline |
-| DeepGaze precomputed map | reference |
-| Grad-CAM | class localization |
-| vanilla gradient | evidence sensitivity |
-| attention rollout | internal routing |
+| strongest free-viewing NSS | CAT2000 DeepGaze MSDB: `1.979` |
+| strongest SALICON NSS | DeepGaze MSDB: `1.760` |
+| strongest task-search NSS | COCO-Search18 task prior: `2.199` |
+| best scoped transformer-relevance NSS | CAT2000 DINOv2: `1.141`; SALICON DINOv2: `1.033` |
+| six-model PRF encoding leader | DINOv2, noise-normalized `0.591` |
+| four-model, ten-ROI discovery encoding leader | DINOv2, noise-normalized `0.556` |
+| four-model, ten-ROI full-image CKA leader | DINOv2, `0.194` |
+| confirmatory-subject geometry result | DINOv2 leads full-image CKA in `3/3` subjects |
+| confirmatory-subject encoding result | DINOv2 leads in `2/3`; ResNet-50 leads in `subj04` |
+| accepted subject-level interpretation | `geometry_replicated_encoding_ambiguous` |
 
-Saliency-family row counts:
+## Behavioral Benchmark
 
-| family | rows |
-| --- | ---: |
-| baseline | 42 |
-| class localization | 63 |
-| evidence sensitivity | 168 |
-| reference | 21 |
-| internal routing | 84 |
+The accepted aggregate contains `455` metric rows. Every benchmark cell uses `2000` images.
 
-## Behavioral NSS Results
-
-### CAT2000 Static Subset
-
-| rank | model/control | method | n | NSS mean | 95% CI low | 95% CI high |
-| ---: | --- | --- | ---: | ---: | ---: | ---: |
-| 1 | DeepGaze IIE | DeepGaze map | 2000 | 1.838466 | 1.809760 | 1.867172 |
-| 2 | center bias | center bias | 2000 | 1.618651 | 1.602291 | 1.635012 |
-| 3 | ResNet-50 | Grad-CAM | 2000 | 0.881798 | 0.852829 | 0.910768 |
-| 4 | DINOv2 ViT-S/14 | vanilla gradient | 2000 | 0.809503 | 0.786810 | 0.832196 |
-| 5 | ConvNeXt-T | Grad-CAM | 2000 | 0.759007 | 0.726451 | 0.791564 |
-| 6 | DeiT-S/16 | attention rollout | 2000 | 0.706659 | 0.677372 | 0.735945 |
-| 7 | DINOv2 ViT-S/14 | attention rollout | 2000 | 0.669732 | 0.647753 | 0.691711 |
-| 8 | CLIP ViT-B/16 | attention rollout | 2000 | 0.588220 | 0.560596 | 0.615844 |
-| 9 | ResNet-50 | vanilla gradient | 2000 | 0.466488 | 0.448900 | 0.484076 |
-| 10 | CLIP ResNet-50 | Grad-CAM | 2000 | 0.366296 | 0.338508 | 0.394083 |
-
-### COCO-Search18 Static Subset
-
-| rank | model/control | method | n | NSS mean | 95% CI low | 95% CI high |
-| ---: | --- | --- | ---: | ---: | ---: | ---: |
-| 1 | DeepGaze IIE | DeepGaze map | 2000 | 1.745170 | 1.674067 | 1.816272 |
-| 2 | center bias | center bias | 2000 | 1.309644 | 1.281897 | 1.337392 |
-| 3 | ResNet-50 | Grad-CAM | 2000 | 0.954973 | 0.914862 | 0.995085 |
-| 4 | ConvNeXt-T | Grad-CAM | 2000 | 0.908253 | 0.863021 | 0.953484 |
-| 5 | DINOv2 ViT-S/14 | vanilla gradient | 2000 | 0.712529 | 0.670568 | 0.754489 |
-| 6 | CLIP ResNet-50 | Grad-CAM | 2000 | 0.640623 | 0.598453 | 0.682793 |
-| 7 | DINOv2 ViT-S/14 | attention rollout | 2000 | 0.546807 | 0.503107 | 0.590506 |
-| 8 | DeiT-S/16 | attention rollout | 2000 | 0.510805 | 0.481389 | 0.540221 |
-| 9 | ResNet-50 | vanilla gradient | 2000 | 0.482032 | 0.445550 | 0.518514 |
-| 10 | ConvNeXt-T | vanilla gradient | 2000 | 0.389143 | 0.352708 | 0.425578 |
-
-### SALICON Static Subset
-
-| rank | model/control | method | n | NSS mean | 95% CI low | 95% CI high |
-| ---: | --- | --- | ---: | ---: | ---: | ---: |
-| 1 | DeepGaze IIE | DeepGaze map | 2000 | 1.743241 | 1.710289 | 1.776193 |
-| 2 | center bias | center bias | 2000 | 0.932575 | 0.913002 | 0.952147 |
-| 3 | DINOv2 ViT-S/14 | vanilla gradient | 2000 | 0.735908 | 0.712098 | 0.759717 |
-| 4 | ConvNeXt-T | Grad-CAM | 2000 | 0.632550 | 0.604989 | 0.660110 |
-| 5 | ResNet-50 | Grad-CAM | 2000 | 0.597877 | 0.574752 | 0.621003 |
-| 6 | DeiT-S/16 | attention rollout | 2000 | 0.544208 | 0.516031 | 0.572386 |
-| 7 | CLIP ResNet-50 | Grad-CAM | 2000 | 0.503253 | 0.477498 | 0.529009 |
-| 8 | DINOv2 ViT-S/14 | attention rollout | 2000 | 0.455435 | 0.436081 | 0.474790 |
-| 9 | ViT-B/16 | attention rollout | 2000 | 0.390684 | 0.366895 | 0.414474 |
-| 10 | CLIP ViT-B/16 | attention rollout | 2000 | 0.390254 | 0.365121 | 0.415386 |
-
-## Behavioral Dataset Counts
-
-Static subsets:
-
-| dataset | rows/images | split | extra counts |
+| dataset | rows | viewing regime | fixation protocol |
 | --- | ---: | --- | --- |
-| SALICON static subset | 2000 | validation | none recorded here |
-| CAT2000 static subset | 2000 | train | none recorded here |
-| COCO-Search18 static subset | 2000 | validation | 1338 target-present, 662 target-absent |
+| SALICON | 161 | free viewing | points |
+| CAT2000 | 161 | free viewing | points |
+| COCO-Search18 | 133 | task search | task points |
 
-Full COCO-Search18 dataset rows:
-
-| quantity | count |
+| saliency family | metric rows |
 | --- | ---: |
-| total rows | 74646 |
-| columns | 10 |
-| train rows | 64112 |
-| validation rows | 10534 |
-| target-present rows | 49760 |
-| target-absent rows | 24886 |
+| evidence sensitivity / vanilla gradient | 168 |
+| internal routing / attention rollout | 84 |
+| class localization / Grad-CAM | 63 |
+| transformer relevance | 56 |
+| baseline | 42 |
+| dedicated reference | 35 |
+| task-search baseline | 7 |
 
-COCO-Search18 full target-category rows:
+### Behavioral NSS Rankings
 
-| target category | rows |
-| --- | ---: |
-| bottle | 3990 |
-| bowl | 3390 |
-| car | 2520 |
-| chair | 6074 |
-| clock | 2880 |
-| cup | 6630 |
-| fork | 5520 |
-| keyboard | 4440 |
-| knife | 3390 |
-| laptop | 2970 |
-| microwave | 3748 |
-| mouse | 2636 |
-| oven | 2430 |
-| potted plant | 3720 |
-| sink | 6720 |
-| stop sign | 3030 |
-| toilet | 3808 |
-| tv | 6750 |
+#### CAT2000
 
-SALICON observer annotations:
+| rank | model/control | method | NSS | 95% CI |
+| ---: | --- | --- | ---: | --- |
+| 1 | DeepGaze MSDB | fixation reference | 1.9786 | [1.9493, 2.0079] |
+| 2 | DeepGaze IIE | fixation reference | 1.8385 | [1.8098, 1.8672] |
+| 3 | center bias | baseline | 1.6187 | [1.6023, 1.6350] |
+| 4 | DINOv2 ViT-S/14 | transformer relevance | 1.1414 | [1.1142, 1.1687] |
+| 5 | CLIP ViT-B/16 | transformer relevance | 0.9404 | [0.9134, 0.9674] |
+| 6 | DeiT-S/16 | transformer relevance | 0.8859 | [0.8586, 0.9133] |
+| 7 | ResNet-50 | Grad-CAM | 0.8818 | [0.8528, 0.9108] |
+| 8 | DINOv2 ViT-S/14 | vanilla gradient | 0.8095 | [0.7868, 0.8322] |
+| 9 | ConvNeXt-T | Grad-CAM | 0.7590 | [0.7265, 0.7916] |
+| 10 | ViT-B/16 | transformer relevance | 0.7334 | [0.7068, 0.7599] |
 
-| quantity | count |
-| --- | ---: |
-| full worker-level rows | 893854 |
-| static-subset worker-level rows | 125874 |
-| static-subset images | 2000 |
+#### SALICON
 
-Observer-control results:
+| rank | model/control | method | NSS | 95% CI |
+| ---: | --- | --- | ---: | --- |
+| 1 | DeepGaze MSDB | fixation reference | 1.7600 | [1.7247, 1.7952] |
+| 2 | DeepGaze IIE | fixation reference | 1.7432 | [1.7103, 1.7762] |
+| 3 | DINOv2 ViT-S/14 | transformer relevance | 1.0330 | [1.0062, 1.0598] |
+| 4 | CLIP ViT-B/16 | transformer relevance | 0.9805 | [0.9536, 1.0074] |
+| 5 | center bias | baseline | 0.9326 | [0.9130, 0.9521] |
+| 6 | DeiT-S/16 | transformer relevance | 0.9309 | [0.9033, 0.9584] |
+| 7 | ViT-B/16 | transformer relevance | 0.8513 | [0.8254, 0.8772] |
+| 8 | DINOv2 ViT-S/14 | vanilla gradient | 0.7359 | [0.7121, 0.7597] |
+| 9 | ConvNeXt-T | Grad-CAM | 0.6325 | [0.6050, 0.6601] |
+| 10 | ResNet-50 | Grad-CAM | 0.5979 | [0.5748, 0.6210] |
 
-| dataset | rows | columns | note |
-| --- | ---: | ---: | --- |
-| COCO-Search18 static observer controls | 1867 | 8 | inter-observer NSS/AUC fields present |
-| SALICON static observer controls | 20000 | 8 | at most 10 workers per image |
+#### COCO-Search18
 
-## Neural Encoding Scope
+| rank | model/control | method | NSS | 95% CI |
+| ---: | --- | --- | ---: | --- |
+| 1 | COCO-Search18 task prior | task-search baseline | 2.1995 | [2.1460, 2.2530] |
+| 2 | DeepGaze IIE | free-viewing reference, diagnostic here | 1.7452 | [1.6741, 1.8163] |
+| 3 | center bias | baseline | 1.3096 | [1.2819, 1.3374] |
+| 4 | ResNet-50 | Grad-CAM | 0.9550 | [0.9149, 0.9951] |
+| 5 | ConvNeXt-T | Grad-CAM | 0.9083 | [0.8630, 0.9535] |
+| 6 | DINOv2 ViT-S/14 | vanilla gradient | 0.7125 | [0.6706, 0.7545] |
+| 7 | CLIP ResNet-50 | Grad-CAM | 0.6406 | [0.5985, 0.6828] |
+| 8 | DINOv2 ViT-S/14 | attention rollout | 0.5468 | [0.5031, 0.5905] |
+| 9 | DeiT-S/16 | attention rollout | 0.5108 | [0.4814, 0.5402] |
+| 10 | ResNet-50 | vanilla gradient | 0.4820 | [0.4456, 0.5185] |
 
-Current neural results are for `1` subject: `subj01`.
+### Accepted Behavioral-Control Metrics
 
-Current ROI set:
+| dataset/control | AUC-Borji | AUC-Judd | CC | KL | NSS | shuffled AUC | SIM |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| CAT2000 DeepGaze MSDB | 0.8793 | 0.8798 | 0.6620 | 0.5145 | 1.9786 | 0.8495 | 0.6277 |
+| CAT2000 DeepGaze IIE | 0.8588 | 0.8594 | 0.6520 | 0.5812 | 1.8385 | 0.8241 | 0.6080 |
+| SALICON DeepGaze MSDB | 0.8575 | 0.8593 | 0.7475 | 0.4520 | 1.7600 | 0.8222 | 0.6521 |
+| SALICON DeepGaze IIE | 0.8614 | 0.8631 | 0.8021 | 0.3555 | 1.7432 | 0.8257 | 0.6956 |
+| COCO-Search18 task prior | 0.8376 | 0.8380 | 0.4482 | 1.5377 | 2.1995 | 0.6742 | 0.3377 |
+| COCO-Search18 DeepGaze IIE | 0.8634 | 0.8638 | 0.2841 | 1.9216 | 1.7452 | 0.7382 | 0.2741 |
 
-| ROI |
-| --- |
-| V1 |
-| V2 |
-| V3 |
-| hV4 |
+DeepGaze MSDB has higher CAT2000 NSS than DeepGaze IIE by `0.1401`. On SALICON, their NSS values are close: MSDB is higher by `0.0167`, while IIE is higher on CC, shuffled AUC, and SIM and lower on KL.
 
-Neural summary counts:
+On COCO-Search18, the task-specific prior exceeds diagnostic DeepGaze IIE by `0.4543` NSS and center bias by `0.8899` NSS.
 
-| quantity | count |
-| --- | ---: |
-| input neural run directories | 48 |
-| encoding summary rows | 120 |
-| encoding target rows | 289740 |
-| RSA rows | 92 |
-| spatial-mean diagnostic rows | 92 |
-| full-image matched-panel flatten-PCA rows | 24 |
-| full-image learned spatial-readout rows | 4 |
+## Transformer Relevance
 
-Encoding target metric scopes:
+Transformer relevance was evaluated on SALICON and CAT2000 for four transformer models.
 
-| metric scope | rows |
-| --- | ---: |
-| benchmark-style noise-normalized | 289620 |
-| benchmark-style non-noise-normalized | 120 |
+| model | SALICON relevance NSS | SALICON rollout NSS | SALICON gradient NSS | CAT2000 relevance NSS | CAT2000 rollout NSS | CAT2000 gradient NSS |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| DINOv2 ViT-S/14 | 1.0330 | 0.4554 | 0.7359 | 1.1414 | 0.6697 | 0.8095 |
+| CLIP ViT-B/16 | 0.9805 | 0.3903 | 0.0892 | 0.9404 | 0.5882 | 0.0986 |
+| DeiT-S/16 | 0.9309 | 0.5442 | 0.0448 | 0.8859 | 0.7067 | -0.1030 |
+| ViT-B/16 | 0.8513 | 0.3907 | 0.0827 | 0.7334 | 0.3410 | 0.0207 |
 
-hV4 zero-ceiling note:
+Across the eight matched dataset-model cells:
 
-| quantity | count |
-| --- | ---: |
-| hV4 zero-noise-ceiling targets | 4 |
+- transformer relevance beats attention rollout on all seven metrics in `56/56` comparisons;
+- transformer relevance beats vanilla gradients on all seven metrics in `56/56` comparisons;
+- mean NSS gain over attention rollout is `+0.4263`, range `[+0.1793, +0.5903]`;
+- mean NSS gain over vanilla gradients is `+0.7148`, range `[+0.2971, +0.9890]`.
 
-## Matched Full-Image Neural Panel Setup
+Transformer relevance remains below DeepGaze MSDB on both free-viewing datasets. It also remains below center bias on CAT2000, but DINOv2 and CLIP transformer relevance exceed center bias on SALICON.
 
-The matched neural panel has `6` models and `4` ROIs, giving `24` model-by-ROI cells.
+## Human Observer Context
 
-Matched-panel cell audit:
+These are leave-one-observer-out human-context values, not model scores.
 
-| status | cells |
-| --- | ---: |
-| complete | 24 |
-| missing | 0 |
-| incomplete | 0 |
-| explicitly skipped | 0 |
+| dataset | images | observers/subjects represented | observers per image | mean NSS | median NSS | mean AUC | median AUC |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| SALICON | 2000 | 1466 workers | 10-71 | 0.529 | 0.502 | 0.873 | 0.890 |
+| COCO-Search18 | 502 | 10 subjects | 2-14 | 0.674 | 0.690 | 0.900 | 0.922 |
 
-Per-run setup:
+## Six-Model PRF Neural Encoding
 
-| quantity | value |
-| --- | ---: |
-| full image count | 9841 |
-| train images | 7873 |
-| test images | 1968 |
-| split seed | 123 |
-| PCA components | 512 |
+This matched `subj01` panel uses four PRF visual ROIs: V1, V2, V3, and hV4. Scores are averaged over `9654` valid positive-ceiling targets per model.
 
-Feature setup:
+| rank | model | mean raw Pearson | mean noise-normalized score |
+| ---: | --- | ---: | ---: |
+| 1 | DINOv2 ViT-S/14 | 0.5414 | 0.5911 |
+| 2 | CLIP ViT-B/16 | 0.5380 | 0.5808 |
+| 3 | ResNet-50 | 0.5362 | 0.5807 |
+| 4 | DeiT-S/16 | 0.5279 | 0.5617 |
+| 5 | ViT-B/16 | 0.5135 | 0.5339 |
+| 6 | ConvNeXt-T | 0.5021 | 0.5095 |
 
-| setting | value |
-| --- | --- |
-| feature reduction | flatten PCA |
-| PCA solver | randomized |
-| PCA fit policy | train-only |
-| neural target score | raw Pearson correlation and noise-normalized score |
-| ridge selection | validation/inner-validation depending on run |
-
-Targets per matched model:
-
-| target type | count |
-| --- | ---: |
-| valid positive-ceiling targets | 9654 |
-| zero-ceiling targets | 4 |
-| invalid-ceiling targets | 0 |
-
-## Matched Full-Image Neural Model Ranking
-
-Ranking by mean valid-target noise-normalized encoding score:
-
-| rank | model | mean noise-normalized score | score x100 | mean raw Pearson | valid targets | zero-ceiling targets |
-| ---: | --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | DINOv2 ViT-S/14 | 0.591079 | 59.107926 | 0.541401 | 9654 | 4 |
-| 2 | CLIP ViT-B/16 | 0.580751 | 58.075140 | 0.538027 | 9654 | 4 |
-| 3 | ResNet-50 | 0.580685 | 58.068504 | 0.536216 | 9654 | 4 |
-| 4 | DeiT-S/16 | 0.561700 | 56.169977 | 0.527933 | 9654 | 4 |
-| 5 | ViT-B/16 | 0.533908 | 53.390778 | 0.513485 | 9654 | 4 |
-| 6 | ConvNeXt-T | 0.509512 | 50.951156 | 0.502095 | 9654 | 4 |
-
-## Matched Full-Image Neural ROI Scores
-
-| model | ROI | selected layer | raw Pearson | noise-normalized | valid targets | zero targets | selected ridge alpha |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| ConvNeXt-T | V1 | stages.0 | 0.574477 | 0.599323 | 2973 | 0 | 0.001 |
-| ConvNeXt-T | V2 | stages.0 | 0.526797 | 0.527125 | 2936 | 0 | 10000.0 |
-| ConvNeXt-T | V3 | stages.0 | 0.488495 | 0.473876 | 2453 | 0 | 100000.0 |
-| ConvNeXt-T | hV4 | stages.2 | 0.418609 | 0.437721 | 1292 | 4 | 100000.0 |
-| DeiT-S/16 | V1 | blocks.0 | 0.580590 | 0.611357 | 2973 | 0 | 10000.0 |
-| DeiT-S/16 | V2 | blocks.3 | 0.556209 | 0.587888 | 2936 | 0 | 10000.0 |
-| DeiT-S/16 | V3 | blocks.3 | 0.530810 | 0.560140 | 2453 | 0 | 10000.0 |
-| DeiT-S/16 | hV4 | blocks.3 | 0.444122 | 0.487414 | 1292 | 4 | 100000.0 |
-| ResNet-50 | V1 | layer2 | 0.585271 | 0.622254 | 2973 | 0 | 0.001 |
-| ResNet-50 | V2 | layer2 | 0.561672 | 0.599519 | 2936 | 0 | 100000.0 |
-| ResNet-50 | V3 | layer2 | 0.531720 | 0.561382 | 2453 | 0 | 100000.0 |
-| ResNet-50 | hV4 | layer3 | 0.466201 | 0.539585 | 1292 | 4 | 1000000.0 |
-| ViT-B/16 | V1 | blocks.3 | 0.563680 | 0.578286 | 2973 | 0 | 10000.0 |
-| ViT-B/16 | V2 | blocks.6 | 0.529133 | 0.534086 | 2936 | 0 | 10000.0 |
-| ViT-B/16 | V3 | blocks.6 | 0.514245 | 0.527996 | 2453 | 0 | 10000.0 |
-| ViT-B/16 | hV4 | blocks.6 | 0.446882 | 0.495263 | 1292 | 4 | 100000.0 |
-| CLIP ViT-B/16 | V1 | blocks.3 | 0.587097 | 0.626278 | 2973 | 0 | 100.0 |
-| CLIP ViT-B/16 | V2 | blocks.3 | 0.565247 | 0.606858 | 2936 | 0 | 1000.0 |
-| CLIP ViT-B/16 | V3 | blocks.3 | 0.539192 | 0.577204 | 2453 | 0 | 1000.0 |
-| CLIP ViT-B/16 | hV4 | blocks.6 | 0.460574 | 0.512665 | 1292 | 4 | 10000.0 |
-| DINOv2 ViT-S/14 | V1 | blocks.3 | 0.595029 | 0.642300 | 2973 | 0 | 10.0 |
-| DINOv2 ViT-S/14 | V2 | blocks.6 | 0.568586 | 0.614450 | 2936 | 0 | 1000.0 |
-| DINOv2 ViT-S/14 | V3 | blocks.6 | 0.545084 | 0.590614 | 2453 | 0 | 1000.0 |
-| DINOv2 ViT-S/14 | hV4 | blocks.6 | 0.456906 | 0.516953 | 1292 | 4 | 1000.0 |
+CLIP ViT-B/16 and ResNet-50 are effectively tied on the mean noise-normalized score: difference `0.00007`.
 
 ## DINOv2 Learned Spatial Readout
 
-The learned spatial readout was run for DINOv2 ViT-S/14 on the same `subj01` PRF visual ROI set.
+This is a single-backbone readout-sensitivity result, not a method-matched cross-model ranking.
 
-Setup:
-
-| quantity | value |
-| --- | ---: |
-| full image count | 9841 |
-| outer train images | 7873 |
-| held-out test images | 1968 |
-| inner train images | 6298 |
-| inner validation images | 1575 |
-| maximum epochs | 180 |
-
-Scores:
-
-| ROI | layer | mean raw Pearson | mean noise-normalized | median raw Pearson | median noise-normalized | valid targets | zero targets |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| V1 | blocks.3 | 0.648 | 0.762 | 0.691 | 0.803 | 2973 | 0 |
-| V2 | blocks.6 | 0.607 | 0.700 | 0.654 | 0.735 | 2936 | 0 |
-| V3 | blocks.6 | 0.583 | 0.674 | 0.611 | 0.703 | 2453 | 0 |
-| hV4 | blocks.6 | 0.488 | 0.586 | 0.518 | 0.588 | 1292 | 4 |
-
-Epochs:
-
-| ROI | best epoch | stopped epoch |
-| --- | ---: | ---: |
-| V1 | 127 | 142 |
-| V2 | 65 | 80 |
-| V3 | 63 | 78 |
-| hV4 | 59 | 74 |
-
-Learned readout minus matched flatten-PCA baseline:
-
-| ROI | flatten-PCA raw | learned raw | raw delta | flatten-PCA noise-normalized | learned noise-normalized | noise-normalized delta |
+| ROI | flatten-PCA raw | learned raw | raw gain | flatten-PCA normalized | learned normalized | normalized gain |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | V1 | 0.595 | 0.648 | +0.053 | 0.642 | 0.762 | +0.120 |
 | V2 | 0.569 | 0.607 | +0.038 | 0.614 | 0.700 | +0.085 |
 | V3 | 0.545 | 0.583 | +0.038 | 0.591 | 0.674 | +0.083 |
 | hV4 | 0.457 | 0.488 | +0.031 | 0.517 | 0.586 | +0.069 |
 
-## Representational Geometry Scope
+The learned readout improves all `4/4` ROI comparisons.
 
-Geometry was computed for the matched full-image panel.
+## Ten-ROI Discovery Encoding
 
-Counts:
+The `subj01` Paper 1 discovery matrix uses four models and ten ROIs: V1, V2, V3, hV4, lateral, midlateral, midparietal, midventral, parietal, and ventral.
 
-| quantity | count |
-| --- | ---: |
-| total geometry score rows | 96 |
-| valid geometry score rows | 96 |
-| full-image CKA rows | 24 |
-| subset-RSA rows | 72 |
-| models | 6 |
-| ROIs | 4 |
-| full images used by CKA | 9841 |
-| subset-RSA subset sizes | 128, 256, 512 |
-| subset-RSA seed | 123 |
+### Model Ranking
 
-Geometry methods:
+| rank | model | mean raw Pearson | mean noise-normalized score | valid targets |
+| ---: | --- | ---: | ---: | ---: |
+| 1 | DINOv2 ViT-S/14 | 0.4909 | 0.5559 | 37027 |
+| 2 | ResNet-50 | 0.4823 | 0.5371 | 37027 |
+| 3 | CLIP ViT-B/16 | 0.4767 | 0.5212 | 37027 |
+| 4 | ViT-B/16 | 0.4655 | 0.5016 | 37027 |
 
-| method | image count | comparison |
-| --- | ---: | --- |
-| full-image linear CKA | 9841 | CKA between model features and raw ROI responses |
-| subset RSA size 128 | 128 | Spearman between correlation RDMs |
-| subset RSA size 256 | 256 | Spearman between correlation RDMs |
-| subset RSA size 512 | 512 | Spearman between correlation RDMs |
+DINOv2 leads ResNet-50 by `0.0188` in mean noise-normalized score across the ten ROIs.
 
-## Representational Geometry Rankings
+### ROI Winners
+
+| ROI | winning model | raw Pearson | noise-normalized score |
+| --- | --- | ---: | ---: |
+| V1 | DINOv2 | 0.5950 | 0.6423 |
+| V2 | DINOv2 | 0.5686 | 0.6144 |
+| V3 | DINOv2 | 0.5451 | 0.5906 |
+| hV4 | ResNet-50 | 0.4662 | 0.5396 |
+| lateral | DINOv2 | 0.5264 | 0.6214 |
+| midlateral | DINOv2 | 0.4459 | 0.4872 |
+| midparietal | ResNet-50 | 0.4539 | 0.5366 |
+| midventral | ResNet-50 | 0.4546 | 0.5166 |
+| parietal | DINOv2 | 0.4168 | 0.4828 |
+| ventral | DINOv2 | 0.4508 | 0.5684 |
+
+DINOv2 wins `7/10` ROIs; ResNet-50 wins hV4, midparietal, and midventral.
+
+## Six-Model PRF Representational Geometry
 
 ### Full-Image Linear CKA
 
-| rank | model | mean geometry score |
+| rank | model | mean CKA |
 | ---: | --- | ---: |
-| 1 | DINOv2 ViT-S/14 | 0.229035 |
-| 2 | ConvNeXt-T | 0.210549 |
-| 3 | ResNet-50 | 0.209893 |
-| 4 | DeiT-S/16 | 0.202786 |
-| 5 | CLIP ViT-B/16 | 0.187853 |
-| 6 | ViT-B/16 | 0.103863 |
+| 1 | DINOv2 ViT-S/14 | 0.2290 |
+| 2 | ConvNeXt-T | 0.2105 |
+| 3 | ResNet-50 | 0.2099 |
+| 4 | DeiT-S/16 | 0.2028 |
+| 5 | CLIP ViT-B/16 | 0.1879 |
+| 6 | ViT-B/16 | 0.1039 |
 
-### Subset RSA Size 128
+### Deterministic Subset RSA
 
-| rank | model | mean geometry score |
+| method | 1st | score | 2nd | score |
+| --- | --- | ---: | --- | ---: |
+| size 128, seed 123 | DINOv2 | 0.2654 | ConvNeXt-T | 0.2365 |
+| size 256, seed 123 | DINOv2 | 0.2400 | ResNet-50 | 0.2326 |
+| size 512, seed 123 | DINOv2 | 0.2341 | ResNet-50 | 0.2212 |
+
+For this six-model PRF panel, DINOv2 leads full-image CKA and all three subset-RSA sizes.
+
+## Ten-ROI Discovery Geometry
+
+### Full-Image Linear CKA
+
+| rank | model | mean CKA |
 | ---: | --- | ---: |
-| 1 | DINOv2 ViT-S/14 | 0.265353 |
-| 2 | ConvNeXt-T | 0.236541 |
-| 3 | ResNet-50 | 0.235214 |
-| 4 | CLIP ViT-B/16 | 0.230689 |
-| 5 | DeiT-S/16 | 0.225000 |
-| 6 | ViT-B/16 | 0.127000 |
+| 1 | DINOv2 ViT-S/14 | 0.1944 |
+| 2 | ResNet-50 | 0.1873 |
+| 3 | CLIP ViT-B/16 | 0.0993 |
+| 4 | ViT-B/16 | 0.0889 |
 
-### Subset RSA Size 256
+### Subset-RSA Rankings
 
-| rank | model | mean geometry score |
-| ---: | --- | ---: |
-| 1 | DINOv2 ViT-S/14 | 0.240000 |
-| 2 | ResNet-50 | 0.233000 |
-| 3 | ConvNeXt-T | 0.221000 |
-| 4 | DeiT-S/16 | 0.215000 |
-| 5 | CLIP ViT-B/16 | 0.202000 |
-| 6 | ViT-B/16 | 0.126000 |
+| subset size | seed | leader | leader score | runner-up | runner-up score |
+| ---: | ---: | --- | ---: | --- | ---: |
+| 512 | 123 | ResNet-50 | 0.2328 | DINOv2 | 0.2307 |
+| 512 | 456 | ResNet-50 | 0.2164 | DINOv2 | 0.2156 |
+| 512 | 789 | DINOv2 | 0.2280 | ResNet-50 | 0.2258 |
+| 1024 | 123 | ResNet-50 | 0.2251 | DINOv2 | 0.2210 |
+| 1024 | 456 | DINOv2 | 0.2247 | ResNet-50 | 0.2212 |
+| 1024 | 789 | ResNet-50 | 0.2276 | DINOv2 | 0.2242 |
+| 2048 | 123 | ResNet-50 | 0.2311 | DINOv2 | 0.2280 |
+| 2048 | 456 | ResNet-50 | 0.2314 | DINOv2 | 0.2303 |
+| 2048 | 789 | ResNet-50 | 0.2279 | DINOv2 | 0.2268 |
 
-### Subset RSA Size 512
+The ten-ROI discovery result is method-sensitive at the top rank:
 
-| rank | model | mean geometry score |
-| ---: | --- | ---: |
-| 1 | DINOv2 ViT-S/14 | 0.234000 |
-| 2 | ResNet-50 | 0.221000 |
-| 3 | ConvNeXt-T | 0.211000 |
-| 4 | DeiT-S/16 | 0.205000 |
-| 5 | CLIP ViT-B/16 | 0.204000 |
-| 6 | ViT-B/16 | 0.123000 |
+- DINOv2 leads full-image CKA;
+- ResNet-50 leads `7/9` subset-RSA settings;
+- DINOv2 leads `2/9` subset-RSA settings;
+- the DINOv2-ResNet score differences are small in every subset-RSA setting.
 
-## Geometry Runtime And Agreement
+Across all `99` ROI/method rank-agreement comparisons, mean CKA-to-subset-RSA agreement is Spearman `0.921` and Kendall `0.869`. At the across-ROI model-ranking level, Spearman agreement ranges from `0.600` to `0.800` and Kendall from `0.333` to `0.667`.
 
-Runtime:
+## Cross-Axis Results
 
-| method | rows | valid rows | invalid rows | mean wall time sec | max wall time sec | estimated RDM bytes |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| full-image linear CKA | 24 | 24 | 0 | 0.689941 | 0.933989 | 0 |
-| subset RSA size 128 | 24 | 24 | 0 | 0.246518 | 0.322708 | 131072 |
-| subset RSA size 256 | 24 | 24 | 0 | 0.351630 | 0.458027 | 524288 |
-| subset RSA size 512 | 24 | 24 | 0 | 0.730804 | 0.934660 | 2097152 |
+### Decision Counts
 
-Agreement between full-image CKA ranking and subset-RSA ranking:
-
-| quantity | value |
-| --- | ---: |
-| agreement rows | 15 |
-| complete agreement rows | 15 |
-| across-ROI Spearman agreement | 0.943 |
-| across-ROI Kendall agreement | 0.867 |
-| V1 size-128 Spearman agreement | 1.000 |
-| V1 size-128 Kendall agreement | 1.000 |
-| V1 size-256 Spearman agreement | 1.000 |
-| V1 size-256 Kendall agreement | 1.000 |
-| V1 size-512 Spearman agreement | 0.943 |
-| V1 size-512 Kendall agreement | 0.867 |
-
-## Cross-Level Correlations
-
-Matched model-level cross-level analysis count:
-
-| quantity | count |
-| --- | ---: |
-| total correlation/regression groups | 315 |
-| complete groups | 210 |
-| insufficient-model groups | 105 |
-| groups per behavioral dataset | 105 |
-
-Metric groups:
-
-| metric | groups |
-| --- | ---: |
-| AUC-Borji | 45 |
-| AUC-Judd | 45 |
-| CC | 45 |
-| KL | 45 |
-| NSS | 45 |
-| shuffled AUC | 45 |
-| similarity | 45 |
-
-NSS across-ROI complete groups:
-
-| behavioral dataset | saliency method | matched models | Spearman: behavior vs noise-normalized encoding | OLS R2: behavior vs noise-normalized encoding | Spearman: behavior vs geometry |
-| --- | --- | ---: | ---: | ---: | ---: |
-| CAT2000 | attention rollout | 4 | 0.400000 | 0.588409 | 0.800000 |
-| CAT2000 | vanilla gradient | 6 | 0.485714 | 0.132414 | 0.771429 |
-| COCO-Search18 | attention rollout | 4 | 0.800000 | 0.281328 | 1.000000 |
-| COCO-Search18 | vanilla gradient | 6 | 0.314286 | 0.061027 | 0.714286 |
-| SALICON | attention rollout | 4 | 0.000000 | 0.019716 | 0.600000 |
-| SALICON | vanilla gradient | 6 | 0.485714 | 0.138048 | 0.771429 |
-
-## Cross-Axis Sensitivity And Decision Counts
-
-Sensitivity and decision totals:
-
-| quantity | count |
-| --- | ---: |
-| sensitivity rows | 4284 |
-| decision rows | 945 |
-
-Decision-label totals:
-
-| decision label | rows |
-| --- | ---: |
-| stable convergence | 374 |
-| unstable | 256 |
-| insufficient models | 315 |
-
-Decision labels by relationship:
+The ROI-expanded cross-axis decision table contains `2079` relationships.
 
 | relationship | stable convergence | unstable | insufficient models | total |
 | --- | ---: | ---: | ---: | ---: |
-| behavior vs geometry | 163 | 47 | 105 | 315 |
-| behavior vs noise-normalized encoding | 85 | 125 | 105 | 315 |
-| encoding vs geometry | 126 | 84 | 105 | 315 |
+| behavior vs encoding | 198 | 33 | 462 | 693 |
+| behavior vs geometry | 198 | 33 | 462 | 693 |
+| encoding vs geometry | 231 | 0 | 462 | 693 |
+| total | 627 | 66 | 1386 | 2079 |
 
-## Additional Neural Subject Data Prepared
+Geometry-method sensitivity outcomes:
 
-Additional neural subject data have been prepared for `subj02`, `subj03`, and `subj04`.
-
-| subject | rows | V1 response dimension | V2 response dimension | V3 response dimension | hV4 response dimension |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| subj02 | 39364 | 2737 | 2779 | 2615 | 1262 |
-| subj03 | 36328 | 2676 | 2991 | 2418 | 887 |
-| subj04 | 35116 | 2328 | 2474 | 2146 | 1190 |
-
-Combined four-subject data:
-
-| quantity | count |
+| outcome | rows |
 | --- | ---: |
-| combined rows for subj01-subj04 | 150172 |
+| stable across geometry methods | 908 |
+| direction conflict | 16 |
+| insufficient models | 462 |
+| not applicable to behavior-vs-encoding | 693 |
 
-Validation:
+Of the geometry-tested relationships with sufficient models, `908/924` are stable in direction across CKA and subset RSA and `16/924` show direction conflict.
 
-| validation item | count |
-| --- | ---: |
-| sampled rows per subject/ROI for bounded validation | 25 |
-| subjects with bounded validation completed | 3 |
-| ROIs per subject in bounded validation | 4 |
+### Attribution-Family Cross-Axis Means
 
-## Summary Numbers
+These are descriptive mean Spearman correlations across the available metric/ROI groups.
 
-Current headline numeric values:
+| dataset | family | model n | mean behavior-encoding rho | mean behavior-geometry rho |
+| --- | --- | ---: | ---: | ---: |
+| CAT2000 | vanilla gradient | 6 | 0.5314 | 0.7143 |
+| CAT2000 | attention rollout | 4 | 0.5943 | 0.7486 |
+| CAT2000 | transformer relevance | 4 | 0.9600 | 0.8400 |
+| SALICON | vanilla gradient | 6 | 0.4465 | 0.6539 |
+| SALICON | attention rollout | 4 | 0.3886 | 0.6114 |
+| SALICON | transformer relevance | 4 | 0.9600 | 0.8400 |
+| COCO-Search18 | vanilla gradient | 6 | 0.3551 | 0.5820 |
+| COCO-Search18 | attention rollout | 4 | 0.6057 | 0.7600 |
 
-| quantity | value |
-| --- | ---: |
-| highest behavioral NSS | 1.838 |
-| highest behavioral NSS dataset | CAT2000 |
-| highest behavioral NSS model/control | DeepGaze IIE |
-| matched-panel neural encoding leader mean noise-normalized score | 0.591 |
-| matched-panel neural encoding leader x100 score | 59.11 |
-| matched-panel neural encoding leader | DINOv2 ViT-S/14 |
-| matched geometry leader score | 0.229 |
-| matched geometry leader | DINOv2 ViT-S/14 |
-| geometry sensitivity agreement rows | 15 |
-| overall behavior-to-encoding leader match rate | 0.587 |
-| overall behavior-to-RSA leader match rate | 0.587 |
-| learned spatial readout improved ROI comparisons | 4 |
-| learned spatial readout total ROI comparisons | 4 |
-| SSL/multimodal candidates dry-inspected | 8 |
-| SSL/multimodal pretrained debug runs complete | 3 |
-| SSL/multimodal pretrained status complete | 3 |
-| SSL/multimodal pretrained status not run | 5 |
+These correlations remain small-model-panel descriptions. Transformer relevance improves the behavioral attribution result, but it does not establish a causal relationship between fixation alignment and neural or geometric alignment.
 
-## Verification Numbers
+## Confirmatory Subject Robustness
 
-Recorded verification results:
+The confirmatory panel uses four models over V1, V2, V3, and hV4 for `subj02`, `subj03`, and `subj04`.
 
-| verification item | result |
-| --- | ---: |
-| full test suite | 210 passed |
-| focused neural/reporting test result | 36 passed |
-| geometry-focused reporting test result | 85 passed |
-| broader neural/reporting rerun with fresh temp directory | 93 passed |
-| matched-panel audit complete cells | 24 |
-| matched-panel audit missing cells | 0 |
-| matched-panel audit incomplete cells | 0 |
-| matched-panel audit explicitly skipped cells | 0 |
-| neural target-scope total rows | 289740 |
-| neural target-scope noise-normalized rows | 289620 |
-| neural target-scope non-noise-normalized rows | 120 |
-| reliability metadata audit candidate count | 0 |
-| reliability metadata audit usable candidate count | 0 |
-| reliability metadata audit usable metadata found | 0 |
-| neural noise-ceiling smoke rows | 2973 |
+### Encoding Rankings
 
-## Efficiency Data Status
+Encoding values are mean raw Pearson correlations because usable subject-specific noise ceilings are not available for these confirmatory rows.
 
-Efficiency fields are not populated with usable values.
+| subject | rank 1 | score | rank 2 | score | rank 3 | score | rank 4 | score |
+| --- | --- | ---: | --- | ---: | --- | ---: | --- | ---: |
+| subj02 | DINOv2 | 0.5314 | ResNet-50 | 0.5304 | CLIP ViT | 0.5263 | ViT-B | 0.5025 |
+| subj03 | DINOv2 | 0.4207 | ResNet-50 | 0.4198 | CLIP ViT | 0.4169 | ViT-B | 0.4000 |
+| subj04 | ResNet-50 | 0.4258 | DINOv2 | 0.4220 | CLIP ViT | 0.4200 | ViT-B | 0.4057 |
 
-| efficiency quantity | current recorded value |
-| --- | --- |
-| efficiency data | not provided |
-| latency mean ms | not populated |
-| parameter count | not populated |
-| model size MB | empty |
-| FLOPs | empty |
-| memory footprint | not provided |
-| token count | not provided |
-| retained-patch statistics | not provided |
+### Full-Image CKA Rankings
+
+| subject | rank 1 | score | rank 2 | score | rank 3 | score | rank 4 | score |
+| --- | --- | ---: | --- | ---: | --- | ---: | --- | ---: |
+| subj02 | DINOv2 | 0.2539 | ResNet-50 | 0.2396 | CLIP ViT | 0.2104 | ViT-B | 0.1145 |
+| subj03 | DINOv2 | 0.1607 | ResNet-50 | 0.1438 | CLIP ViT | 0.1085 | ViT-B | 0.0690 |
+| subj04 | DINOv2 | 0.2043 | ResNet-50 | 0.1881 | CLIP ViT | 0.1704 | ViT-B | 0.0914 |
+
+### DINOv2 Minus ResNet-50 Encoding Margins
+
+| subject | paired targets | mean margin | median margin | positive-target fraction | bootstrap 95% CI | supported model |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| subj02 | 9393 | +0.00237 | +0.00213 | 0.551 | [0.00205, 0.00268] | DINOv2 |
+| subj03 | 8972 | +0.00307 | +0.00314 | 0.598 | [0.00274, 0.00340] | DINOv2 |
+| subj04 | 8138 | -0.00172 | -0.00010 | 0.497 | [-0.00207, -0.00141] | ResNet-50 |
+
+ROI-level encoding margins:
+
+| subject | V1 | V2 | V3 | hV4 |
+| --- | ---: | ---: | ---: | ---: |
+| subj02 | -0.00425 | +0.00393 | +0.01290 | -0.00855 |
+| subj03 | +0.00011, ambiguous | +0.00695 | +0.00620 | -0.00962 |
+| subj04 | -0.00102 | +0.00624 | -0.00301 | -0.01735 |
+
+Across all confirmatory targets, the pooled DINOv2-minus-ResNet encoding margin is `+0.00135`, 95% CI `[0.00117, 0.00153]`. This pooled positive value does not remove the subject reversal: `subj04` significantly favors ResNet-50. The accepted encoding interpretation is therefore subject-sensitive and ambiguous, not a universal DINOv2 win.
+
+### Geometry Margins
+
+| subject | DINOv2-minus-ResNet mean CKA margin | subset-RSA settings supporting DINOv2 |
+| --- | ---: | ---: |
+| subj02 | +0.01429 | 9/9 |
+| subj03 | +0.01688 | 9/9 |
+| subj04 | +0.01615 | 9/9 |
+| aggregate | +0.01577 | 9/9 |
+
+The confirmatory geometry result is consistent across subjects, full-image CKA, and the nine deterministic subset-RSA settings. This is the strongest current replication result.
+
+## Current Numeric Interpretation
+
+The actual outcome is a geometry-first dissociation:
+
+1. DINOv2 is the strongest model in the six-model PRF encoding panel and in the four-model ten-ROI discovery encoding mean.
+2. DINOv2 leads full-image CKA in the ten-ROI discovery matrix, but ResNet-50 leads most discovery subset-RSA settings, so the discovery geometry top rank is method-sensitive.
+3. In all three confirmatory subjects, DINOv2 leads full-image CKA and has positive aggregate geometry margins across all nine subset-RSA settings.
+4. Confirmatory encoding is not equally stable: DINOv2 leads `subj02` and `subj03`, while ResNet-50 leads `subj04`.
+5. Transformer relevance materially improves fixation alignment over attention rollout and vanilla gradients, but dedicated fixation references remain stronger and the improvement does not establish causal neural alignment.
+
+The current accepted summary label is:
+
+`geometry_replicated_encoding_ambiguous`

@@ -9,7 +9,7 @@ claim:
     subj01 beyond PRF-only visual ROIs.
 baseline_inputs:
   current_diagnostic_scope_config: configs/paper1_config.yaml
-  behavioral_csv: outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv
+  behavioral_csv: outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv
   neural_summary_dir: outputs/neural_roi_summary
   matched_encoding_ranking: outputs/neural_roi_summary/matched_full_panel_model_rankings.csv
   matched_geometry_ranking: outputs/neural_roi_summary/matched_geometry_model_rankings.csv
@@ -86,7 +86,7 @@ behavioral_controls:
     task_search:
       - COCO-Search18
   required_inputs:
-    - outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv
+    - outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv
     - outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv
     - outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv
   method_object_types:

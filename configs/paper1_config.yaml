@@ -1,6 +1,6 @@
 paper1_scope:
   subject_id: subj01
-  behavior_csv: outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv
+  behavior_csv: outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv
   neural_output_root: outputs/neural_subj01_full
   models:
     - resnet50

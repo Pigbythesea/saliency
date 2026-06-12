@@ -198,12 +198,23 @@ def _key_comparisons(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         evidence = [
             row for row in candidates if str(row.get("saliency_family")) == "evidence_sensitivity"
         ]
+        relevance = [
+            row for row in candidates if str(row.get("saliency_family")) == "transformer_relevance"
+        ]
         if internal and evidence:
             output.append(
                 _comparison_row(
                     "best_internal_routing_vs_best_evidence_sensitivity",
                     _best_row(internal, metric),
                     _best_row(evidence, metric),
+                )
+            )
+        if relevance and internal:
+            output.append(
+                _comparison_row(
+                    "best_transformer_relevance_vs_best_internal_routing",
+                    _best_row(relevance, metric),
+                    _best_row(internal, metric),
                 )
             )
     return output
@@ -460,7 +471,8 @@ def _write_interpretation_note(
     if key_comparisons:
         lines.append(
             "- Key comparison rows were generated for center-bias, Grad-CAM, "
-            "gradient, attention-rollout, and evidence-sensitivity contrasts."
+            "gradient, attention-rollout, transformer-relevance, and "
+            "evidence-sensitivity contrasts."
         )
     else:
         lines.append("- No key comparison rows are available.")

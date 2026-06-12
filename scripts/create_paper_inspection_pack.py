@@ -9,10 +9,21 @@ import statistics
 from pathlib import Path
 from typing import Any, Iterable
 
+try:
+    from scripts.create_attribution_family_interpretation import (
+        FIELDNAMES as ATTRIBUTION_FAMILY_INTERPRETATION_FIELDNAMES,
+    )
+except ModuleNotFoundError:  # pragma: no cover - used when executed as a script.
+    from create_attribution_family_interpretation import (
+        FIELDNAMES as ATTRIBUTION_FAMILY_INTERPRETATION_FIELDNAMES,
+    )
 from hma.utils.paths import ensure_dir
 
 
-DEFAULT_BEHAVIORAL_CSV = Path("outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv")
+DEFAULT_BEHAVIORAL_CSV = Path(
+    "outputs/real_matrix_v2/aggregated/"
+    "results_with_ssl_behavior_plus_transformer_relevance.csv"
+)
 DEFAULT_NEURAL_DIR = Path("outputs/neural_roi_summary")
 DEFAULT_OUTPUT_DIR = Path("outputs/paper_inspection_v1")
 DEFAULT_V1_SUMMARY_DIR = Path("outputs/paper1_experiment_v1/summary")
@@ -48,6 +59,7 @@ METHOD_LABELS = {
     "vanilla_gradient": "Gradient",
     "gradcam": "Grad-CAM",
     "attention_rollout": "Attention rollout",
+    "transformer_relevance": "Transformer relevance",
     "integrated_gradients": "Integrated gradients",
     "occlusion": "Occlusion",
 }
@@ -57,6 +69,7 @@ FAMILY_COLORS = {
     "evidence_sensitivity": "#2563eb",
     "class_localization": "#dc2626",
     "internal_routing": "#f59e0b",
+    "transformer_relevance": "#9333ea",
     "perturbation": "#7c3aed",
 }
 MODEL_COLORS = {
@@ -152,6 +165,11 @@ def create_paper_inspection_pack(
     )
     subject_geometry_margin_rows = _load_optional_csv_rows(
         v1_summary_root / "subject_robustness_geometry_margin_summary.csv"
+        if v1_summary_root is not None
+        else Path()
+    )
+    attribution_family_interpretation_rows = _load_optional_csv_rows(
+        v1_summary_root / "attribution_family_cross_axis_interpretation.csv"
         if v1_summary_root is not None
         else Path()
     )
@@ -322,6 +340,15 @@ def create_paper_inspection_pack(
         tables_dir / "table15_observer_control_summary.md",
         observer_control_table,
     )
+    outputs["attribution_family_interpretation_csv"] = _write_rows(
+        tables_dir / "table16_attribution_family_cross_axis_interpretation.csv",
+        attribution_family_interpretation_rows,
+        ATTRIBUTION_FAMILY_INTERPRETATION_FIELDNAMES,
+    )
+    outputs["attribution_family_interpretation_md"] = _write_markdown_table(
+        tables_dir / "table16_attribution_family_cross_axis_interpretation.md",
+        attribution_family_interpretation_rows,
+    )
     if v1_summary_root is not None:
         outputs["v1_subject_robustness_paper_interpretation"] = _write_rows(
             v1_summary_root / "subject_robustness_paper_interpretation.csv",
@@ -393,6 +420,7 @@ def create_paper_inspection_pack(
         cross_axis_decision_table=cross_axis_decision_table,
         subject_interpretation_table=subject_interpretation_table,
         observer_control_table=observer_control_table,
+        attribution_family_interpretation_table=attribution_family_interpretation_rows,
         outputs=outputs,
         behavioral_csv=behavioral_path,
     )
@@ -1453,6 +1481,7 @@ def _write_readme(
     cross_axis_decision_table: list[dict[str, Any]] | None = None,
     subject_interpretation_table: list[dict[str, Any]] | None = None,
     observer_control_table: list[dict[str, Any]] | None = None,
+    attribution_family_interpretation_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     best_behavior = behavior_table[0] if behavior_table else {}
     matched_rows = matched_panel_table or []
@@ -1483,6 +1512,7 @@ def _write_readme(
     cross_axis_decision_rows = cross_axis_decision_table or []
     subject_interpretation_rows = subject_interpretation_table or []
     observer_control_rows = observer_control_table or []
+    attribution_family_rows = attribution_family_interpretation_table or []
     top_geometry = next(
         (
             row
@@ -1514,6 +1544,23 @@ def _write_readme(
     complete_cross_level_rows = [
         row for row in matched_cross_level_rows if row.get("status") == "complete"
     ]
+    transformer_interpretation = next(
+        (
+            row
+            for row in attribution_family_rows
+            if row.get("saliency_family") == "transformer_relevance"
+            and row.get("paper_interpretation")
+            == "transformer_relevance_improves_rollout_behavior_only"
+        ),
+        next(
+            (
+                row
+                for row in attribution_family_rows
+                if row.get("saliency_family") == "transformer_relevance"
+            ),
+            {},
+        ),
+    )
     top_cross_level = next(
         (
             row
@@ -1563,6 +1610,14 @@ def _write_readme(
         ),
         f"- Cross-axis decision labels: {decision_text}.",
         f"- Observer-control context rows: {observer_text}; these are human/interobserver context, not model performance rows.",
+        (
+            "- Attribution-family interpretation: "
+            f"transformer relevance rows={transformer_interpretation.get('behavior_metric_rows', '')}, "
+            f"cross-level complete={transformer_interpretation.get('cross_level_complete_rows', '')}, "
+            f"decision={transformer_interpretation.get('paper_interpretation', '')}."
+            if transformer_interpretation
+            else "- Attribution-family interpretation table is not available in this pack."
+        ),
         (
             "- Matched full-image `flatten_pca` panel is complete and used for the encoding headline."
             if matched_panel_complete
@@ -1618,6 +1673,7 @@ def _write_readme(
         "- `tables/table13_cross_axis_sensitivity.md`",
         "- `tables/table14_subject_robustness_interpretation.md`",
         "- `tables/table15_observer_control_summary.md`",
+        "- `tables/table16_attribution_family_cross_axis_interpretation.md`",
         "",
         "## Academic SOTA Context",
         "",

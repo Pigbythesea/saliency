@@ -101,7 +101,7 @@ It is not:
 
 Already usable:
 
-- `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
+- `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`
 - `378` corrected behavioral rows.
 - `126` rows each for SALICON, CAT2000, and COCO-Search18.
 - `points` / `task_points` fixation protocols; no blank or density-fallback rows.

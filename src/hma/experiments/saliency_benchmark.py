@@ -378,6 +378,7 @@ def _saliency_requires_torch(method_name: str | None) -> bool:
         "gradcam",
         "attention_rollout",
         "rollout",
+        "transformer_relevance",
     }
 
 
@@ -494,6 +495,8 @@ def _saliency_family(method_name: Any) -> str:
         return "class_localization"
     if method_name in {"attention_rollout", "rollout"}:
         return "internal_routing"
+    if method_name == "transformer_relevance":
+        return "transformer_relevance"
     if method_name in {"center_bias", "random_saliency"}:
         return "baseline"
     if method_name in {"coco_search18_task_prior", "task_conditioned_spatial_prior"}:

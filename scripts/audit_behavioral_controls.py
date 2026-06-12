@@ -11,7 +11,8 @@ from hma.utils.paths import ensure_dir
 
 
 DEFAULT_BEHAVIORAL_AGGREGATE = (
-    "outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv"
+    "outputs/real_matrix_v2/aggregated/"
+    "results_with_ssl_behavior_plus_transformer_relevance.csv"
 )
 DEFAULT_OBSERVER_CONTROL_SUMMARY = (
     "outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv"

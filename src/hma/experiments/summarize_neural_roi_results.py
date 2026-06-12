@@ -19,7 +19,12 @@ RSA_FILE = "rsa_scores.csv"
 GEOMETRY_FILE = "geometry_scores.csv"
 METADATA_FILE = "metadata.json"
 STATIC_SUFFIX = "_static2000"
-BRIDGE_METHODS = {"vanilla_gradient", "gradcam", "attention_rollout"}
+BRIDGE_METHODS = {
+    "vanilla_gradient",
+    "gradcam",
+    "attention_rollout",
+    "transformer_relevance",
+}
 LOWER_IS_BETTER_METRICS = {"kl", "emd", "emd_2d", "mae", "mse", "rmse", "loss"}
 MATCHED_PANEL_MODELS = {
     "resnet50",

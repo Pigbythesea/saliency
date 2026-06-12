@@ -16,37 +16,53 @@ Its purpose is to steer implementation toward publication-grade scientific evide
 
 The current Paper 1 claim to test is:
 
-> Human-like fixation alignment, neural encoding, and latent representational geometry are related but non-equivalent axes of visual alignment; dissociation and convergence patterns may emerge out of different axis, giving insight on brain decoding via model architecture. Then, do models that better match human visual attention behavior also better align with human visual cortex in encoding and representational geometry, or do these alignment axes dissociate across architecture, attribution family, ROI, and viewing regime?
+> Human-like fixation alignment, neural encoding, representational geometry, cortical stream structure, and computational efficiency are separable axes of visual alignment. Paper 1 should test whether these axes converge or dissociate across modern vision systems. The central question is whether models that look more human-like behaviorally also predict visual-cortex responses and neural representational geometry better, or whether behavioral attention, neural encoding, latent geometry, stream selectivity, and efficiency come apart in systematic ways.
 
-Codex must treat every implementation task as subordinate to this claim. The project should not be optimized for a larger saliency leaderboard, a local Algonauts score chase, broad model-zoo accumulation, or cosmetic paper-pack expansion unless the task directly improves the cross-axis dissociation/convergence evidence.
+The paper should be organized around a cross-axis outcome grid:
+
+| fixation / behavioral alignment | neural encoding / geometry alignment | intended interpretation                                                                |
+| ------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
+| high                            | high                                 | overt human-like selection may track brain-like representation                         |
+| low                             | high                                 | representation convergence may emerge without human-like gaze or saliency              |
+| high                            | low                                  | saliency-map mimicry or human-like output may arise from non-human internal processing |
+| low                             | low                                  | weak alignment on both behavioral and neural axes                                      |
+
+Codex must treat every implementation task as subordinate to building this cross-axis matrix. A task counts only if it directly clarifies the relationship among behavioral fixation alignment, neural encoding, representational geometry, ROI/stream specificity, model family, and efficiency.
 
 ### What counts as progress
 
-A change counts as project progress only if it produces at least one of the following:
+A change counts as project progress only if it advances **Paper 1 Matrix V2**, meaning a model × axis × ROI/stream × efficiency matrix that can test convergence and dissociation among:
 
-* a new accepted evidence table used by the Paper 1 claim;
-* a robustness or uncertainty table that changes how strongly a result can be trusted;
-* a reviewer-facing control that protects the paper from a known methodological attack;
-* a cleaner separation between accepted evidence and diagnostic/provenance artifacts;
-* a figure/table that directly supports or falsifies the cross-axis dissociation claim;
-* a documented decision that stops an unproductive branch.
+- behavioral fixation / saliency alignment;
+- task-search or scanpath alignment where feasible;
+- neural encoding across early, ventral, lateral/dorsal, and parietal/stream ROIs;
+- representational geometry using CKA plus subset RSA or another metric family;
+- computational efficiency, including parameters, FLOPs/MACs, latency, memory, token count, and retained-token fraction where applicable;
+- model-family contrasts between CNN, plain ViT, self-supervised dense-feature models, vision-language models, efficient/hybrid models, and adaptive/foveated/selective-computation models.
 
-Engineering achievements, successful smoke runs, code reorganization, new logs, new configs, and larger result matrices do not count as scientific progress unless they produce one of the outputs above. 
+A change counts as progress only if it produces at least one of the following:
 
-Do not apply publication hardening to a smoke-run object. First build the paper-grade object, then harden it.
+- a new Matrix V2 accepted evidence table;
+- a new model-family feasibility audit for modern frontier-relevant models;
+- a new ROI/stream grouping table or neural-manifest expansion that enables ventral/dorsal/where-vs-what analysis;
+- a behavioral-to-neural cross-axis table that can classify models into high/high, low/high, high/low, or low/low alignment quadrants;
+- an efficiency profile that can be merged into alignment-per-compute analysis;
+- a scanpath, foveation, token-selection, or adaptive-computation axis that tests the original attention-as-resource-allocation hypothesis;
+- a negative decision that stops a stale branch, especially claim-table generation from the superseded interpretation.
 
-### What Codex should refuse or deprioritize
+Engineering achievements, successful smoke runs, code reorganization, new logs, new configs, and paper-pack updates do not count as scientific progress unless they directly produce one of the Matrix V2 outputs above.
 
-Codex should avoid:
+Do not apply publication hardening before actual scientific discovery. First build the stronger Matrix V2 scientific object, then decide what the paper can claim.
 
-* expanding generic saliency rows before human ceilings, stronger fixation baselines, and attribution-family controls are handled;
-* adding more model families before the existing six-model matched panel has stronger robustness analysis;
-* treating DINOv2 learned spatial readout as a cross-model ranking result;
-* treating attention rollout as evidence of human-like transformer attention;
-* mixing free-viewing SALICON/CAT2000 claims with task-driven COCO-Search18 claims;
-* reporting model-level correlations without exact `n`, leave-one-model-out sensitivity, and uncertainty;
-* polishing paper-pack summaries before the underlying accepted evidence changes;
-* optimizing toward local benchmark scores without connecting the result to the cross-axis claim.
+### What Codex should prioritize
+
+Codex should prioritize:
+
+- modern model-family coverage over generic model count;
+- stream/ROI structure over another flat PRF-only score table;
+- efficiency and alignment-per-compute over decorative paper artifacts;
+- adaptive/foveated/selective-computation mechanisms over more post-hoc heatmap variants;
+- direct quadrant classification of models across behavioral, neural, geometry, and efficiency axes.
 
 ### Required end-of-session report
 
@@ -64,7 +80,8 @@ At the end of each Codex session, update this file with:
 Current steering documents under `docs/`:
 
 - `project_status_and_next_steps.md`: this engineering status file.
-- `paper1_cross_axis_alignment_roadmap.md`: current publication roadmap for Paper 1. It reframes the project as a cross-axis dissociation study across fixation alignment, neural encoding, representational geometry, and efficiency.
+- `project_results_numbers.md`: current numerical result source of truth. Use it to inspect actual outcomes, margins, sample sizes, and confidence intervals before making any claim.
+- `paper1_cross_axis_alignment_roadmap.md`: useful background, but partially superseded. Keep its cross-axis dissociation framing; revise its implementation priorities toward Matrix V2: modern model families, stream-level neural analysis, adaptive/foveated mechanisms, and efficiency.
 - `paper1_literaturereview.md`: current literature review for Paper 1. It raises the required controls around dataset bias, scanpath/task specificity, subject variability, encoding reliability, representational-geometry metrics, and transformer attribution.
 - `Literature Review and Research Redesign for the Human-Like Adaptive Visual Attention Project.md`: argues the project should become a multi-axis NeuroAI alignment study, not a saliency-map leaderboard.
 - `Deep Research Assessment of the Human-Machine Visual Alignment Project.md`: emphasizes the publishable question as convergence versus dissociation among fixation alignment, neural predictivity, representational geometry, and efficiency.
@@ -75,13 +92,33 @@ Current steering documents under `docs/`:
 
 ## Current Snapshot
 
-The repository now implements three active layers:
+The repository currently contains a strong diagnostic scaffold, not the final Paper 1 scientific matrix.
 
-- Behavioral saliency / fixation benchmarking on SALICON, CAT2000, and COCO-Search18.
-- Neural encoding on local Algonauts / NSD `subj01` visual ROIs, including the complete six-model full-image-count `flatten_pca` PRF ROI diagnostic panel, full-image-count learned spatial readout provenance for DINOv2, and the V1 four-model x ten-ROI discovery matrix.
-- Paper-style inspection tables and figures that join corrected behavioral summaries with the matched full-image neural panel, matched geometry sensitivity outputs, V1 ROI-expanded geometry, V1 geometry-method sensitivity decisions, and matched cross-level correlation/regression outputs.
+Completed scaffold layers:
 
-The repository now implements the diagnostic PRF-only matched full-image representational-geometry axis, the V1 ROI-expanded `subj01` geometry axis, the reduced `subj02`-`subj04` subject-robustness panel, and the DINOv2-vs-ResNet uncertainty/margin interpretation for that panel. The rank-only subject-robustness gate remains **partial**, but the uncertainty-aware decision is more specific: geometry replication is robust, while encoding is subject-sensitive and aggregate-labeled `geometry_replicated_encoding_ambiguous`.
+- behavioral saliency / fixation benchmarking on SALICON, CAT2000, and COCO-Search18;
+- accepted behavioral controls, including DeepGaze MSDB for SALICON/CAT2000, a COCO-Search18 task prior, center bias, observer controls, and transformer relevance as a separated attribution family;
+- local Algonauts / NSD neural encoding for `subj01`, including a complete six-model PRF visual ROI `flatten_pca` panel and a four-model x ten-ROI discovery matrix;
+- representational geometry using full-image CKA and deterministic subset RSA;
+- reduced confirmatory subject robustness for `subj02`-`subj04` over PRF visual ROIs;
+- DINOv2 learned spatial readout provenance;
+- paper inspection and audit infrastructure.
+
+Current diagnostic outcome:
+
+- behavioral scoring is sane: dedicated fixation/task references outperform generic classifier attribution maps;
+- DINOv2 is strong in current encoding and CKA results, but the ten-ROI subset-RSA top rank is method-sensitive and often favors ResNet-50;
+- confirmatory-subject geometry favors DINOv2, while encoding is subject-sensitive and reverses to ResNet-50 in `subj04`;
+- transformer relevance improves over rollout and vanilla gradients behaviorally on SALICON/CAT2000, but it remains a post-hoc attribution family rather than operational attention;
+- the current evidence is useful as a pilot scaffold, but it is too narrow to define the final paper story.
+
+Active missing layers for Paper 1 Matrix V2:
+
+- modern model-family coverage beyond the current conservative anchors;
+- explicit ventral/dorsal or stream-level neural analysis beyond PRF-only confirmatory robustness;
+- efficiency and alignment-per-compute;
+- adaptive, foveated, token-pruning, scanpath, or selective-computation models/mechanisms;
+- a direct quadrant-style cross-axis analysis that classifies models by behavioral alignment versus neural/geometry alignment.
 
 Main package: `src/hma/`.
 
@@ -91,7 +128,7 @@ Current generated outputs are classified as follows:
 
 Accepted diagnostic evidence:
 
-- Corrected behavioral aggregate merged with SSL/VLM rows: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`.
+- Corrected behavioral aggregate merged with SSL/VLM rows and accepted transformer relevance control: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`.
 - Matched full-image `flatten_pca` neural panel: `outputs/neural_roi_summary/matched_full_panel_model_rankings.csv`.
 - Matched full-image geometry rankings and sensitivity summaries: `outputs/neural_roi_summary/matched_geometry_model_rankings.csv`, `outputs/neural_roi_summary/matched_geometry_method_agreement.csv`.
 - Matched cross-level analysis outputs: `outputs/neural_roi_summary/matched_cross_level_observations.csv`, `outputs/neural_roi_summary/matched_cross_level_correlations.csv`.
@@ -106,7 +143,7 @@ Robustness/control artifacts:
 - V1 subject-robustness outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_decisions.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_encoding_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_model_rankings.csv`, and `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_method_sensitivity_decisions.csv`.
 - V1 subject-robustness uncertainty outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_encoding_margin_uncertainty.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_margin_summary.csv`, and `outputs/paper1_experiment_v1/summary/subject_robustness_uncertainty_decisions.csv`.
 - V1 paper-facing synthesis outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_paper_interpretation.csv` and `outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv`.
-- Behavioral-control hardening outputs: `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`, `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`, `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv`, `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`, and the merged accepted behavioral aggregate `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`.
+- Behavioral-control hardening outputs: `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`, `outputs/paper1_experiment_v1/summary/behavioral_bridge_integration_audit.csv`, `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`, `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv`, `outputs/real_matrix_v2_transformer_relevance/aggregated/results.csv`, `outputs/paper1_experiment_v1/summary/transformer_relevance_control_audit.csv`, `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`, and the merged accepted behavioral aggregate `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`.
 - Free-viewing reference feasibility output: `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv`.
 - Observer-control outputs: `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`, `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`.
 
@@ -116,6 +153,7 @@ Diagnostics/provenance:
 - Corrected SSL/VLM behavioral aggregate before merge: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`.
 - Full neural ROI summary directory, including learned-readout provenance rows: `outputs/neural_roi_summary/`.
 - Paper inspection pack: `outputs/paper_inspection_v1/README.md`, including `outputs/paper_inspection_v1/tables/table14_subject_robustness_interpretation.csv` and `outputs/paper_inspection_v1/tables/table15_observer_control_summary.csv`.
+- Paper 1 outcome interpretation: `docs/paper1_outcome_interpretation_v1.md`.
 
 Experiment-definition artifacts:
 
@@ -155,76 +193,69 @@ Paper 1 is not yet top-venue ready. The current repository supports a serious di
 * one discovery subject plus a reduced three-subject PRF-ROI robustness panel with geometry replication but subject-sensitive encoding;
 * small model-level correlations (`n=4` for the V1 discovery matrix, `n=6` for the older PRF diagnostic panel);
 * one completed ROI-expanded discovery pass with subject robustness only on PRF visual ROIs, not the full stream-ROI scope;
-* limited behavioral SOTA controls;
-* limited transformer attribution coverage;
+* behavioral controls that are strong for the current static-image scope but still scoped rather than exhaustive;
+* transformer attribution coverage that is now sufficient for Paper 1 reporting but not a broad attribution-method inventory;
 * geometry-method-dependent cross-axis analysis.
 
 The current project should therefore be treated as a publication-directed evidence-building pipeline, not as a finished paper.
 
-### Current strongest claim
+### Current strongest result
 
-The strongest currently defensible claim is:
+The strongest current result is a **pilot scaffold result**, not the final Paper 1 claim:
 
-> In the current V1 PRF-ROI subject-robustness scope, representational geometry replicates more cleanly than neural encoding: DINOv2-vs-ResNet geometry margins support DINOv2 across confirmatory subjects, while encoding support is subject-sensitive and reverses to ResNet-50 in `subj04`.
+> Current diagnostics show that behavioral fixation alignment, neural encoding, and representational geometry are measurable in one pipeline and already show non-identical behavior across model family, attribution family, subject, ROI, and geometry method.
 
-This is now a claim-shaped but still not top-venue-complete pattern: full-image CKA and deterministic subset-RSA margins favor DINOv2 across `subj02`-`subj04`, while encoding is split by subject. `subj02` and `subj03` support DINOv2 encoding, but `subj04` supports ResNet-50 encoding, so the accepted aggregate interpretation is geometry-replicated and encoding-ambiguous.
+Important current numerical facts:
 
-The current results should be used to drive behavioral-control hardening around the paper-facing geometry-first dissociation claim, not to support a universal best-model conclusion.
+- behavioral references dominate generic attribution maps: DeepGaze MSDB is strongest on SALICON/CAT2000, and the COCO-Search18 task prior is strongest for task search;
+- transformer relevance improves over rollout and vanilla gradients on SALICON/CAT2000 but remains below DeepGaze MSDB and is not operational attention;
+- DINOv2 leads the six-model PRF encoding panel and the four-model ten-ROI discovery encoding panel;
+- DINOv2 leads ten-ROI full-image CKA, but ResNet-50 leads most ten-ROI subset-RSA settings, with small top-rank margins;
+- confirmatory-subject geometry favors DINOv2 in `3/3` subjects, while encoding favors DINOv2 in `2/3` and ResNet-50 in `subj04`.
+
+Interpretation:
+
+These results justify building Matrix V2. They should not be hardened into a final geometry-first story. The next claim must be tested across a deliberately designed model-family panel, stream/ROI grouping, and efficiency axis.
 
 ### Current weakest links
 
-These are reviewer risks in order of severity, not the implementation order. The subject-robustness decision gate, DINOv2-vs-ResNet margin/uncertainty interpretation, paper-facing geometry-first synthesis, observer-control integration, task-search baseline, and modern free-viewing DeepGaze MSDB control are now complete, so the next milestone should strengthen attribution-family controls before efficiency or model expansion.
+These are reviewer risks and scientific design risks in priority order.
 
-1. **Small model-level ****`n`****:** behavior-encoding-geometry correlations over `n=4` in the V1 matrix remain descriptive. This is the highest reviewer risk, but generic model expansion is deferred until behavioral controls are stronger.
-2. **Small attribution-family coverage:** Grad-CAM, vanilla gradients, integrated gradients, occlusion, and attention rollout exist, but transformer-specific attention/relevance remains weak. Attention rollout must not support attention-specific claims without a stronger transformer relevance control.
-3. **Paper-facing claim framing:** the paper inspection pack now explicitly supports geometry-first dissociation / measurement evidence and avoids a universal DINOv2 encoding-win narrative, but main-paper figures/tables still need later hardening.
-4. **Attribution ambiguity:** Grad-CAM, vanilla gradients, and attention rollout are different explanation objects. Attention rollout must not be treated as human-like attention.
-5. **Geometry metric dependence:** V1 full-image CKA and subset-RSA now have an explicit sensitivity synthesis, so this risk is reduced but not gone. Some relationships are stable across methods, while direction conflicts remain and must be reported.
-6. **Efficiency missing:** compute and alignment-per-compute remain untested, so the original efficient-attention axis is not yet active in Paper 1.
-7. **Causality absent:** Paper 1 is observational. It cannot claim that human-like saliency causes neural alignment.
-
-### Evidence acceptance rules
-
-Use these rules when deciding whether a result enters the Paper 1 headline:
-
-* Headline neural model comparisons must use the matched full-image `flatten_pca` panel unless the same readout protocol exists for all compared models.
-* DINOv2 learned spatial readout can be reported only as method provenance or an upper-bound/proof-of-readout-sensitivity result.
-* Behavioral claims must keep free-viewing datasets and task-driven search datasets separate.
-* NSS/AUC-style point-fixation metrics must be interpreted separately from map-distribution metrics such as CC, SIM, and KL.
-* Transformer claims require method labels such as `attention rollout attribution`, `gradient attribution`, or `transformer relevance`, not the generic word `attention`.
-* Cross-axis correlations must report exact model count, Spearman, Kendall, leave-one-model-out sensitivity, and uncertainty where available.
-* A result is publication-relevant only if it clarifies whether fixation alignment, neural encoding, and representational geometry converge or dissociate.
-
-### Paper 1 acceptance gate
-
-Paper 1 can be treated as main-conference-targetable only if all of the following are true:
-
-* corrected behavioral results remain stable under accepted point/task-point protocols;
-* matched neural encoding results remain stable under uncertainty or subject/ROI robustness checks;
-* matched geometry results are available and stable enough across CKA and subset-RSA sensitivity;
-* at least one dissociation or convergence pattern survives leave-one-model-out analysis;
-* human/interobserver ceiling or a stronger fixation baseline is added, or the absence is explicitly framed as a limitation;
-* attribution-family language is cleaned so the paper never equates explanation maps with operational attention;
-* every headline figure has an associated accepted table and reproducible config.
-
-If this gate fails, Paper 1 should be framed as a workshop paper, thesis chapter, or measurement framework, while the project shifts toward Paper 2’s causal adaptive-attention intervention.
+1. **Wrong abstraction risk:** the project may over-harden a narrow DINOv2-vs-ResNet geometry/encoding observation instead of testing the broader human-machine alignment question.
+2. **Modern model coverage risk:** the current panel has useful anchors, but it does not yet cover enough current frontier-relevant families such as newer SSL dense-feature models, stronger VLMs, efficient/hybrid backbones, or adaptive/foveated/selective-computation models.
+3. **Attention-mechanism risk:** most current behavioral rows are post-hoc explanation maps. The project still lacks a strong operational attention, scanpath, foveation, token-selection, or adaptive-computation axis.
+4. **Stream/anatomy risk:** current subject robustness is PRF-ROI limited. A paper about attention and “where/what” alignment needs stream-level analysis, especially ventral versus lateral/dorsal/parietal groupings.
+5. **Efficiency missing:** compute and alignment-per-compute remain untested even though efficiency is central to the original proposal’s attention-as-resource-allocation hypothesis.
+6. **Small model-level `n`:** current cross-axis correlations over `n=4` or `n=6` are descriptive. Matrix V2 needs a designed compact panel with enough model-family contrast to make quadrant classification meaningful.
+7. **Geometry method sensitivity:** full-image CKA and subset-RSA do not always agree at the top rank. Geometry must remain a multi-method axis.
+8. **Attribution ambiguity:** Grad-CAM, gradients, rollout, transformer relevance, perturbation maps, internal routing, scanpaths, and retained-token masks are different objects and must remain separated.
+9. **Causality absent:** Paper 1 remains observational. Causal gaze/adaptive-attention intervention belongs to Paper 2 unless Matrix V2 explicitly adds a small controlled intervention.
 
 
 ## Current Behavioral Status
 
 Corrected merged behavioral aggregate:
 
-- Path: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
-- Rows: `399`
-- Dataset rows: `133` each for SALICON, CAT2000, and COCO-Search18
-- Protocol rows: `266` with `points`, `133` with `task_points`
+- Path: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`
+- Rows: `455`
+- Dataset rows: `161` each for SALICON and CAT2000, `133` for COCO-Search18
+- Protocol rows: `322` with `points`, `133` with `task_points`
 - Blank / `unknown` / `density_fallback` protocol rows: none
+
+Accepted scoped transformer-relevance control:
+
+- Path: `outputs/real_matrix_v2_transformer_relevance/aggregated/results.csv`
+- Rows: `56`
+- Scope: `2` free-viewing datasets x `4` transformer models x `7` metrics; datasets are SALICON/CAT2000 only, with `points` protocol only.
+- Evidence-gate audit: `outputs/paper1_experiment_v1/summary/transformer_relevance_control_audit.csv`; all `7` scope/method/family/metric/cell checks pass and `evidence_decision=accepted_evidence_ready`.
+- Current integration status: merged into the accepted behavioral bridge candidate at `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`; `outputs/paper1_experiment_v1/summary/behavioral_bridge_integration_audit.csv` has `12/12` checks passing.
 
 Corrected NSS headline:
 
 - SALICON: DeepGaze MSDB `1.760`, DeepGaze IIE `1.743`, center bias `0.933`, DINOv2 ViT-S/14 gradient `0.736`, ConvNeXt-T Grad-CAM `0.633`, ResNet-50 Grad-CAM `0.598`.
 - CAT2000: DeepGaze MSDB `1.979`, DeepGaze IIE `1.838`, center bias `1.619`, ResNet-50 Grad-CAM `0.882`, DINOv2 ViT-S/14 gradient `0.810`, ConvNeXt-T Grad-CAM `0.759`.
 - COCO-Search18: DeepGaze `1.745`, center bias `1.310`, ResNet-50 Grad-CAM `0.955`, ConvNeXt-T Grad-CAM `0.908`, DINOv2 ViT-S/14 gradient `0.713`.
+- Transformer relevance NSS, accepted scoped control and now merged into reporting: SALICON DINOv2 `1.033`, CLIP ViT `0.981`, DeiT `0.931`, ViT-B `0.851`; CAT2000 DINOv2 `1.141`, CLIP ViT `0.940`, DeiT `0.886`, ViT-B `0.733`.
 
 Current interpretation:
 
@@ -232,21 +263,23 @@ Current interpretation:
 - DeepGaze MSDB is now the accepted modern free-viewing reference for SALICON/CAT2000 and improves over the earlier DeepGaze IIE row in both datasets.
 - DeepGaze IIE remains a useful historical/reference control and COCO-Search18 DeepGaze IIE remains diagnostic because it is a free-viewing reference on task-search data.
 - DINOv2 gradient is a strong attribution/fixation-similarity row, especially on SALICON and CAT2000.
+- Transformer relevance is now the strongest tested transformer attribution family on SALICON/CAT2000 within the scoped four-model panel. Across the `8` matched dataset/model cells, it improves over attention rollout and vanilla gradients for every checked metric; mean NSS gain is `+0.426` over rollout and `+0.715` over vanilla gradients.
+- Transformer relevance does **not** overturn the reference-control story. DeepGaze MSDB / DeepGaze IIE remain the strongest free-viewing fixation references, and center bias remains stronger than transformer relevance on CAT2000 and remains competitive on SALICON map-distribution metrics.
 - The behavioral layer is strong enough to serve as one axis in the broader alignment study. It should not be expanded into a larger leaderboard before the paper-grade matrix is defined.
-- Behavioral controls are now sufficient for the current static-image Paper 1 scope: observer controls, center bias, DeepGaze IIE, DeepGaze MSDB for free-viewing, and the COCO-Search18 task prior are represented. Broad scanpath/video expansion belongs after Paper 1 unless the paper explicitly shifts away from static-image dissociation.
+- Behavioral controls are now sufficient for the current static-image Paper 1 scope: observer controls, center bias, DeepGaze IIE, DeepGaze MSDB for free-viewing, the COCO-Search18 task prior, and a separate transformer-relevance attribution family are represented. Broad scanpath/video expansion belongs after Paper 1 unless the paper explicitly shifts away from static-image dissociation.
 
 ## Current Neural Status
 
 Current neural summary:
 
 - Path: `outputs/neural_roi_summary/`
-- Behavioral bridge CSV: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
+- Behavioral bridge CSV: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`
 - Efficiency CSV: not provided in the latest summary.
 - Summary scope: `120` encoding rows, `289740` encoding target rows, and `92` RSA rows across accepted, diagnostic, and provenance outputs.
 - Accepted matched-panel scope: `24` validation-selected full-image-count `flatten_pca` rows for six model families across four `subj01` PRF visual ROIs.
 - Method-provenance scope: `4` full-image-count DINOv2 learned spatial readout rows.
-- Matched cross-level analysis rows: `315` correlation/regression groups, with `210` complete and `105` marked `insufficient_models`.
-- Matched cross-level datasets remain separate: `105` groups each for SALICON, CAT2000, and COCO-Search18.
+- Matched cross-level analysis rows: `385` correlation/regression groups, with `280` complete and `105` marked `insufficient_models`; transformer relevance contributes `70` SALICON/CAT2000 groups and remains separate from `internal_routing`.
+- Matched cross-level datasets remain separate: SALICON/CAT2000 include the merged transformer relevance rows, while COCO-Search18 remains task-search only with no transformer relevance expansion.
 - New paper-pack artifacts: `outputs/paper_inspection_v1/tables/table9_matched_cross_level_correlations.md` and `outputs/paper_inspection_v1/figures/figure5_matched_cross_level_correlations.png`.
 - Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `289620` rows are `benchmark_style_noise_normalized` and `120` rows are intentionally left `benchmark_style_non_noise_normalized`.
 - Matched-panel reporting is now implemented separately from the mixed-scope neural ranking. The full-image-count validation-selected `flatten_pca` panel is now complete for all six planned model families across all four PRF visual ROIs: `resnet50`, `convnext_tiny`, `deit_small_patch16_224`, `vit_base_patch16_224`, `vit_small_patch14_dinov2`, and `vit_base_patch16_clip_224`.
@@ -286,116 +319,116 @@ Interpretation:
 - The previous test-set feedback risk for layer choice has been addressed for the current one-subject PRF visual ROI baselines by validation-only layer selection.
 - The V1 discovery, robustness, and uncertainty matrices change the scientific state: geometry robustly favors DINOv2 across confirmatory subjects, while encoding is subject-sensitive enough that the accepted aggregate label is `geometry_replicated_encoding_ambiguous`.
 
+## SSL / Multimodal Status
+
+Current SSL/VLM behavioral rows are corrected and merged into the main behavioral aggregate.
+
+SSL/multimodal candidate inventory:
+
+- Path: `outputs/neural_roi_summary/ssl_multimodal_candidate_inventory.csv`
+- Dry-inspected compatible candidates: `8`
+- Pretrained debug runs complete: `3`
+- Complete pretrained debug candidates: `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, `resnet50_clip`
+- Not yet run pretrained debug candidates: `vit_base_patch14_dinov2`, `vit_small_patch16_dinov3`, `vit_base_patch16_dinov3`, `vit_base_patch16_siglip_224`, `eva02_base_patch16_clip_224`
+
+
+
 ## Global Direction Rationale
 
-The project direction is a multi-axis NeuroAI alignment study. The central goal is to test whether fixation alignment, neural encoding, and representational geometry measure the same underlying “human-likeness” factor or whether they dissociate across architecture, attribution family, ROI, and viewing regime.
+The project direction is a multi-axis NeuroAI alignment study. The central goal is to test whether behavioral fixation alignment, neural encoding, representational geometry, cortical stream alignment, and computational efficiency measure the same underlying human-likeness factor or dissociate across model families and viewing regimes.
 
-The project should be shaped around this question:
+The project should now be shaped around this question:
 
-> Which models are aligned behaviorally, neurally, and geometrically, and where do those axes fail to agree?
+> Which models align with humans behaviorally, neurally, geometrically, anatomically, and computationally, and where do those axes fail to agree?
 
-The behavioral layer is an alignment axis, not the main paper by itself. The neural encoding layer is a local brain-alignment axis, not an Algonauts leaderboard claim. The geometry layer is a latent representational axis, not a replacement for encoding. The paper becomes interesting only when these axes are analyzed jointly.
+### Matrix V2 target
+
+Paper 1 Matrix V2 should be a compact, deliberate model × axis × ROI/stream × efficiency matrix.
+
+Required axes:
+
+- behavioral fixation/saliency alignment:
+  - SALICON and CAT2000 as free-viewing;
+  - COCO-Search18 as task search;
+  - scanpath/task-search metrics if feasible;
+- neural encoding:
+  - early visual PRF ROIs;
+  - ventral stream / “what” ROIs;
+  - lateral/dorsal/parietal or stream ROIs relevant to spatial selection / “where” processing;
+- representational geometry:
+  - full-image CKA;
+  - deterministic subset RSA;
+  - explicit method-agreement and disagreement reporting;
+- efficiency:
+  - parameters;
+  - FLOPs/MACs;
+  - latency;
+  - memory;
+  - visual token count;
+  - retained-token fraction or selected-glimpse count where applicable;
+- attention/resource-allocation mechanism:
+  - post-hoc attribution families remain controls;
+  - adaptive/foveated/token-pruning/scanpath models are needed to test the original attention hypothesis.
+
+Required model categories:
+
+- CNN anchor: e.g. ResNet-50 or ConvNeXt;
+- plain ViT anchor: e.g. ViT-B or DeiT;
+- self-supervised dense-feature model: current DINOv2 plus a newer available DINO-family candidate if feasible;
+- VLM / semantic model: CLIP plus a stronger current SigLIP-like or comparable candidate if feasible;
+- efficient/hybrid sequence model: MambaVision-like or comparable candidate if feasible;
+- hierarchical/multiscale transformer if feasible;
+- adaptive/foveated/token-pruning/scanpath model or mechanism if feasible;
+- dedicated fixation/scanpath model as behavioral reference only, not as neural backbone unless features are extractable and scientifically justified.
 
 ### Current interpretation of existing results
 
-The current behavioral results show that the corrected scoring protocol is sane: DeepGaze beats center bias, and generic classifier explanation maps remain below dedicated fixation references. This supports the pipeline, but it is not central novelty.
+The current behavioral results show that scoring is sane and that dedicated fixation/task references outperform generic classifier attribution maps. This supports the pipeline but is not central novelty.
 
-The current matched neural panel shows a plausible local ranking over six models and four PRF ROIs, with DINOv2, CLIP ViT, and ResNet-50 near the top. This is useful diagnostic evidence, while the reduced subject-robustness panel is now the claim-relevant check for the four-model V1 PRF-ROI scope.
+The current neural and geometry results show that the pipeline can produce plausible local alignment signals. DINOv2 is strong in several current scores, but the result is not enough to support a universal DINOv2 claim.
 
-The DINOv2 learned spatial readout is a strong method-provenance result because it improves all four PRF visual ROIs over DINOv2 `flatten_pca`. It should motivate later readout/adaptive-sampling work, but it should not enter cross-model headline rankings until the same readout protocol exists for all compared models.
+The DINOv2 learned spatial readout is method provenance. It suggests spatial readout and adaptive sampling matter, which should motivate Matrix V2 and Paper 2, but it cannot be used as a matched cross-model headline.
 
-The matched geometry axis is the current most important addition because it can expose cases where encoding and representational geometry disagree. Geometry should be used to test dissociation, not to create a separate leaderboard.
+The reduced subject-robustness result is useful pilot evidence. It should be treated as motivation for stream-level and model-family expansion rather than as the final paper story.
 
 ### Current priority
 
-The immediate priority is attribution-family hardening for Paper 1. Behavioral controls are now strong enough for the current static-image scope: SALICON/CAT2000 have center bias, DeepGaze IIE, DeepGaze MSDB, and observer context; COCO-Search18 has center bias, observer context, a task-conditioned prior, and DeepGaze IIE only as a diagnostic free-viewing reference.
+The immediate priority is **Paper 1 Matrix V2 Redesign And Feasibility Audit**.
 
-The current V1 behavioral, neural, geometry, geometry-method sensitivity, subject-robustness, margin-uncertainty, and behavioral-control outputs are claim-relevant. Future Codex sessions should not expand the generic model zoo or efficiency axis before adding at least one stronger transformer attribution/relevance family and updating the cross-axis reporting to keep attribution families separate.
+Do not generate a claim-decision table from the superseded outcome interpretation. The next Codex session should produce an actionable Matrix V2 plan and, if feasible, the first machine-readable config/audit files that define:
 
-The next Codex work should therefore focus on:
-
-1. **Transformer Attribution-Family Control**
-
-   Add one stronger transformer relevance method for ViT/DINO/CLIP-style models, preferably Chefer-style transformer attribution or AttnLRP-style relevance propagation. The implementation must label it as a relevance/attribution object, not operational attention.
-
-2. **Scoped Behavioral Evaluation**
-
-   Evaluate the new attribution family only on the existing static benchmark scope needed for Paper 1. Keep free-viewing SALICON/CAT2000 separate from COCO-Search18 task search and avoid broad leaderboard expansion.
-
-3. **Cross-Axis Reporting Hygiene**
-
-   Update aggregate/reporting code so Grad-CAM, gradients, rollout, perturbation, and relevance-style maps remain separate saliency families in cross-axis summaries.
-
-4. **Outcome-first implementation**
-
-   Each Codex session should produce an artifact that changes the paper’s scientific state.
-
-   Good session outputs include:
-
-   * a stronger transformer relevance attribution row with accepted configs and tests;
-   * a reporting update that prevents attention rollout from being interpreted as human-like attention;
-   * a documented decision that rejects an attribution method as infeasible or scientifically mismatched.
-
-   Poor session outputs include:
-
-   * more logging;
-   * more paper-pack formatting;
-   * more plots of the current diagnostic matrix;
-   * small improvements to stale summaries;
-   * broad model-zoo expansion without a claim-driven design.
-
-5. **Robustness before polishing**
-
-   Subject-robustness uncertainty, paper-facing synthesis, observer-control integration, task-search baseline, and DeepGaze MSDB free-viewing control are summarized. The next cleanup should be attribution-family hardening, not cosmetic plotting or model expansion.
-
-   The correct order is:
-
-   1. inspect existing saliency-method registry and transformer model wrappers;
-   2. add one scoped transformer relevance method with tests and debug configs;
-   3. run a small static benchmark smoke pass before any full matrix expansion.
-
-   Do not reverse this order.
+- model categories and candidate models;
+- which candidates are feasible with current dependencies and GPU constraints;
+- required model wrappers/features/attribution objects;
+- ROI/stream groups and which subjects have required data;
+- efficiency metrics and how they will be measured;
+- accepted behavioral, neural, geometry, and efficiency artifacts for Matrix V2;
+- the exact next run order.
 
 ### Explicit non-priorities
 
 Do not prioritize:
 
-* broad model-zoo expansion before a paper-grade scope, ROI expansion, and controls;
-* larger behavioral leaderboards before human ceilings or stronger fixation baselines;
-* video, scanpath, recurrent policies, or adaptive attention before Paper 1’s static-image dissociation claim is stabilized;
-* new DINOv2-only readout variants unless they test a clearly defined Paper 2 intervention;
-* paper-pack polishing unless accepted evidence changes;
-* leaderboard-style claims about best model, best architecture, or best attention method.
-
-### Milestone order
-
-The current milestone order is:
-
-1. Freeze the current six-model/subj01/V1–hV4 results as diagnostic validation outputs, not paper-grade evidence.
-2. Complete the V1 four-model x ten-ROI discovery matrix for `subj01`.
-3. Apply geometry-method sensitivity and the V1 failure gate. **Complete.**
-4. Run subject robustness on the reduced `subj02`-`subj04` panel. **Complete:** aggregate decision is `partial`; geometry replicates across all confirmatory subjects, while encoding flips to ResNet-50 in `subj04`.
-5. Quantify DINOv2-vs-ResNet subject-robustness uncertainty and margins. **Complete:** aggregate decision is `geometry_replicated_encoding_ambiguous`.
-6. Build paper-facing geometry-first dissociation framing and integrate generated observer controls. **Complete.**
-7. Harden behavioral controls with a modern free-viewing fixation reference if feasible and a task-specific COCO-Search18 baseline before stronger task-search interpretation. **Complete:** the behavioral-control audit accepts DeepGaze MSDB for SALICON/CAT2000, observer controls are integrated, and the COCO-Search18 task prior is accepted.
-8. Add attribution-family controls before any attention-specific interpretation. **Current next milestone.**
-9. If the V1 matrix does not produce a defensible claim after those controls, demote Paper 1 to a methods/workshop paper and shift the main publication effort toward Paper 2’s causal adaptive-attention intervention.
+- formalizing `geometry_first_dissociation_candidate`;
+- generating `paper1_claim_decision_table.csv` from the old interpretation;
+- new paper inspection packs before Matrix V2 exists;
+- broad saliency leaderboard expansion;
+- broad timm model-zoo accumulation without designed model-family contrast;
+- DINOv2-only readout variants unless used to test adaptive sampling or readout as a specific mechanism;
+- COCO-Search18 transformer relevance expansion unless the Matrix V2 design requires it;
+- manuscript polishing.
 
 ### Decision rule
 
-Do not treat the V1 full-image CKA convergence as a universal model-ranking result. The accepted reading is narrower: geometry replicates for DINOv2 across confirmatory PRF-ROI subjects, but encoding remains subject-sensitive.
+Continue Paper 1 only if Matrix V2 can say more than:
 
-Robustness can strengthen a decision-clean pattern. It cannot rescue an interpretation that depends on silently choosing one geometry method.
-
-Continue Paper 1 toward a top venue only if the upgraded experiment can say more than:
-
-> DINOv2 leads under encoding and CKA in one subject.
+> DINOv2 leads under some encoding and geometry settings.
 
 The desired paper-level statement is:
 
-> Under a controlled, sufficiently broad cross-axis experiment, fixation alignment, neural encoding, and representational geometry converge or dissociate in identifiable model/ROI/task regimes.
+> Under a controlled cross-axis experiment, behavioral fixation alignment, neural encoding, representational geometry, stream specificity, and computational efficiency converge or dissociate in identifiable model-family and viewing-regime patterns.
 
-That statement now requires stronger behavioral controls around the already synthesized `geometry_replicated_encoding_ambiguous` result before broader controls or model expansion.
+If Matrix V2 cannot produce this, demote Paper 1 to a methods/workshop paper and shift main effort toward Paper 2’s causal adaptive-attention or foveated-computation intervention.
 
 ### Relevant SOTA references:
 
@@ -412,19 +445,6 @@ That statement now requires stronger behavioral controls around the already synt
 - Neural encoding with visual attention: `https://neuroml.wiki/publication/neurips2020/`
 - AttnLRP transformer attribution: `https://icml.cc/virtual/2024/poster/33480`
 
-## SSL / Multimodal Status
-
-Current SSL/VLM behavioral rows are corrected and merged into the main behavioral aggregate.
-
-SSL/multimodal candidate inventory:
-
-- Path: `outputs/neural_roi_summary/ssl_multimodal_candidate_inventory.csv`
-- Dry-inspected compatible candidates: `8`
-- Pretrained debug runs complete: `3`
-- Complete pretrained debug candidates: `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, `resnet50_clip`
-- Not yet run pretrained debug candidates: `vit_base_patch14_dinov2`, `vit_small_patch16_dinov3`, `vit_base_patch16_dinov3`, `vit_base_patch16_siglip_224`, `eva02_base_patch16_clip_224`
-
-The voxel-specific readout decision is complete and the matched neural panel is complete. Do not expand this inventory again before the paper-grade experiment spec defines the model panel, ROI scope, and accepted attribution families. The next model-family comparison should remain narrow and methodologically matched, not a broad model zoo.
 
 ## What Is Already Built
 
@@ -436,7 +456,7 @@ Behavioral infrastructure:
 - Task/scanpath point handling for COCO-Search18, including target-present and target-absent train/validation annotations.
 - Inter-observer control summaries for inline JSON fixation rows and `.mat` fixation rows; inline fixation rows are scaled from original image size to evaluation map size.
 - Static metrics: NSS, AUC-Judd, AUC-Borji, shuffled AUC, CC, SIM, KL, EMD, MAE, Pearson.
-- Saliency methods: center bias, random saliency, gradient, integrated gradients, Grad-CAM, attention rollout, occlusion, and precomputed DeepGaze-style maps.
+- Saliency methods: center bias, random saliency, gradient, integrated gradients, Grad-CAM, attention rollout, transformer relevance, occlusion, and precomputed DeepGaze-style maps.
 - Matrix execution, aggregation, summaries, plots, and paper inspection pack generation.
 
 Neural infrastructure:
@@ -494,11 +514,11 @@ Current implementation state:
 
 Latest session report:
 
-1. `Scientific change`: the modern free-viewing fixation-reference control is now implemented and accepted for the current Paper 1 static-image scope. DeepGaze MSDB rows are scored and merged for SALICON/CAT2000 with `2000` images per dataset and `7` metrics per dataset. MSDB improves the free-viewing NSS reference from DeepGaze IIE `1.743` to MSDB `1.760` on SALICON and from DeepGaze IIE `1.838` to MSDB `1.979` on CAT2000.
-2. `Accepted artifact`: `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv`, merged `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`, refreshed `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`, and `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv`.
-3. `Claim impact`: strengthens behavioral-control claim hygiene by adding a modern dedicated free-viewing fixation reference before stronger fixation-alignment claims. It raises the behavioral baseline for SALICON/CAT2000, but it does not by itself change the neural/geometry dissociation result.
-4. `Reviewer risk reduced`: addresses the objection that free-viewing behavioral controls relied only on center bias and older DeepGaze IIE. The audit now marks the modern free-viewing reference as `accepted`, while COCO-Search18 DeepGaze IIE remains diagnostic and the COCO-Search18 task prior remains the accepted task-search baseline.
-5. `Next decisive step`: add an attribution-family control, preferably a stronger transformer relevance method, before any attention-specific interpretation or efficiency/model-zoo expansion.
+1. `Scientific change`: no new experiment was run; the session corrected the project handoff away from implementation-success framing. The accepted outputs already contain enough claim-facing evidence to force a scientific interpretation pass. The next step is to decide what Paper 1 can honestly claim, not to produce another engineering success marker.
+2. `Accepted artifact`: this updated status file, plus the already accepted attribution-family interpretation outputs: `outputs/paper1_experiment_v1/summary/attribution_family_cross_axis_interpretation.csv`, `outputs/paper_inspection_v1/tables/table16_attribution_family_cross_axis_interpretation.csv`, and regenerated `outputs/paper_inspection_v1/README.md`.
+3. `Claim impact`: clarifies that the current evidence most plausibly supports a constrained geometry-first dissociation / multi-axis measurement story. It does **not** support a strong claim that human-like visual attention predicts cortical alignment, that transformer relevance is operational attention, or that DINOv2 universally wins neural encoding.
+4. `Reviewer risk reduced`: reduces the risk of self-referential engineering claims by forcing the next session to classify scientific outcomes as `supported`, `partially_supported`, `diagnostic_only`, or `not_supported`.
+5. `Next decisive step`: write the actual Paper 1 outcome interpretation: strongest defensible claim, unsupported claims, remaining reviewer objections, and recommended paper framing.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
@@ -551,124 +571,83 @@ Cluster-side Slurm policy:
 
 ## Next Concrete Milestone
 
-Priority: **Attribution-Family Control For Transformer Relevance**.
+Priority: **Paper 1 Matrix V2 Redesign And Feasibility Audit**.
 
-The paper-pack geometry-first framing, subject robustness, observer-control integration, COCO-Search18 task prior, and SALICON/CAT2000 DeepGaze MSDB control milestones are complete. Do not rerun `subj01` encoding, confirmatory subject encoding, confirmatory geometry, observer-control generation, task-prior scoring, or MSDB export/scoring unless an audit regresses or a concrete data-integrity blocker is discovered.
-
-The next decisive task is to reduce attribution ambiguity before any attention-specific interpretation: add one stronger transformer relevance/attribution method for the existing transformer models, evaluate it in a narrow static-image benchmark scope, and update reporting so rollout, gradients, CAM, perturbation, and relevance-style maps remain separate evidence families.
+The previous immediate milestone, “Paper 1 Outcome Interpretation And Claim Decision,” is superseded. Do not generate claim-decision tables from the archived outcome interpretation. Do not treat the current geometry-first framing as the active destination.
 
 ### Required outcome
 
-By the end of the next milestone, the project should have a reviewer-facing attribution-family control that prevents attention rollout from carrying attention-specific claims:
+Create a Matrix V2 planning artifact set:
 
-- Done: paper-facing subject-robustness interpretation at `outputs/paper1_experiment_v1/summary/subject_robustness_paper_interpretation.csv`.
-- Done: V1 observer-control summary at `outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv`.
-- Done: paper inspection tables `outputs/paper_inspection_v1/tables/table14_subject_robustness_interpretation.csv` and `outputs/paper_inspection_v1/tables/table15_observer_control_summary.csv`.
-- Done: a behavioral-control gap audit at `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`.
-- Done: a task-specific COCO-Search18 baseline, kept separate from SALICON/CAT2000 free-viewing claims, at `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`.
-- Done: a feasibility decision table for adding DeepGaze MSDB or another modern free-viewing fixation reference without turning the project into a saliency leaderboard at `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv`.
-- Done: SALICON/CAT2000-only DeepGaze MSDB precomputed-map configs under `configs/experiments/real_matrix_v2_references_msdb/`.
-- Done: SALICON/CAT2000-only DeepGaze MSDB scoring and merged behavioral aggregate at `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv` and `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`.
-- New next target: one scoped transformer relevance method with tests, debug configs, benchmark smoke output, and updated attribution-family labels in reporting.
+- `configs/paper1_matrix_v2.yaml`
+- `outputs/planning/paper1_matrix_v2_model_feasibility.csv`
+- `outputs/planning/paper1_matrix_v2_axis_scope.csv`
+- `outputs/planning/paper1_matrix_v2_next_run_order.md`
 
-### Completed behavioral-control implementation work
+These artifacts must define the next real experiment before any new large run.
 
-The behavioral-control audit script is implemented at `scripts/audit_behavioral_controls.py` and writes `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`. The COCO-Search18 task-specific baseline is implemented as `coco_search18_task_prior` and configured at `configs/experiments/real_matrix_v2/coco_search18_static2000__coco_search18_task_prior_baseline_coco_search18_task_prior.yaml`. DeepGaze MSDB is implemented through precomputed-map export/scoring and merged into the accepted behavioral aggregate.
+### Matrix V2 feasibility audit must answer
 
-The audit separates accepted controls, diagnostic controls, and missing controls:
+1. Which current artifacts are retained as diagnostic scaffold?
+2. Which model families are required?
+3. Which exact model candidates are feasible in the current repo?
+4. Which model candidates require new dependencies, wrappers, checkpoints, or cluster execution?
+5. Which candidates expose usable feature tensors for encoding/geometry?
+6. Which candidates expose usable attribution, routing, retained-token, scanpath, foveation, or adaptive-computation outputs?
+7. Which ROIs can be grouped into early, ventral, lateral/dorsal, and parietal/stream categories?
+8. Which subjects can support those ROI groups?
+9. Which efficiency metrics can be measured now?
+10. What is the first minimal Matrix V2 run that can falsify or support the revised paper story?
 
-- Accepted: DeepGaze MSDB, DeepGaze IIE, and center bias for SALICON/CAT2000 free-viewing; center bias for COCO-Search18 task search; SALICON observer controls; COCO-Search18 observer controls; the task-specific COCO-Search18 target/task-conditioned prior; and the metric-boundary separation between point-fixation metrics and map-distribution metrics.
-- Diagnostic: COCO-Search18 DeepGaze IIE, because it is a free-viewing reference used on task-search data rather than a task-specific search baseline.
+### Required model-category table
 
-### Next Codex session implementation plan
+The feasibility audit must include at least these categories:
 
-Implement a scoped transformer relevance control, not neural reruns:
+| category | role | examples / candidates | required decision |
+| --- | --- | --- | --- |
+| CNN anchor | local hierarchy baseline | ResNet-50, ConvNeXt | keep one or two |
+| plain ViT anchor | standard transformer baseline | ViT-B, DeiT | keep one |
+| SSL dense feature | modern self-supervised representation | DINOv2, newer DINO-family if feasible | include current plus audit newer candidate |
+| VLM / semantic | language/semantic training axis | CLIP, SigLIP-like if feasible | include current plus audit stronger candidate |
+| efficient/hybrid | nonstandard efficient sequence modeling | MambaVision-like if feasible | audit feasibility |
+| hierarchical/multiscale | multiscale visual hierarchy | Swin/Hiera-like if feasible | audit feasibility |
+| adaptive/foveated/selective | actual attention/resource-allocation mechanism | token-pruning, foveated, scanpath, glimpse model | highest-priority feasibility audit |
+| dedicated fixation/scanpath reference | behavioral upper/reference model | DeepGaze / scanpath model | behavioral reference only unless features are justified |
 
-1. Inspect `src/hma/saliency/attention_rollout.py`, `src/hma/saliency/gradients.py`, `src/hma/saliency/registry.py`, model wrapper support, and benchmark config patterns.
-2. Choose one implementable transformer relevance method, preferably Chefer-style transformer attribution or AttnLRP-style relevance propagation. If neither is feasible without large dependency churn, write an explicit infeasibility decision and choose the smaller scientifically defensible relevance-style control.
-3. Add the method under `src/hma/saliency/` with a distinct method/family label such as `transformer_relevance`, not `attention`.
-4. Add focused synthetic/unit tests for tensor shape, normalization compatibility, unsupported-model behavior, and registry/config dispatch.
-5. Add a debug config for a tiny SALICON or CAT2000 subset and run a smoke benchmark before any full static2000 run.
-6. Update reporting/cross-axis summaries only as needed to keep attribution families separate and prevent attention rollout from being interpreted as operational attention.
-7. Do not add broad model-zoo rows, efficiency profiling, neural reruns, or COCO-Search18-specific attribution expansion before the scoped transformer relevance control is working and documented.
+### Required axis-scope table
 
-### Subject-robustness runbook
+The axis-scope artifact must include:
 
-Generate or refresh the config scaffold and audit:
-
-```cmd
-.\.venv\Scripts\python.exe scripts\create_paper1_v1_subject_robustness_configs.py --config configs\paper1_experiment_v1.yaml
-```
-
-Local encoding already completed for `subj02`, `subj03`, and `subj04`. Keep these commands for reproducibility, but do not rerun them unless an audit fails:
-
-```cmd
-for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj02\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
-```
-
-```cmd
-for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj03\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
-```
-
-Historical local `subj04` encoding command, retained for reproducibility only:
-
-```cmd
-for %F in (configs\experiments\paper1_experiment_v1\neural_subject_robustness\subj04\*.yaml) do .\.venv\Scripts\python.exe scripts\run_neural_alignment.py --config "%F"
-```
-
-The JHU DSAI cluster path, local geometry regeneration, and subject-robustness synthesis are no longer active blockers for the current milestone. Do not rerun them unless an audit regresses.
-
-Historical geometry regeneration command, retained for reproducibility only:
-
-```cmd
-.\.venv\Scripts\python.exe scripts\compute_paper1_v1_subject_robustness_geometry.py --config configs\paper1_experiment_v1.yaml --skip-existing
-```
-
-Subject-robustness summary and uncertainty regeneration command, retained for reproducibility:
-
-```cmd
-.\.venv\Scripts\python.exe scripts\summarize_paper1_v1_subject_robustness_results.py --config configs\paper1_experiment_v1.yaml
-```
-
-### Scope decision rules
-
-- Keep `configs/paper1_config.yaml` unchanged as the diagnostic PRF-only result scope.
-- Keep V1 fLOC category ROIs out of scope unless `docs/paper1_experiment_spec_v1.md` is explicitly revised.
-- Do not add generic new models, efficiency, or neural reruns before the scoped transformer relevance attribution control is completed or explicitly rejected as infeasible.
-- Use cmd-form commands in any docs or handoff text.
+| axis | required status |
+| --- | --- |
+| free-viewing fixation alignment | already has SALICON/CAT2000 scaffold; keep separate |
+| task-search alignment | already has COCO-Search18 scaffold; keep separate |
+| scanpath/sequential alignment | audit feasibility |
+| neural encoding | expand from PRF-only robustness toward stream grouping |
+| representational geometry | keep CKA and subset RSA separate |
+| efficiency | implement minimal profile now, not after another paper artifact |
+| adaptive computation | audit retained tokens, foveation, scanpath, glimpse, or routing availability |
 
 ### Acceptance criteria
 
-The behavioral-control audit and task-search baseline milestone is complete because:
+The milestone is complete only if:
 
-- A behavioral-control gap audit exists under `outputs/paper1_experiment_v1/summary/` and separates `free_viewing` from `task_search`.
-- The audit marks current DeepGaze MSDB, DeepGaze IIE, center bias, observer-control summaries, and the task-specific COCO-Search18 prior as `accepted`, while keeping COCO-Search18 DeepGaze IIE `diagnostic`.
-- The audit identifies DeepGaze MSDB as the accepted modern free-viewing fixation reference for SALICON/CAT2000.
-- The audit identifies the task-specific COCO-Search18 baseline as accepted and keeps COCO-Search18 DeepGaze IIE diagnostic.
-- No SALICON/CAT2000 free-viewing row is pooled with COCO-Search18 task-search rows in a single behavioral headline.
-- Any long-running commands are split into copy-pastable `cmd` batches for the user.
+- the archived outcome interpretation is no longer referenced as active steering;
+- `configs/paper1_matrix_v2.yaml` exists;
+- a model feasibility table exists and separates `ready_now`, `needs_wrapper`, `needs_dependency`, `needs_checkpoint`, `defer`, and `reject`;
+- an axis-scope table exists and explicitly includes efficiency and stream/ROI grouping;
+- the next run order begins with the smallest experiment that tests the revised cross-axis quadrant story;
+- no new paper-facing claim table is generated before Matrix V2 exists.
 
-The free-viewing-reference feasibility milestone is complete because:
+### First Codex implementation plan
 
-- `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv` exists with rows for DeepGaze MSDB, current DeepGaze IIE, and a comparable modern free-viewing reference option.
-- The decision table explicitly marks whether each candidate is `feasible_now`, `requires_download_or_dependency`, or `defer_or_document_limitation`.
-- DeepGaze MSDB is marked `feasible_now`; the current DeepGaze IIE reference is marked `feasible_now`; unnamed comparable references are marked `defer_or_document_limitation`.
-- The behavioral-control audit marks the modern free-viewing reference row as `accepted`.
-
-The MSDB export/evaluation milestone is complete because:
-
-- SALICON MSDB maps exist locally under `data/precomputed/deepgaze_msdb/salicon_static2000/`; CAT2000 MSDB maps were scored on the cluster and the per-image metrics were copied back rather than all raw maps.
-- SALICON/CAT2000-only configs continue to exist under `configs/experiments/real_matrix_v2_references_msdb/`.
-- `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv` exists and contains only SALICON/CAT2000 free-viewing rows for `deepgaze_msdb_reference`.
-- The merged accepted behavioral aggregate contains `14` DeepGaze MSDB rows and the behavioral-control audit accepts the modern free-viewing reference.
-
-The next attribution-family milestone is complete only if:
-
-- one transformer relevance method exists with a distinct method/family label;
-- focused tests cover registry/config dispatch and unsupported-model behavior;
-- a small benchmark smoke output exists for the new method;
-- reporting text or tables keep rollout and relevance-style attribution separate;
-- the status file records whether the method is accepted evidence, diagnostic only, or infeasible.
+1. Remove `docs/paper1_outcome_interpretation_v1.md` from active docs references.
+2. Create `configs/paper1_matrix_v2.yaml`.
+3. Write `scripts/audit_paper1_matrix_v2_feasibility.py`.
+4. Inspect existing model wrappers, manifests, outputs, and dependencies.
+5. Emit the model feasibility table and axis-scope table.
+6. Propose the smallest next executable Matrix V2 run.
+7. Update this status file with the scientific change and next decisive step.
 
 ## Data/control readiness update:
 
@@ -692,48 +671,316 @@ The next attribution-family milestone is complete only if:
   - `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv`: `14` metric rows for `deepgaze_msdb_reference` across SALICON/CAT2000.
   - `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`: `399` merged behavioral rows after task-prior and MSDB integration.
   - SALICON MSDB NSS `1.760`; CAT2000 MSDB NSS `1.979`.
+- Transformer relevance attribution-family control output is generated and audit-accepted:
+  - `outputs/real_matrix_v2_transformer_relevance/aggregated/results.csv`: `56` metric rows for `transformer_relevance` across SALICON/CAT2000 and four transformer models.
+  - `outputs/paper1_experiment_v1/summary/transformer_relevance_control_audit.csv`: all scope/method/family/metric/cell checks pass; `evidence_decision=accepted_evidence_ready`.
+  - `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`: `455` merged behavioral rows after accepted transformer relevance integration.
+  - `outputs/paper1_experiment_v1/summary/behavioral_bridge_integration_audit.csv`: `12/12` integration checks pass.
+  - SALICON transformer relevance NSS: DINOv2 `1.033`, CLIP ViT `0.981`, DeiT `0.931`, ViT-B `0.851`; CAT2000 transformer relevance NSS: DINOv2 `1.141`, CLIP ViT `0.940`, DeiT `0.886`, ViT-B `0.733`.
 
 Current post-spec implementation priorities:
 
-The V1 spec and config now define the falsifiable paper-grade matrix, the ROI-expanded encoding, geometry, and geometry-method sensitivity axes are complete for `subj01`, the reduced subject-robustness panel is complete with an uncertainty-aware aggregate decision of `geometry_replicated_encoding_ambiguous`, and the paper pack now includes geometry-first dissociation framing plus observer-control, task-search baseline, and modern free-viewing DeepGaze MSDB context. The immediate work is transformer attribution-family hardening before broader model or efficiency expansion.
+The V1 outputs are now retained as diagnostic scaffold. They should no longer define the active paper destination.
 
-- Use the completed additional subjects as a robustness follow-up:
-  - interpret the reduced confirmatory panel: all three confirmatory subjects have local encoding and geometry, with an aggregate uncertainty decision of `geometry_replicated_encoding_ambiguous`;
-  - keep the completed `subj01` ROI-expanded encoding and geometry matrix as the discovery reference;
-  - do not add new models, attribution methods, or efficiency before behavioral-control hardening.
-- Keep behavioral controls fixed before broader behavioral expansion:
-  - use the generated SALICON and COCO-Search18 observer-control summaries as accepted reviewer-facing context;
-  - treat the next behavioral control as targeted claim hardening, not as a broad saliency leaderboard expansion;
-  - use the accepted SALICON/CAT2000 DeepGaze MSDB reference before stronger free-viewing claims;
-  - use the implemented task-specific COCO-Search18 baseline before interpreting task-search alignment.
-- Improve transformer attribution coverage:
-  - add one stronger transformer relevance method, preferably Chefer-style transformer attribution or AttnLRP-style relevance propagation;
-  - keep gradients, rollout, perturbation, and relevance-style maps as separate saliency families.
-- Use paper-grade uncertainty now that the subject-robustness decision exists:
-  - report target-level bootstrap intervals for DINOv2-vs-ResNet matched encoding margins;
-  - report deterministic subset-RSA geometry margins across subjects, ROIs, subset sizes, and seeds;
-  - keep leave-one-subject, leave-one-ROI, and Kendall tau sensitivity as robustness diagnostics.
-- Add efficiency only after the above robustness pass:
-  - collect FLOPs, latency, memory, token count, and retained-patch statistics for the matched panel;
-  - regenerate alignment-per-compute summaries as exploratory diagnostics.
+Active priority:
+
+- build Paper 1 Matrix V2 before any additional paper-facing interpretation;
+- audit modern model-family candidates instead of expanding generic model count;
+- add stream/ROI grouping as a first-class axis;
+- add minimal efficiency profiling as a first-class axis;
+- audit adaptive/foveated/token-pruning/scanpath mechanisms as the strongest route back to the original proposal;
+- preserve existing behavioral controls, attribution-family separation, CKA/subset-RSA sensitivity, and subject-robustness outputs as controls/provenance.
+
+Do not:
+
+- generate the old claim-decision table;
+- harden the `geometry_replicated_encoding_ambiguous` result into the main story;
+- rerun old subject robustness, observer controls, transformer relevance, or MSDB scoring unless an audit fails;
+- add new summary tables whose only purpose is to restate the old result.
 
 Completed milestones are archived in `docs/project_status_changelog.md`.
 
 ## Later Milestones
 
-Proceed in phases that map directly to the research question.
+Proceed in phases that map directly to the revised Matrix V2 research question:
 
-Completed before this list: the V1 `subj01` geometry-method decision exists, the reduced `subj02`-`subj04` subject-robustness gate is complete with a rank-only `partial` aggregate decision, and the DINOv2-vs-ResNet uncertainty decision is complete with aggregate `geometry_replicated_encoding_ambiguous`. The phase order below is the execution order; it is deliberately different from the reviewer-risk severity list above.
+> Do behavioral fixation alignment, neural encoding, representational geometry, stream specificity, adaptive/resource-allocation mechanisms, and efficiency converge or dissociate across modern vision systems?
 
-1. **Subject robustness.** Complete. The reduced `subj02`-`subj04` panel shows robust geometry replication and ambiguous encoding replication.
-2. **Uncertainty and sensitivity.** Complete for the DINOv2-vs-ResNet subject-robustness gate. Keep leave-one-subject, leave-one-ROI, Kendall tau, and model-label permutation checks as later diagnostics rather than current claim filters.
-3. **Paper-facing synthesis and observer-control integration.** Complete. The paper pack now exposes the geometry-first dissociation claim and integrates generated observer-control summaries.
-4. **Behavioral controls.** Complete for the current Paper 1 static-image scope. The task-trained COCO-Search18 baseline is implemented, observer controls are integrated, and DeepGaze MSDB is accepted for SALICON/CAT2000 free-viewing.
-5. **Attribution-family controls.** Current next milestone. Add stronger transformer attribution before any attention-specific interpretation, while keeping gradient, Grad-CAM, rollout, perturbation, and relevance-style maps as separate evidence families.
-6. **Cross-axis decision gate.** Use the decision table to identify weak implementation areas, not to assert paper-ready conclusions. Revisit publication framing only after ROI-expanded results, subject robustness, uncertainty, and observer controls materially improve the evidence base.
-7. **Efficiency.** Add FLOPs, latency, token count, retained-patch statistics, and memory footprint for the matched model panel, then regenerate alignment-per-compute summaries. Keep efficiency exploratory unless it produces a clean dissociation or tradeoff.
-8. **Brain-Score or Brain-Score-style external positioning.** Use it as context and sanity checking, not as a substitute for the local fixation/fMRI/geometry cross-level tests.
-9. **Publication split.** Defer publication split decisions until the static-image cross-axis result and controls clarify whether Paper 1 is strong enough. Keep causal adaptive attention, foveation, adaptive token routing, scanpaths, video, or recurrent policies out of the immediate implementation path unless the robustness/control pass exposes a sharply defined intervention target.
+The V1 milestones are now treated as completed scaffold work. They should not determine the next paper direction. The old `geometry_first_dissociation_candidate` framing and the old generated claim-decision-table milestone are superseded.
+
+### Phase 0 — Archive stale steering and freeze V1 as scaffold
+
+Status: immediate cleanup.
+
+Purpose:
+
+* remove the superseded outcome interpretation from active steering;
+* preserve V1 outputs as diagnostic scaffold;
+* prevent Codex from hardening the narrow geometry-first story.
+
+Required actions:
+
+1. Move `docs/paper1_outcome_interpretation_v1.md` to `docs/archive_stale/`.
+2. Remove all active references to `geometry_first_dissociation_candidate` as the Paper 1 destination.
+3. Remove `paper1_claim_decision_table.csv` as the next milestone.
+4. Mark V1 subject robustness, transformer relevance, DeepGaze MSDB, observer controls, CKA/RSA, and paper-pack outputs as completed scaffold/provenance.
+5. Do not rerun V1 outputs unless an audit fails.
+
+Completion artifact:
+
+* updated `docs/project_status_and_next_steps.md`;
+* archived stale interpretation file.
+
+### Phase 1 — Paper 1 Matrix V2 redesign and feasibility audit
+
+Status: current next milestone.
+
+Purpose:
+
+Define the real next experiment before any additional large run.
+
+Required outputs:
+
+* `configs/paper1_matrix_v2.yaml`
+* `outputs/planning/paper1_matrix_v2_model_feasibility.csv`
+* `outputs/planning/paper1_matrix_v2_axis_scope.csv`
+* `outputs/planning/paper1_matrix_v2_next_run_order.md`
+
+The model feasibility table must classify candidates as:
+
+* `ready_now`
+* `needs_wrapper`
+* `needs_dependency`
+* `needs_checkpoint`
+* `needs_cluster`
+* `defer`
+* `reject`
+
+Required model categories:
+
+1. CNN/local hierarchy anchor.
+2. Plain ViT anchor.
+3. self-supervised dense-feature model.
+4. VLM / semantic model.
+5. efficient or hybrid sequence model.
+6. hierarchical or multiscale transformer.
+7. adaptive/foveated/token-pruning/scanpath/selective-computation model or mechanism.
+8. dedicated fixation or scanpath model as behavioral reference.
+
+Required axis categories:
+
+1. free-viewing fixation alignment;
+2. task-search alignment;
+3. scanpath or sequential gaze alignment if feasible;
+4. neural encoding by ROI/stream group;
+5. representational geometry with CKA and subset RSA separated;
+6. efficiency and alignment-per-compute;
+7. adaptive computation / resource allocation.
+
+Acceptance rule:
+
+Phase 1 is complete only when Codex can name the smallest executable Matrix V2 run that tests the revised paper story.
+
+### Phase 2 — Stream/ROI grouping and neural-scope upgrade
+
+Status: after Matrix V2 audit.
+
+Purpose:
+
+Move beyond PRF-only robustness and make the “where versus what” axis explicit.
+
+Required actions:
+
+1. Define ROI groups:
+
+   * early visual / PRF;
+   * ventral or “what” stream;
+   * lateral/dorsal/parietal or “where/spatial selection” stream.
+2. Audit which subjects support each ROI group.
+3. Decide whether Matrix V2 uses:
+
+   * `subj01` stream-expanded discovery plus reduced confirmatory PRF subjects;
+   * stream-expanded replication on additional subjects;
+   * or a smaller model panel that makes stream replication feasible.
+4. Produce model × ROI-group encoding and geometry summaries rather than only flat ROI rankings.
+
+Completion artifacts:
+
+* `outputs/planning/paper1_matrix_v2_roi_groups.csv`
+* updated `configs/paper1_matrix_v2.yaml`
+
+Acceptance rule:
+
+The paper must be able to ask whether fixation-like or adaptive mechanisms align more strongly with spatial/dorsal/parietal regions than with ventral/semantic regions, or whether the reverse pattern appears.
+
+### Phase 3 — Modern model-family expansion with designed contrasts
+
+Status: after Phase 1 feasibility audit.
+
+Purpose:
+
+Replace generic model-zoo accumulation with a compact, scientifically designed model panel.
+
+The panel should compare model families, not simply add rows.
+
+Required contrast families:
+
+* classical CNN/local hierarchy;
+* plain transformer;
+* self-supervised dense representation;
+* vision-language / semantic training;
+* efficient or hybrid sequence architecture;
+* adaptive/foveated/token-selective computation where feasible.
+
+Rules:
+
+* Do not add many generic `timm` models.
+* Do not add a model unless it contributes a specific contrast.
+* Every added model must expose usable features for encoding and geometry.
+* If a model exposes routing, retained-token masks, scanpaths, foveation, or adaptive compute, record that as a first-class axis.
+
+Completion artifact:
+
+* `outputs/planning/paper1_matrix_v2_model_feasibility.csv`
+* first executable Matrix V2 model panel in `configs/paper1_matrix_v2.yaml`
+
+Acceptance rule:
+
+The model panel must make at least one of these dissociations testable:
+
+* high fixation alignment but low neural/geometry alignment;
+* low fixation alignment but high neural/geometry alignment;
+* high neural alignment but poor efficiency;
+* lower raw alignment but stronger alignment-per-compute;
+* stream-specific alignment reversal.
+
+### Phase 4 — Efficiency and alignment-per-compute
+
+Status: no longer deferred behind old claim-table work.
+
+Purpose:
+
+Restore the original proposal’s attention-as-resource-allocation axis.
+
+Required metrics:
+
+* parameter count;
+* FLOPs or MACs;
+* measured latency under fixed image resolution and batch size;
+* peak memory if feasible;
+* visual token count;
+* retained-token fraction, selected-glimpse count, or foveated high-resolution area where applicable;
+* accuracy or reference task performance where available;
+* alignment-per-compute for behavioral, encoding, and geometry axes.
+
+Required output:
+
+* `outputs/efficiency_profiles/paper1_matrix_v2_efficiency.csv`
+
+Acceptance rule:
+
+Efficiency must be merged into the Matrix V2 cross-axis table. It should not appear as a decorative supplement.
+
+### Phase 5 — Behavioral axis upgrade: scanpath/task/adaptive attention where feasible
+
+Status: after model feasibility audit, can run in parallel with Phase 3 if lightweight.
+
+Purpose:
+
+Move beyond static post-hoc heatmap comparison where possible.
+
+Required actions:
+
+1. Keep SALICON/CAT2000 free-viewing separate from COCO-Search18 task search.
+2. Preserve DeepGaze MSDB, center bias, observer controls, and COCO-Search18 task prior as controls.
+3. Audit feasibility of adding:
+
+   * scanpath models;
+   * sequential gaze metrics;
+   * foveated models;
+   * retained-token masks;
+   * token-pruning maps;
+   * adaptive-glimpse trajectories.
+4. Label every behavioral object by type:
+
+   * dedicated fixation model;
+   * scanpath model;
+   * post-hoc attribution;
+   * internal routing;
+   * adaptive compute allocation;
+   * task prior;
+   * center prior;
+   * observer/human context.
+
+Acceptance rule:
+
+Do not claim “human-like attention” from Grad-CAM, gradients, rollout, or transformer relevance. Human-like attention claims require either human fixation/scanpath alignment, explicit routing/computation allocation, or foveated/adaptive mechanism evidence.
+
+### Phase 6 — Matrix V2 cross-axis quadrant analysis
+
+Status: after the first Matrix V2 evidence table exists.
+
+Purpose:
+
+Make the paper story explicit.
+
+Required output:
+
+* `outputs/paper1_matrix_v2/summary/matrix_v2_cross_axis_quadrants.csv`
+
+Each model or model-method pair should be classified into one of four descriptive quadrants:
+
+| behavioral fixation alignment | neural/geometry alignment | interpretation                                                 |
+| ----------------------------- | ------------------------- | -------------------------------------------------------------- |
+| high                          | high                      | behavioral attention may track brain-like representation       |
+| low                           | high                      | representation convergence without human-like overt attention  |
+| high                          | low                       | superficial saliency mimicry or different internal computation |
+| low                           | low                       | weak alignment across axes                                     |
+
+Required safeguards:
+
+* exact model `n`;
+* uncertainty or bootstrap where available;
+* leave-one-model or leave-one-family sensitivity where feasible;
+* separate free-viewing and task-search analyses;
+* separate CKA and subset-RSA geometry;
+* separate ROI/stream groups.
+
+Acceptance rule:
+
+The paper cannot advance to manuscript hardening until Matrix V2 produces at least one interpretable quadrant pattern or a scientifically meaningful null result.
+
+### Phase 7 — External positioning and Brain-Score-style context
+
+Status: after Matrix V2 has a stable internal result.
+
+Purpose:
+
+Position the result against the broader NeuroAI field.
+
+Required actions:
+
+* compare model-family conclusions against Brain-Score-style expectations where feasible;
+* clarify that local Algonauts/NSD encoding scores are not leaderboard-equivalent;
+* explain whether Matrix V2 supports convergence, dissociation, or measurement pluralism.
+
+Acceptance rule:
+
+External positioning is context. It cannot substitute for the local Matrix V2 behavioral/neural/geometry/efficiency analysis.
+
+### Phase 8 — Paper split decision
+
+Status: after Matrix V2 cross-axis results.
+
+Decision options:
+
+1. **Paper 1 main-track attempt:** only if Matrix V2 shows a robust, interpretable dissociation or convergence pattern across model family, ROI/stream, and efficiency.
+2. **Paper 1 workshop/thesis/methods paper:** if Matrix V2 is useful but underpowered.
+3. **Shift main effort to Paper 2:** if observational Matrix V2 cannot produce a strong story.
+4. **Paper 2 causal adaptive-attention intervention:** use human gaze, foveation, token pruning, adaptive readout, or saliency-guided computation to test whether attention/resource allocation changes alignment, efficiency, or neural predictivity.
+
+Do not decide the publication split from V1 alone.
+
 
 ## Code Pointers
 
@@ -764,6 +1011,7 @@ Saliency methods:
 - `src/hma/saliency/gradcam.py`
 - `src/hma/saliency/integrated_gradients.py`
 - `src/hma/saliency/attention_rollout.py`
+- `src/hma/saliency/transformer_relevance.py`
 - `src/hma/saliency/occlusion.py`
 - `src/hma/saliency/precomputed.py`
 - `src/hma/saliency/postprocess.py`
@@ -789,90 +1037,10 @@ Neural alignment:
 
 Reporting:
 
+- `scripts/create_attribution_family_interpretation.py`
 - `scripts/create_paper_inspection_pack.py`
 - `scripts/audit_behavioral_controls.py`
+- `scripts/audit_transformer_relevance_control.py`
 - `scripts/audit_neural_reliability_metadata.py`
 - `scripts/merge_behavioral_aggregates.py`
 - `scripts/merge_efficiency_profiles.py`
-
-## Verification Baseline
-
-For the latest behavioral-control audit and COCO-Search18 task-prior baseline implementation, focused tests passed:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_saliency_extraction.py tests\test_saliency_benchmark.py tests\test_audit_behavioral_controls.py tests\test_fixation_parsers_and_observer_controls.py tests\test_merge_behavioral_aggregates.py tests\test_paper_inspection_pack.py
-```
-
-Last known result for this session: `49 passed` with existing non-blocking PyTorch Grad-CAM hook warnings.
-
-For the latest paper-pack geometry-first framing and observer-control integration, focused tests passed:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_paper_inspection_pack.py tests\test_paper1_v1_subject_robustness.py tests\test_fixation_parsers_and_observer_controls.py
-```
-
-Last known result for this session: `31 passed`.
-
-Failure-gate reporting verification also passed:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_paper1_v1_geometry_and_summary.py
-```
-
-Last known result for this session: `5 passed`.
-
-For the latest subject-robustness uncertainty implementation, focused tests passed:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_paper1_v1_subject_robustness.py tests\test_paper1_v1_geometry_and_summary.py
-```
-
-Last known result for this session: `13 passed`.
-
-For the latest subject-robustness scaffold implementation, focused tests passed:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_paper1_v1_subject_robustness.py tests\test_paper1_v1_roi_expanded_generation.py tests\test_paper1_v1_geometry_and_summary.py tests\test_neural_roi_summary.py --basetemp=.pytest_tmp_subject_robustness
-```
-
-Last known subject-robustness scaffold result: `35 passed`.
-
-For future neural/reporting implementation changes, use this focused verification command:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_neural_alignment.py tests\test_neural_roi_summary.py tests\test_paper1_experiment_spec.py tests\test_paper1_v1_geometry_and_summary.py tests\test_paper1_v1_subject_robustness.py
-```
-
-Last known focused result: `87 passed`.
-
-For broader confidence after neural/reporting changes, run:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_paper_inspection_pack.py tests\test_paper1_v1_roi_expanded_generation.py tests\test_paper1_experiment_spec.py tests\test_paper1_v1_geometry_and_summary.py
-```
-
-Last known broader result: `105 passed` with `--basetemp=.tmp_pytest_v1_broader`.
-
-V1 ROI-expanded artifact audit command:
-
-```cmd
-.\.venv\Scripts\python.exe -c "import csv; from pathlib import Path; rows=list(csv.DictReader(Path('outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv').open(newline='',encoding='utf-8'))); print([(r['check'], r['status']) for r in rows])"
-```
-
-Last known V1 audit result: all `11` checks pass, including `40` encoding cells, `40` geometry cells, `10` geometry rows per cell, geometry-method sensitivity decisions present, and failure-gate summary present.
-
-Matched panel audit command:
-
-```cmd
-.\.venv\Scripts\python.exe scripts\audit_matched_neural_panel.py
-```
-
-Last known matched panel audit result: `24` complete cells, `0` missing cells, `0` incomplete cells, and `0` explicitly skipped cells.
-
-For full confidence after broad code changes, run:
-
-```cmd
-.\.venv\Scripts\python.exe -m pytest
-```
-
-Last known full result: `210 passed`; known non-blocking warnings remain PyTorch Grad-CAM hook warnings and Windows `.pytest_cache` permission warnings.

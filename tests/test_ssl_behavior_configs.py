@@ -1,5 +1,8 @@
 from hma.utils.config import load_yaml
 from scripts.create_ssl_behavior_v1_configs import create_ssl_behavior_v1_configs
+from scripts.create_transformer_relevance_configs import (
+    create_transformer_relevance_configs,
+)
 from scripts.run_v2_matrix import (
     DEFAULT_RELIABILITY_CHECKS,
     _parse_reliability_check,
@@ -93,4 +96,48 @@ def test_run_v2_matrix_default_reliability_checks_include_ssl_gates():
         "dataset",
         "model",
         "method",
+    )
+
+
+def test_transformer_relevance_config_generation_is_scoped(tmp_path):
+    written = create_transformer_relevance_configs(
+        debug_config_root=tmp_path / "debug_configs",
+        static_config_root=tmp_path / "static_configs",
+        debug_output_root=tmp_path / "debug_outputs",
+        static_output_root=tmp_path / "static_outputs",
+    )
+
+    assert len(written) == 9
+    configs = {path.name: load_yaml(path) for path in written}
+    assert (
+        "salicon_vit_small_patch14_dinov2_transformer_relevance_smoke.yaml"
+        in configs
+    )
+
+    static_configs = {
+        name: config
+        for name, config in configs.items()
+        if "static2000__" in name
+    }
+    assert len(static_configs) == 8
+    assert {
+        config["dataset"]["label"]
+        for config in static_configs.values()
+    } == {"salicon_static2000", "cat2000_static2000"}
+    assert {
+        config["model"]["name"]
+        for config in static_configs.values()
+    } == {
+        "vit_small_patch14_dinov2",
+        "vit_base_patch16_clip_224",
+        "vit_base_patch16_224",
+        "deit_small_patch16_224",
+    }
+    assert all(
+        config["saliency"]["method"] == "transformer_relevance"
+        for config in configs.values()
+    )
+    assert all(
+        config["output"]["save_visualizations"] is False
+        for config in static_configs.values()
     )

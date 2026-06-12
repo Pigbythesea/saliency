@@ -23,6 +23,11 @@ from hma.saliency.postprocess import (
     resize_saliency_map,
 )
 from hma.saliency.registry import build_saliency_method
+from hma.saliency.transformer_relevance import (
+    compute_transformer_relevance_rollout,
+    transformer_relevance_saliency,
+    transformer_relevance_to_saliency_map,
+)
 
 __all__ = [
     "UnsupportedModelError",
@@ -42,5 +47,8 @@ __all__ = [
     "postprocess_saliency_map",
     "random_saliency",
     "resize_saliency_map",
+    "compute_transformer_relevance_rollout",
+    "transformer_relevance_saliency",
+    "transformer_relevance_to_saliency_map",
     "vanilla_gradient_saliency",
 ]

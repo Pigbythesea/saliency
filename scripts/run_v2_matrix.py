@@ -30,6 +30,8 @@ DEFAULT_RELIABILITY_CHECKS = {
     ("salicon_pilot500", "convnext_tiny", "gradcam"),
     ("salicon_pilot500", "vit_small_patch14_dinov2", "attention_rollout"),
     ("salicon_pilot500", "vit_base_patch16_clip_224", "attention_rollout"),
+    ("salicon_pilot500", "vit_small_patch14_dinov2", "transformer_relevance"),
+    ("salicon_pilot500", "vit_base_patch16_clip_224", "transformer_relevance"),
     ("salicon_pilot500", "resnet50_clip", "gradcam"),
 }
 REPORT_METRICS = ["nss", "shuffled_auc", "auc_borji", "auc_judd", "cc", "similarity", "kl"]
@@ -405,6 +407,8 @@ def _saliency_family(method_name: str) -> str:
         return "class_localization"
     if method_name in {"attention_rollout", "rollout"}:
         return "internal_routing"
+    if method_name == "transformer_relevance":
+        return "transformer_relevance"
     if method_name in {"center_bias", "random_saliency"}:
         return "baseline"
     if method_name in {"precomputed_map", "deepgaze_precomputed"}:

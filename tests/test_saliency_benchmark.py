@@ -165,6 +165,102 @@ def test_saliency_benchmark_runs_real_torch_path(
     assert set(aggregate["metrics"]) == {"nss", "auc_judd", "cc", "similarity", "kl"}
 
 
+def test_saliency_benchmark_runs_transformer_relevance_torch_path(tmp_path, monkeypatch):
+    torch = pytest.importorskip("torch")
+
+    class TinyDataset:
+        def __iter__(self):
+            for index in range(2):
+                image = Image.fromarray(
+                    np.full((8, 8, 3), 32 + index * 64, dtype=np.uint8),
+                    mode="RGB",
+                )
+                fixation_map = np.zeros((8, 8), dtype=np.float32)
+                fixation_map[3:5, 3:5] = 1.0
+                yield {
+                    "image": image,
+                    "image_id": f"tiny_{index}",
+                    "image_path": f"tiny_{index}.png",
+                    "fixation_map": fixation_map,
+                    "fixation_points": np.asarray([[3, 3], [4, 4]], dtype=np.float32),
+                    "metadata": {"dataset": "tiny"},
+                }
+
+    class TinyAttention(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.num_heads = 2
+            self.head_dim = 2
+            self.attn_dim = 4
+            self.qkv = torch.nn.Linear(4, 12)
+            self.q_norm = torch.nn.Identity()
+            self.k_norm = torch.nn.Identity()
+            self.attn_drop = torch.nn.Identity()
+            self.norm = torch.nn.Identity()
+            self.proj = torch.nn.Linear(4, 4)
+            self.proj_drop = torch.nn.Identity()
+            self.scale = self.head_dim**-0.5
+
+        def forward(self, tokens):
+            return tokens
+
+    class TinyTransformer(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.patch = torch.nn.Conv2d(3, 4, kernel_size=4, stride=4)
+            self.cls = torch.nn.Parameter(torch.zeros(1, 1, 4))
+            self.blocks = torch.nn.ModuleList(
+                [torch.nn.ModuleDict({"attn": TinyAttention()})]
+            )
+            self.classifier = torch.nn.Linear(4, 3)
+
+        def forward(self, images):
+            patches = self.patch(images).flatten(2).transpose(1, 2)
+            cls = self.cls.expand(images.shape[0], -1, -1)
+            tokens = torch.cat([cls, patches], dim=1)
+            for block in self.blocks:
+                tokens = block["attn"](tokens)
+            return self.classifier(tokens[:, 0])
+
+    class TinyWrapper:
+        def __init__(self):
+            torch.manual_seed(0)
+            self.model = TinyTransformer().eval()
+
+        def get_last_logits(self, images):
+            return self.model(images)
+
+    monkeypatch.setattr(benchmark_module, "build_dataset", lambda _config: TinyDataset())
+    monkeypatch.setattr(benchmark_module, "build_model", lambda _config: TinyWrapper())
+
+    config_path = tmp_path / "transformer_relevance.yaml"
+    output_dir = tmp_path / "transformer_relevance"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {"name": "tiny_static", "split": "val"},
+            "model": {"name": "tiny_transformer"},
+            "preprocessing": {
+                "input_size": [8, 8],
+                "mean": "none",
+                "std": "none",
+            },
+            "saliency": {"method": "transformer_relevance", "grid_size": [2, 2]},
+            "metrics": ["nss", "auc_judd", "cc", "similarity", "kl"],
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+
+    aggregate = run_saliency_benchmark(config_path)
+
+    assert (output_dir / "per_image_metrics.csv").is_file()
+    assert (output_dir / "aggregate_metrics.json").is_file()
+    assert aggregate["num_items"] == 2
+    assert aggregate["saliency_method"] == "transformer_relevance"
+    assert aggregate["saliency_family"] == "transformer_relevance"
+
+
 def test_saliency_benchmark_cache_writes_reuses_and_invalidates(tmp_path, monkeypatch):
     calls = {"count": 0}
 

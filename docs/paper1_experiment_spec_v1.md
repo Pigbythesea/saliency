@@ -28,7 +28,7 @@ Required ROI set:
 
 Behavioral evidence:
 
-- Corrected behavioral aggregate: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`
+- Corrected behavioral aggregate with accepted transformer relevance integration: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`
 - SALICON observer controls: `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`
 - COCO-Search18 observer controls: `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`
 - Free-viewing datasets (`SALICON`, `CAT2000`) must remain separate from task-search (`COCO-Search18`).
@@ -123,4 +123,3 @@ Broader confidence after generator/summarizer changes:
 ```cmd
 .\.venv\Scripts\python.exe -m pytest tests\test_create_algonauts_manifest.py tests\test_nsd_algonauts_dataset.py tests\test_neural_roi_summary.py tests\test_neural_alignment.py tests\test_paper_inspection_pack.py
 ```
-

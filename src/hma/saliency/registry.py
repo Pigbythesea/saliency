@@ -17,6 +17,7 @@ from hma.saliency.gradients import vanilla_gradient_saliency
 from hma.saliency.integrated_gradients import integrated_gradients_saliency
 from hma.saliency.occlusion import occlusion_saliency
 from hma.saliency.precomputed import precomputed_map_saliency
+from hma.saliency.transformer_relevance import transformer_relevance_saliency
 
 
 def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
@@ -75,6 +76,14 @@ def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
             "grid_size": saliency_config.get("grid_size"),
         }
         return partial(attention_rollout_saliency, **kwargs)
+    if method == "transformer_relevance":
+        kwargs = {
+            "discard_ratio": float(saliency_config.get("discard_ratio", 0.0)),
+            "head_fusion": saliency_config.get("head_fusion", "mean"),
+            "target_layer": saliency_config.get("target_layer"),
+            "grid_size": saliency_config.get("grid_size"),
+        }
+        return partial(transformer_relevance_saliency, **kwargs)
     if method in {"precomputed_map", "deepgaze_precomputed"}:
         return partial(
             precomputed_map_saliency,

@@ -565,6 +565,44 @@ def test_readme_reports_subject_robustness_and_observer_context(tmp_path):
     assert "SALICON/CAT2000 free-viewing interpretations must remain separate" in text
     assert "table14_subject_robustness_interpretation.md" in text
     assert "table15_observer_control_summary.md" in text
+    assert "table16_attribution_family_cross_axis_interpretation.md" in text
+
+
+def test_readme_reports_attribution_family_interpretation(tmp_path):
+    path = _write_readme(
+        tmp_path / "README.md",
+        behavior_table=[],
+        neural_table=[
+            {
+                "model": "DINOv2 ViT-S/14",
+                "mean_noise_normalized": "0.8",
+                "mean_noise_normalized_x100": "80",
+                "noise_normalized_rank": "1",
+                "mean_encoding": "0.3",
+                "mean_rsa": "0.1",
+                "encoding_rank": "1",
+                "rsa_rank": "1",
+            }
+        ],
+        overlap_table=[],
+        candidate_table=[],
+        attribution_family_interpretation_table=[
+            {
+                "dataset": "salicon_static2000",
+                "saliency_family": "transformer_relevance",
+                "behavior_metric_rows": "28",
+                "cross_level_complete_rows": "35",
+                "paper_interpretation": "transformer_relevance_improves_rollout_behavior_only",
+            }
+        ],
+        outputs={},
+    )
+
+    text = path.read_text(encoding="utf-8")
+    assert "Attribution-family interpretation" in text
+    assert "transformer relevance rows=28" in text
+    assert "cross-level complete=35" in text
+    assert "table16_attribution_family_cross_axis_interpretation.md" in text
 
 
 def test_optional_matched_cross_level_csv_can_be_missing(tmp_path):
