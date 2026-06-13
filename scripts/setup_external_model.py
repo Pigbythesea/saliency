@@ -372,6 +372,8 @@ def _prepare_environment(
             executable,
             "create",
             "--yes",
+            "--channel-priority",
+            "strict",
             "--prefix",
             str(environment_dir),
             "--file",

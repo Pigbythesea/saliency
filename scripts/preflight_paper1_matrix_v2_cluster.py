@@ -7,6 +7,7 @@ import csv
 import json
 import platform
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -96,6 +97,17 @@ def run_preflight(*, mode: str, verify_all_images: bool = True) -> dict[str, Any
             (environment / "bin/python").is_file(),
             str(environment / "bin/python"),
         )
+        cuda_runtime = _environment_cuda_runtime(environment)
+        _record(
+            checks,
+            f"external_cuda:{model_id}",
+            bool(cuda_runtime),
+            (
+                f"torch.version.cuda={cuda_runtime}"
+                if cuda_runtime
+                else "PyTorch is CPU-only or the environment cannot import torch"
+            ),
+        )
 
     for name, (manifest, root, expected_unique) in MANIFESTS.items():
         result = _validate_image_manifest(
@@ -172,6 +184,23 @@ def _record(
     detail: str,
 ) -> None:
     checks.append({"name": name, "passed": bool(passed), "detail": detail})
+
+
+def _environment_cuda_runtime(environment: Path) -> str:
+    python = environment / "bin/python"
+    if not python.is_file():
+        return ""
+    result = subprocess.run(
+        [
+            str(python),
+            "-c",
+            "import torch; print(torch.version.cuda or '')",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def parse_args() -> argparse.Namespace:

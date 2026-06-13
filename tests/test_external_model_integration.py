@@ -12,6 +12,7 @@ from hma.external.artifacts import (
     load_external_features_to_memmaps,
     validate_external_artifact,
 )
+from hma.external.adapters import _install_legacy_torch_six_compatibility
 from hma.external.registry import load_external_registry
 from hma.experiments.neural_alignment import run_neural_alignment
 from hma.utils.config import load_yaml, save_yaml
@@ -79,6 +80,71 @@ def test_setup_bootstraps_pinned_micromamba_with_checksum(monkeypatch, tmp_path)
     path = tmp_path / "external/tools/micromamba/2.8.1-0/micromamba"
     assert executable == str(path)
     assert path.read_bytes() == payload
+
+
+def test_external_environment_creation_uses_strict_channel_priority(
+    monkeypatch,
+    tmp_path,
+):
+    commands = []
+    monkeypatch.setattr(setup_external_model, "_resolve_micromamba", lambda value: value)
+    monkeypatch.setattr(
+        setup_external_model,
+        "_run",
+        lambda command: commands.append(command),
+    )
+    monkeypatch.setattr(
+        setup_external_model,
+        "_post_install_commands",
+        lambda _model_id: [],
+    )
+    monkeypatch.setattr(
+        setup_external_model,
+        "_write_environment_lock",
+        lambda **_kwargs: tmp_path / "lock.txt",
+    )
+
+    setup_external_model._prepare_environment(
+        model={"id": "dynamicvit_deit_small_keep_0_7"},
+        source_dir=tmp_path / "source",
+        environment_dir=tmp_path / "environment",
+        environment_manifest=tmp_path / "environment.yaml",
+        micromamba="micromamba",
+    )
+
+    assert commands[0][1:4] == ["create", "--yes", "--channel-priority"]
+    assert commands[0][4] == "strict"
+
+
+def test_legacy_torch_six_compatibility_restores_old_timm_symbols():
+    class Legacy:
+        pass
+
+    class FakeTorch:
+        _six = Legacy()
+
+    _install_legacy_torch_six_compatibility(FakeTorch)
+
+    assert FakeTorch._six.container_abcs.Mapping
+    assert FakeTorch._six.string_classes == (str,)
+    assert FakeTorch._six.inf == float("inf")
+
+
+@pytest.mark.parametrize(
+    "manifest_name",
+    ["dynamicvit.yaml", "tome.yaml", "hat.yaml"],
+)
+def test_legacy_cuda_manifests_use_official_pytorch_builds(manifest_name):
+    manifest = load_yaml(
+        f"configs/external_models/environments/{manifest_name}"
+    )
+
+    channels = manifest["channels"]
+    assert channels.index("defaults") < channels.index("conda-forge")
+    dependencies = manifest["dependencies"]
+    assert "pytorch::pytorch=1.13.1" in dependencies
+    assert "pytorch::torchvision=0.14.1" in dependencies
+    assert "pytorch::pytorch-cuda=11.7" in dependencies
 
 
 def test_scientific64_runner_builds_resilient_local_job_sequence():

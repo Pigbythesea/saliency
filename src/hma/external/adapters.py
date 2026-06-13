@@ -7,6 +7,7 @@ import json
 import sys
 import time
 from abc import ABC, abstractmethod
+from collections import abc as collections_abc
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -54,6 +55,7 @@ class ExternalModelAdapter(ABC):
         if self.source_dir.is_dir() and str(self.source_dir) not in sys.path:
             sys.path.insert(0, str(self.source_dir))
         self.torch = _require_module("torch")
+        _install_legacy_torch_six_compatibility(self.torch)
         self.torch.manual_seed(self.seed)
         if self.torch.cuda.is_available():
             self.torch.cuda.manual_seed_all(self.seed)
@@ -481,6 +483,23 @@ def hardware_metadata(torch: Any) -> dict[str, Any]:
     else:
         metadata["device_name"] = "cpu"
     return metadata
+
+
+def _install_legacy_torch_six_compatibility(torch: Any) -> None:
+    """Provide symbols required by pinned pre-1.0 timm releases."""
+    legacy = getattr(torch, "_six", None)
+    if legacy is None:
+        try:
+            legacy = importlib.import_module("torch._six")
+        except ImportError:
+            return
+        setattr(torch, "_six", legacy)
+    if not hasattr(legacy, "container_abcs"):
+        legacy.container_abcs = collections_abc
+    if not hasattr(legacy, "string_classes"):
+        legacy.string_classes = (str,)
+    if not hasattr(legacy, "inf"):
+        legacy.inf = float("inf")
 
 
 def _load_checkpoint(model: Any, path: Path | None, torch: Any) -> None:
