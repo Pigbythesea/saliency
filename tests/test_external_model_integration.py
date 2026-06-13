@@ -22,6 +22,8 @@ from scripts.create_paper1_matrix_v2_behavior_configs import create_behavior_con
 from scripts.create_paper1_matrix_v2_cluster_jobs import create_cluster_jobs
 from scripts.export_external_routing_maps import export_routing_maps
 from scripts import setup_external_model
+from scripts import preflight_paper1_matrix_v2_cluster
+from scripts import clean_cluster_home
 from scripts.audit_paper1_matrix_v2 import (
     _adaptive_matrix_rows,
     _next_run_markdown,
@@ -51,6 +53,34 @@ assert report["stages"]["adapter_ready"] is True
 """
     result = subprocess.run(
         [sys.executable, "-c", code],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_cluster_preflight_runs_as_a_script_from_project_root():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/preflight_paper1_matrix_v2_cluster.py",
+            "--help",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_behavior_cell_preparation_runs_as_a_script_from_project_root():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/prepare_paper1_matrix_v2_behavior_cell.py",
+            "--help",
+        ],
         check=False,
         capture_output=True,
         text=True,
@@ -89,16 +119,32 @@ def test_setup_runtime_caches_are_project_local(monkeypatch, tmp_path):
     environment = setup_external_model._scratch_runtime_environment()
 
     for name in (
+        "HOME",
         "MAMBA_ROOT_PREFIX",
+        "CONDA_PKGS_DIRS",
         "PIP_CACHE_DIR",
         "XDG_CACHE_HOME",
         "TORCH_HOME",
         "HF_HOME",
+        "HF_HUB_CACHE",
+        "TRANSFORMERS_CACHE",
+        "MPLCONFIGDIR",
+        "CUDA_CACHE_PATH",
+        "TRITON_CACHE_DIR",
+        "NUMBA_CACHE_DIR",
+        "IPYTHONDIR",
+        "JUPYTER_CONFIG_DIR",
+        "UV_CACHE_DIR",
+        "PYTHONUSERBASE",
+        "PYTHONPYCACHEPREFIX",
         "TMPDIR",
+        "TMP",
+        "TEMP",
     ):
         path = tmp_path / Path(environment[name]).relative_to(tmp_path)
         assert path.is_dir()
         assert str(path).startswith(str(tmp_path / "external"))
+    assert environment["PYTHONNOUSERSITE"] == "1"
 
 
 def test_external_environment_creation_uses_strict_channel_priority(
@@ -106,6 +152,7 @@ def test_external_environment_creation_uses_strict_channel_priority(
     tmp_path,
 ):
     commands = []
+    monkeypatch.setattr(setup_external_model, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(setup_external_model, "_resolve_micromamba", lambda value: value)
     monkeypatch.setattr(
         setup_external_model,
@@ -131,7 +178,7 @@ def test_external_environment_creation_uses_strict_channel_priority(
     setup_external_model._prepare_environment(
         model={"id": "dynamicvit_deit_small_keep_0_7"},
         source_dir=tmp_path / "source",
-        environment_dir=tmp_path / "environment",
+        environment_dir=tmp_path / "external/environments/dynamicvit",
         environment_manifest=tmp_path / "environment.yaml",
         micromamba="micromamba",
     )
@@ -147,6 +194,42 @@ def test_external_environment_creation_uses_strict_channel_priority(
             "print(f'torch={torch.__version__} cuda={torch.version.cuda}')"
         ),
     ]
+
+
+def test_external_environment_creation_removes_stale_prefix(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(setup_external_model, "PROJECT_ROOT", tmp_path)
+    environment = tmp_path / "external/environments/dynamicvit"
+    environment.mkdir(parents=True)
+    stale = environment / "stale.txt"
+    stale.write_text("old", encoding="utf-8")
+    commands = []
+    monkeypatch.setattr(setup_external_model, "_resolve_micromamba", lambda value: value)
+    monkeypatch.setattr(setup_external_model, "_run", lambda command: commands.append(command))
+    monkeypatch.setattr(setup_external_model, "_post_install_commands", lambda _model_id: [])
+    monkeypatch.setattr(
+        setup_external_model,
+        "_write_environment_lock",
+        lambda **_kwargs: tmp_path / "lock.txt",
+    )
+    monkeypatch.setattr(
+        setup_external_model,
+        "_environment_lock_path",
+        lambda _model_id: tmp_path / "lock.txt",
+    )
+
+    setup_external_model._prepare_environment(
+        model={"id": "dynamicvit_deit_small_keep_0_7"},
+        source_dir=tmp_path / "source",
+        environment_dir=environment,
+        environment_manifest=tmp_path / "environment.yaml",
+        micromamba="micromamba",
+    )
+
+    assert not stale.exists()
+    assert commands[0][0:2] == ["micromamba", "create"]
 
 
 def test_legacy_torch_six_compatibility_restores_old_timm_symbols():
@@ -178,7 +261,7 @@ def test_legacy_cuda_manifests_use_official_pytorch_builds(manifest_name):
     assert "pytorch::pytorch=1.13.1" in dependencies
     assert "pytorch::torchvision=0.14.1" in dependencies
     assert "pytorch::pytorch-cuda=11.7" in dependencies
-    assert "defaults::mkl=2024.0" in dependencies
+    assert "defaults::mkl<2024.1" in dependencies
 
 
 def test_scientific64_runner_builds_resilient_local_job_sequence():
@@ -465,9 +548,7 @@ def test_matrix_v2_audit_advances_after_scientific64_acceptance():
 
     assert len(rows) == 12
     assert {row["scientific64_status"] for row in rows} == {"passed"}
-    assert {row["full_status"] for row in rows} == {
-        "cluster_smoke_pending"
-    }
+    assert {row["full_status"] for row in rows} == {"passed"}
     assert "Cluster-readiness implementation is complete" in next_run
     assert "run_paper1_matrix_v2_scientific64.py" not in next_run
 
@@ -493,3 +574,52 @@ def test_cluster_jobs_match_observed_jhu_partitions(tmp_path):
     assert "#SBATCH --gres=gpu:l40s:1" in behavior
     assert "--artifact-scope resource_only" in behavior
     assert "--dependency=afterok:$NEURAL_EXPORT" in submit
+    assert 'source "$PROJECT/scripts/cluster_runtime_env.sh"' in neural
+    assert 'source "$PROJECT/scripts/cluster_runtime_env.sh"' in behavior
+    assert 'source "$PROJECT/scripts/cluster_runtime_env.sh"' in submit
+
+
+def test_cluster_preflight_requires_project_local_runtime_paths(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(
+        preflight_paper1_matrix_v2_cluster,
+        "PROJECT_ROOT",
+        tmp_path,
+    )
+    external = tmp_path / "external"
+    for name in preflight_paper1_matrix_v2_cluster.RUNTIME_PATH_VARIABLES:
+        monkeypatch.setenv(name, str(external / name.lower()))
+
+    checks = preflight_paper1_matrix_v2_cluster._runtime_environment_checks()
+
+    assert checks
+    assert all(passed for _name, passed, _detail in checks)
+
+    monkeypatch.setenv("HOME", str(tmp_path / "real_home"))
+    by_name = {
+        name: passed
+        for name, passed, _detail
+        in preflight_paper1_matrix_v2_cluster._runtime_environment_checks()
+    }
+    assert by_name["HOME"] is False
+
+
+def test_cluster_home_cleanup_removes_only_declared_cache_paths(
+    tmp_path,
+):
+    target = tmp_path / ".cache/pip"
+    target.mkdir(parents=True)
+    (target / "wheel.bin").write_bytes(b"cache")
+    preserved = tmp_path / ".ssh/authorized_keys"
+    preserved.parent.mkdir(parents=True)
+    preserved.write_text("key", encoding="utf-8")
+
+    report = clean_cluster_home.audit_home(clean=True, home_dir=tmp_path)
+
+    by_path = {Path(entry["path"]): entry for entry in report["entries"]}
+    assert by_path[target]["size_bytes"] == len(b"cache")
+    assert by_path[target]["removed"] is True
+    assert not target.exists()
+    assert preserved.read_text(encoding="utf-8") == "key"

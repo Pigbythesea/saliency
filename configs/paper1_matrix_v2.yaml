@@ -33,7 +33,7 @@ first_evidence_run:
   execution_status:
     adapter16: passed
     scientific64: passed
-    full_matrix: cluster_smoke_pending
+    full_matrix: passed
   models:
     - deit_small_static
     - dynamicvit_deit_small_keep_0_7

@@ -27,6 +27,8 @@ data/
 outputs/
 artifacts/
 logs/
+run_logs/
+slurm_logs/
 
 # Editors and OS
 .idea/

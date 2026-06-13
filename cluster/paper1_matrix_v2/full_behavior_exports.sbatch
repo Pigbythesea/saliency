@@ -17,6 +17,7 @@ PROJECT=/scratch/tshu2/zzhan330/saliency
 MM="$PROJECT/external/tools/micromamba/2.8.1-0/micromamba"
 CORE="$PROJECT/external/environments/paper1_matrix_v2_core"
 cd "$PROJECT"
+source "$PROJECT/scripts/cluster_runtime_env.sh"
 mkdir -p slurm_logs
 
 MODELS=(deit_small_static dynamicvit_deit_small_keep_0_7 tome_deit_small_r13)

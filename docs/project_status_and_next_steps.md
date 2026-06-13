@@ -92,7 +92,8 @@ Current steering documents under `docs/`:
 
 ## Current Snapshot
 
-The repository currently contains a strong diagnostic scaffold, not the final Paper 1 scientific matrix.
+The repository now contains the first complete Paper 1 Matrix V2
+adaptive-computation full-run output panel, plus the earlier diagnostic scaffold.
 
 Completed scaffold layers:
 
@@ -114,13 +115,10 @@ Current diagnostic outcome:
 
 Active missing evidence for Paper 1 Matrix V2:
 
-- installed, pinned external environments and verified checkpoints for the first adaptive-computation comparison;
-- accepted 16-image artifacts for DeiT-S, DynamicViT-DeiT-S/0.7, and ToMe-DeiT-S/r13;
-- a passed 64-image `subj01` scientific smoke over V1, ventral, lateral, and parietal cells;
-- full adaptive-computation neural, geometry, behavioral-routing, and efficiency results;
 - frontier-family evidence from DINOv3, SigLIP, MambaVision, Hiera, and Swin after the adaptive comparison passes;
 - sequential/foveated behavioral evidence from HAT and ScanDiff;
-- a direct quadrant-style cross-axis analysis after accepted Matrix V2 evidence exists.
+- an accepted scientific interpretation of the completed three-model full run;
+- an accepted next-step decision based on the completed full-run numbers.
 
 Main package: `src/hma/`.
 
@@ -172,6 +170,22 @@ Experiment-definition artifacts:
   `outputs/paper1_matrix_v2/axis_scope.csv`,
   `outputs/paper1_matrix_v2/adaptive_matrix_cells.csv`, and
   `outputs/paper1_matrix_v2/next_run.md`.
+
+Matrix V2 full-run outputs generated in this session:
+
+- Full-result audit: `outputs/paper1_matrix_v2/summary/full/full_result_audit.json`.
+- Neural encoding table: `outputs/paper1_matrix_v2/summary/full/full_neural_encoding.csv`.
+- Geometry table: `outputs/paper1_matrix_v2/summary/full/full_geometry.csv`.
+- Behavioral table with raw and derived AUC columns:
+  `outputs/paper1_matrix_v2/summary/full/full_behavior.csv`.
+- Efficiency table:
+  `outputs/paper1_matrix_v2/summary/full/matrix_v2_efficiency.csv`.
+- Derived scope/axis/ROI/model table, generated but not scientifically accepted:
+  `outputs/paper1_matrix_v2/summary/full/matrix_v2_cross_axis_quadrants.csv`.
+
+These artifacts are numerically documented in
+`docs/project_results_numbers.md`. Their scientific interpretation and use in
+the next-step decision are not accepted in this session.
 
 ## Scientific Boundary
 
@@ -405,7 +419,9 @@ The reduced subject-robustness result is useful pilot evidence. It should be tre
 
 ### Current priority
 
-The immediate priority is the **bounded Matrix V2 JHU cluster smoke**.
+The completed Matrix V2 full run has been extracted and numerically documented.
+Scientific interpretation and next-step selection are intentionally left
+unresolved in this session.
 
 The adapter16 and scientific64 gates have passed for:
 
@@ -413,11 +429,13 @@ The adapter16 and scientific64 gates have passed for:
 - DynamicViT-DeiT-S/0.7 with retained-token masks;
 - ToMe-DeiT-S/r13 with source-traced merge assignments.
 
-Cluster-readiness implementation is complete locally. The next gate recreates
-the pinned environments on the cluster and runs the generated smoke workflow:
-three 64-image neural exports, twelve cached neural/geometry analyses, nine
-16-unique-image resource-only behavioral exports, routing-map conversion, and
-bounded behavioral scoring.
+The bounded smoke and full JHU workflows are complete. The full run produced
+three 9,841-image neural artifacts, twelve model/ROI neural analyses, nine
+full behavioral resource artifacts, and nine behavioral score outputs.
+
+Local extraction and audit are complete. The generated tables contain `12`
+neural encoding rows, `48` geometry rows, `9` behavioral rows, `3` efficiency
+rows, and `72` scope/axis/ROI/model cross-axis rows.
 
 ### Explicit non-priorities
 
@@ -580,30 +598,48 @@ Current implementation state:
   build immediately after environment creation, before any model-specific pip
   installation. Environment locks are invalidated before recreation, and smoke
   status is reused only when manifest and lock hashes still match.
-- Verification status: the last full suite passed `305` tests; the current
-  cache/MKL/provenance changes pass all `17` focused external-integration tests.
-  Generated Python files compile, `git diff --check` reports no whitespace
-  errors, and the PCA cache equivalence audit passes `12/12`.
+- Cluster setup is now fully scratch-isolated: setup and Slurm jobs replace
+  `HOME` with `external/runtime_home` and redirect conda, pip, Torch, Hugging
+  Face, CUDA, Triton, Numba, matplotlib, Python bytecode, and temporary paths
+  under `external/`. Preflight rejects any runtime path outside that root.
+  Reinstallation deletes only the selected stale environment, resets its pinned
+  source checkout, and preserves a checkpoint only when its lock hash matches.
+- `scripts/clean_cluster_home.py` audits or removes only an allowlist of
+  setup-created package/model caches from the real cluster home. The bounded
+  `cluster/paper1_matrix_v2/setup_models.sbatch` job rebuilds the three model
+  environments and core environment, then runs smoke preflight. Cluster access
+  remains user-operated; Codex did not execute remote commands.
+- The bounded JHU cluster smoke passed on June 13, 2026. All three L40S neural
+  exports, nine L40S behavioral resource exports, three CPU neural-analysis
+  tasks covering twelve model/ROI cells, and nine CPU behavioral-scoring tasks
+  completed successfully. Runtime preflight passed every environment, CUDA
+  11.7, manifest, scratch-path, and free-space check. Two script-entry import
+  defects and a NumPy 1.26/2.x trapezoidal-integration API mismatch were fixed
+  without rebuilding the completed environments.
+- The full JHU Matrix V2 run passed on June 13, 2026. All `24` Slurm array
+  tasks completed with exit code `0:0`: three neural exports, nine behavioral
+  exports, three model-level neural analyses covering twelve ROI cells, and
+  nine behavioral scorers. Output inventory is complete (`3` neural artifacts,
+  `9` behavioral artifacts, `12` neural results, and `9` behavioral results).
+  All three independent analysis preflights passed and hash-validated `9841`
+  images for every full neural artifact.
+- Verification status: the current full suite passes `318` tests with `3`
+  existing Grad-CAM hook warnings. Generated Python files compile,
+  `git diff --check` reports no whitespace errors, and the PCA cache
+  equivalence audit passes `12/12`.
 
 Latest session report:
 
-1. `Scientific change`: no claim change. The execution path now covers both
-   neural features and operational resource-allocation behavior without using
-   attribution maps as substitutes.
-2. `Accepted artifact`: the prior scientific64 artifacts plus
-   `outputs/paper1_matrix_v2/cache_equivalence/scientific64/summary.json`,
-   resource-only artifact tests, generated full configs with shared caches, and
-   the JHU-specific Slurm/preflight files.
-3. `Claim impact`: no headline claim changes. The full matched comparison is
-   now justified operationally, while the varied smoke-selected layers reinforce
-   the need to preserve validation-based selection in the full analysis.
-4. `Reviewer risk reduced`: adds explicit behavior-only artifact scope,
-   deterministic cache identity, cached/uncached numerical equivalence, and
-   partition/resource-specific execution provenance.
-5. `Next decisive step`: clean the setup-created package caches from cluster
-   home, resync the cache/MKL/provenance fixes, and rebuild DynamicViT alone.
-   Require successful Torch import, CUDA 11.7, and a passing adapter smoke
-   before recreating DeiT-S or ToMe.
+1. `Scientific change`: no scientific interpretation was accepted. The
+   completed full-run outputs are now available locally as explicit neural,
+   geometry, behavioral, and efficiency numerical tables.
+2. `Accepted artifact`: `outputs/paper1_matrix_v2/summary/full/`, especially
+   `full_result_audit.json`, `full_neural_encoding.csv`, `full_geometry.csv`,
+   `full_behavior.csv`, and `matrix_v2_efficiency.csv`.
+3. `Claim impact`: not assessed in this session.
+4. `Reviewer risk reduced`: the full-run values and provenance are now
+   inspectable without relying on Slurm logs or feature artifacts.
+5. `Next decisive step`: not updated in this session.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
@@ -934,8 +970,8 @@ then scientific64 V1/ventral/lateral/parietal cells.
 
 ### Phase 2 — Stream/ROI grouping and neural-scope upgrade
 
-Status: scientific64 and local cluster-readiness gates passed; bounded cluster
-smoke pending.
+Status: the first `subj01` full-run outputs are complete for V1, ventral,
+lateral, and parietal.
 
 Purpose:
 
@@ -1014,8 +1050,8 @@ The model panel must make at least one of these dissociations testable:
 
 ### Phase 4 — Efficiency and alignment-per-compute
 
-Status: adapter16 and scientific64 profiling are validated; full cluster
-execution and alignment-per-compute aggregation remain.
+Status: complete for the first three-model panel. Realized FLOPs, latency,
+memory, token counts, and alignment-per-compute are merged into the summary.
 
 Purpose:
 
@@ -1034,7 +1070,7 @@ Required metrics:
 
 Required output:
 
-* `outputs/efficiency_profiles/paper1_matrix_v2_efficiency.csv`
+* `outputs/paper1_matrix_v2/summary/full/matrix_v2_efficiency.csv`
 
 Acceptance rule:
 
@@ -1042,8 +1078,8 @@ Efficiency must be merged into the Matrix V2 cross-axis table. It should not app
 
 ### Phase 5 — Behavioral axis upgrade: scanpath/task/adaptive attention where feasible
 
-Status: DynamicViT/ToMe routing-map integration is implemented but unrun; HAT
-and ScanDiff remain later external integrations after adaptive evidence.
+Status: DynamicViT/ToMe routing-map outputs are complete for SALICON, CAT2000,
+and COCO-Search18. HAT and ScanDiff remain later sequential extensions.
 
 Purpose:
 
@@ -1078,7 +1114,8 @@ Do not claim “human-like attention” from Grad-CAM, gradients, rollout, or tr
 
 ### Phase 6 — Matrix V2 cross-axis quadrant analysis
 
-Status: after the first Matrix V2 evidence table exists.
+Status: the `72`-row scope/axis/ROI/model table has been generated. Its
+scientific interpretation is not accepted in this session.
 
 Purpose:
 
@@ -1086,7 +1123,7 @@ Make the paper story explicit.
 
 Required output:
 
-* `outputs/paper1_matrix_v2/summary/matrix_v2_cross_axis_quadrants.csv`
+* `outputs/paper1_matrix_v2/summary/full/matrix_v2_cross_axis_quadrants.csv`
 
 Each model or model-method pair should be classified into one of four descriptive quadrants:
 
@@ -1214,6 +1251,7 @@ Neural alignment:
 
 Reporting:
 
+- `scripts/summarize_paper1_matrix_v2_full.py`
 - `scripts/create_attribution_family_interpretation.py`
 - `scripts/create_paper_inspection_pack.py`
 - `scripts/audit_behavioral_controls.py`

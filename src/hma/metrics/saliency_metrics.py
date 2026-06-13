@@ -64,14 +64,7 @@ def auc_judd(
     if num_fixations == 0 or num_nonfixations == 0:
         return 0.0
 
-    order = np.argsort(-saliency, kind="mergesort")
-    sorted_fixations = fixation_mask[order].astype(np.float32)
-    true_positive = np.cumsum(sorted_fixations) / float(num_fixations)
-    false_positive = np.cumsum(1.0 - sorted_fixations) / float(num_nonfixations)
-
-    true_positive = np.concatenate([[0.0], true_positive, [1.0]])
-    false_positive = np.concatenate([[0.0], false_positive, [1.0]])
-    return float(np.trapezoid(true_positive, false_positive))
+    return _auc_from_scores(saliency[fixation_mask], saliency[~fixation_mask])
 
 
 def auc_borji(
@@ -317,20 +310,26 @@ def _coords_to_mask(coords: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
 def _auc_from_scores(positive_scores: np.ndarray, negative_scores: np.ndarray) -> float:
     if positive_scores.size == 0 or negative_scores.size == 0:
         return 0.0
-    scores = np.concatenate([positive_scores, negative_scores]).astype(np.float32)
-    labels = np.concatenate(
-        [
-            np.ones(positive_scores.size, dtype=np.float32),
-            np.zeros(negative_scores.size, dtype=np.float32),
-        ]
-    )
-    order = np.argsort(-scores, kind="mergesort")
-    sorted_labels = labels[order]
-    true_positive = np.cumsum(sorted_labels) / float(positive_scores.size)
-    false_positive = np.cumsum(1.0 - sorted_labels) / float(negative_scores.size)
-    true_positive = np.concatenate([[0.0], true_positive, [1.0]])
-    false_positive = np.concatenate([[0.0], false_positive, [1.0]])
-    return float(np.trapezoid(true_positive, false_positive))
+    num_positive = int(positive_scores.size)
+    num_negative = int(negative_scores.size)
+    scores = np.concatenate([positive_scores, negative_scores]).astype(np.float64)
+    order = np.argsort(scores, kind="mergesort")
+    sorted_scores = scores[order]
+    ranks = np.empty(scores.size, dtype=np.float64)
+
+    start = 0
+    while start < sorted_scores.size:
+        end = start + 1
+        while end < sorted_scores.size and sorted_scores[end] == sorted_scores[start]:
+            end += 1
+        ranks[order[start:end]] = 0.5 * (start + end - 1) + 1.0
+        start = end
+
+    positive_rank_sum = float(np.sum(ranks[:num_positive]))
+    auc = (
+        positive_rank_sum - num_positive * (num_positive + 1) / 2.0
+    ) / float(num_positive * num_negative)
+    return float(np.clip(auc, 0.0, 1.0))
 
 
 def _downsample_sum(values: np.ndarray, target_size: int) -> np.ndarray:

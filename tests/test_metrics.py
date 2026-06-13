@@ -87,10 +87,27 @@ def test_auc_borji_rewards_correct_fixation_ranking():
     assert good_score > bad_score
 
 
+def test_auc_metrics_treat_tied_constant_scores_as_chance():
+    saliency = np.ones((4, 4), dtype=np.float32)
+    fixation = np.zeros((4, 4), dtype=np.float32)
+    fixation[1, 1] = 1.0
+    negative_fixations = np.asarray([[0, 0], [2, 2], [3, 3]], dtype=np.int64)
+
+    assert auc_judd(saliency, fixation) == pytest.approx(0.5)
+    assert auc_borji(saliency, fixation, splits=20, seed=123) == pytest.approx(0.5)
+    assert shuffled_auc(
+        saliency,
+        fixation,
+        negative_fixations,
+        splits=20,
+        seed=123,
+    ) == pytest.approx(0.5)
+
+
 def test_shuffled_auc_uses_other_image_fixations_as_negatives():
     saliency = np.array([[0.0, 0.1], [0.2, 1.0]], dtype=np.float32)
     fixation = np.array([[0.0, 0.0], [0.0, 1.0]], dtype=np.float32)
-    negative_fixations = np.array([[0, 0], [0, 1]], dtype=np.int64)
+    negative_fixations = np.array([[0, 0], [0, 1], [1, 0]], dtype=np.int64)
 
     score = shuffled_auc(
         saliency,

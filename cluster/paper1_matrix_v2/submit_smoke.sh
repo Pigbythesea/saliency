@@ -4,6 +4,7 @@ PROJECT=/scratch/tshu2/zzhan330/saliency
 MM="$PROJECT/external/tools/micromamba/2.8.1-0/micromamba"
 CORE="$PROJECT/external/environments/paper1_matrix_v2_core"
 cd "$PROJECT"
+source "$PROJECT/scripts/cluster_runtime_env.sh"
 mkdir -p slurm_logs outputs/paper1_matrix_v2/preflight
 "$MM" run -p "$CORE" python scripts/preflight_paper1_matrix_v2_cluster.py   --mode smoke   --json-output "outputs/paper1_matrix_v2/preflight/smoke_submission.json"
 NEURAL_EXPORT=$(sbatch --parsable cluster/paper1_matrix_v2/smoke_neural_exports.sbatch)

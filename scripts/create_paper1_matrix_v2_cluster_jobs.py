@@ -70,6 +70,7 @@ PROJECT={PROJECT}
 MM="$PROJECT/external/tools/micromamba/2.8.1-0/micromamba"
 CORE="$PROJECT/external/environments/paper1_matrix_v2_core"
 cd "$PROJECT"
+source "$PROJECT/scripts/cluster_runtime_env.sh"
 mkdir -p slurm_logs
 """
 
@@ -203,6 +204,7 @@ PROJECT={PROJECT}
 MM="$PROJECT/external/tools/micromamba/2.8.1-0/micromamba"
 CORE="$PROJECT/external/environments/paper1_matrix_v2_core"
 cd "$PROJECT"
+source "$PROJECT/scripts/cluster_runtime_env.sh"
 mkdir -p slurm_logs outputs/paper1_matrix_v2/preflight
 "$MM" run -p "$CORE" python scripts/preflight_paper1_matrix_v2_cluster.py \
   --mode {preflight} \

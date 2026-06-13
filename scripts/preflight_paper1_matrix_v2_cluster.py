@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -14,6 +15,8 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
@@ -50,11 +53,36 @@ MANIFESTS = {
         635,
     ),
 }
+RUNTIME_PATH_VARIABLES = (
+    "HOME",
+    "MAMBA_ROOT_PREFIX",
+    "CONDA_PKGS_DIRS",
+    "PIP_CACHE_DIR",
+    "XDG_CACHE_HOME",
+    "TORCH_HOME",
+    "HF_HOME",
+    "HF_HUB_CACHE",
+    "TRANSFORMERS_CACHE",
+    "MPLCONFIGDIR",
+    "CUDA_CACHE_PATH",
+    "TRITON_CACHE_DIR",
+    "NUMBA_CACHE_DIR",
+    "IPYTHONDIR",
+    "JUPYTER_CONFIG_DIR",
+    "UV_CACHE_DIR",
+    "PYTHONUSERBASE",
+    "PYTHONPYCACHEPREFIX",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+)
 
 
 def run_preflight(*, mode: str, verify_all_images: bool = True) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     _record(checks, "linux", platform.system() == "Linux", platform.platform())
+    for name, passed, detail in _runtime_environment_checks():
+        _record(checks, f"scratch_runtime:{name}", passed, detail)
     _record(
         checks,
         "slurm_client",
@@ -147,6 +175,22 @@ def run_preflight(*, mode: str, verify_all_images: bool = True) -> dict[str, Any
         "passed": all(check["passed"] for check in checks),
         "checks": checks,
     }
+
+
+def _runtime_environment_checks() -> list[tuple[str, bool, str]]:
+    external_root = (PROJECT_ROOT / "external").resolve()
+    checks = []
+    for name in RUNTIME_PATH_VARIABLES:
+        value = os.environ.get(name, "")
+        try:
+            path = Path(value).expanduser().resolve() if value else None
+            passed = path is not None and path.is_relative_to(external_root)
+        except (OSError, RuntimeError):
+            path = None
+            passed = False
+        detail = str(path) if path is not None else "unset"
+        checks.append((name, passed, detail))
+    return checks
 
 
 def _validate_image_manifest(

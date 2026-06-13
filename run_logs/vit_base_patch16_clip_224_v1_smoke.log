@@ -1,3 +1,0 @@
-Activations: D:\Git\saliency\outputs\neural_large_smoke\vit_base_patch16_clip_224_v1_flatten_pca_validation_selection_smoke\activations.npz
-Encoding scores: D:\Git\saliency\outputs\neural_large_smoke\vit_base_patch16_clip_224_v1_flatten_pca_validation_selection_smoke\encoding_scores.csv
-Metadata: D:\Git\saliency\outputs\neural_large_smoke\vit_base_patch16_clip_224_v1_flatten_pca_validation_selection_smoke\metadata.json

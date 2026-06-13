@@ -44,20 +44,37 @@ from hma.external.hashing import sha256_file, sha256_tree
 
 
 def _scratch_runtime_environment() -> dict[str, str]:
-    """Keep package-manager caches and temporary files out of cluster home."""
+    """Keep all setup subprocess state out of the cluster home directory."""
     external_root = PROJECT_ROOT / "external"
     paths = {
+        "HOME": external_root / "runtime_home",
         "MAMBA_ROOT_PREFIX": external_root / "cache" / "micromamba",
+        "CONDA_PKGS_DIRS": external_root / "cache" / "conda" / "pkgs",
         "PIP_CACHE_DIR": external_root / "cache" / "pip",
         "XDG_CACHE_HOME": external_root / "cache" / "xdg",
         "TORCH_HOME": external_root / "cache" / "torch",
         "HF_HOME": external_root / "cache" / "huggingface",
+        "HF_HUB_CACHE": external_root / "cache" / "huggingface" / "hub",
+        "TRANSFORMERS_CACHE": external_root / "cache" / "huggingface" / "transformers",
+        "MPLCONFIGDIR": external_root / "cache" / "matplotlib",
+        "CUDA_CACHE_PATH": external_root / "cache" / "cuda",
+        "TRITON_CACHE_DIR": external_root / "cache" / "triton",
+        "NUMBA_CACHE_DIR": external_root / "cache" / "numba",
+        "IPYTHONDIR": external_root / "cache" / "ipython",
+        "JUPYTER_CONFIG_DIR": external_root / "cache" / "jupyter",
+        "UV_CACHE_DIR": external_root / "cache" / "uv",
+        "PYTHONUSERBASE": external_root / "python_user",
+        "PYTHONPYCACHEPREFIX": external_root / "cache" / "pycache",
         "TMPDIR": external_root / "tmp",
+        "TMP": external_root / "tmp",
+        "TEMP": external_root / "tmp",
     }
     environment = dict(os.environ)
     for name, path in paths.items():
         path.mkdir(parents=True, exist_ok=True)
         environment[name] = str(path)
+    environment["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    environment["PYTHONNOUSERSITE"] = "1"
     return environment
 
 
@@ -380,6 +397,8 @@ def _prepare_source(model: dict[str, Any], source_dir: Path) -> None:
         raise RuntimeError(f"External source path is not a git checkout: {source_dir}")
     _run(["git", "-C", str(source_dir), "fetch", "origin", commit])
     _run(["git", "-C", str(source_dir), "checkout", "--detach", commit])
+    _run(["git", "-C", str(source_dir), "reset", "--hard", commit])
+    _run(["git", "-C", str(source_dir), "clean", "-fdx"])
     actual = _git_commit(source_dir)
     if actual != commit:
         raise RuntimeError(f"Source commit mismatch: expected {commit}, found {actual}")
@@ -395,6 +414,7 @@ def _prepare_environment(
 ) -> None:
     executable = _resolve_micromamba(micromamba)
     environment_dir.parent.mkdir(parents=True, exist_ok=True)
+    _remove_stale_environment(environment_dir)
     environment_lock = _environment_lock_path(str(model["id"]))
     if environment_lock.exists():
         environment_lock.unlink()
@@ -432,6 +452,17 @@ def _prepare_environment(
         environment_dir=environment_dir,
         micromamba=executable,
     )
+
+
+def _remove_stale_environment(environment_dir: Path) -> None:
+    root = (PROJECT_ROOT / "external" / "environments").resolve()
+    target = environment_dir.resolve()
+    if target.parent != root:
+        raise RuntimeError(
+            f"Refusing to remove external environment outside {root}: {target}"
+        )
+    if target.exists():
+        shutil.rmtree(target)
 
 
 def _validate_torch_environment(
@@ -499,6 +530,12 @@ def _download_checkpoint(
             f"Model '{canonical_id}' has no released checkpoint URL recorded"
         )
     target.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = _checkpoint_lock_path(canonical_id)
+    lock = _read_json(lock_path)
+    if target.exists() and lock:
+        digest = sha256_tree(target)
+        if lock.get("model_id") == canonical_id and lock.get("sha256") == digest:
+            return
     if target.name == "huggingface_snapshot":
         hub_id = model.get("adapter_config", {}).get("checkpoint_id")
         if not hub_id:
@@ -534,7 +571,6 @@ def _download_checkpoint(
         "sha256": digest,
         "path_kind": "directory" if target.is_dir() else "file",
     }
-    lock_path = _checkpoint_lock_path(canonical_id)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(json.dumps(lock, indent=2, sort_keys=True), encoding="utf-8")
 
