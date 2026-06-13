@@ -43,6 +43,24 @@ MICROMAMBA_ASSETS = {
 from hma.external.hashing import sha256_file, sha256_tree
 
 
+def _scratch_runtime_environment() -> dict[str, str]:
+    """Keep package-manager caches and temporary files out of cluster home."""
+    external_root = PROJECT_ROOT / "external"
+    paths = {
+        "MAMBA_ROOT_PREFIX": external_root / "cache" / "micromamba",
+        "PIP_CACHE_DIR": external_root / "cache" / "pip",
+        "XDG_CACHE_HOME": external_root / "cache" / "xdg",
+        "TORCH_HOME": external_root / "cache" / "torch",
+        "HF_HOME": external_root / "cache" / "huggingface",
+        "TMPDIR": external_root / "tmp",
+    }
+    environment = dict(os.environ)
+    for name, path in paths.items():
+        path.mkdir(parents=True, exist_ok=True)
+        environment[name] = str(path)
+    return environment
+
+
 def _resolve_micromamba(value: str) -> str:
     explicit = Path(value).expanduser()
     if (explicit.is_absolute() or explicit.parent != Path(".")) and explicit.is_file():
@@ -150,9 +168,10 @@ def _ensure_setup_runtime() -> None:
                 "python=3.10",
                 "pyyaml=6.0",
             ],
+            env=_scratch_runtime_environment(),
             check=True,
         )
-    environment = dict(os.environ)
+    environment = _scratch_runtime_environment()
     environment["HMA_SETUP_BOOTSTRAPPED"] = "1"
     completed = subprocess.run(
         [
@@ -201,6 +220,10 @@ def build_installation_report(
         (environment_dir / "conda-meta" / "history").is_file()
         and environment_lock.is_file()
     )
+    manifest_sha256 = sha256_file(registry.environment_path(canonical_id))
+    environment_lock_sha256 = (
+        sha256_file(environment_lock) if environment_lock.is_file() else None
+    )
     checkpoint_hash = (
         sha256_tree(checkpoint_path)
         if checkpoint_path is not None and checkpoint_path.exists()
@@ -218,7 +241,14 @@ def build_installation_report(
         and model.get("adapter_status") == "implemented"
     )
     previous = _read_json(_report_path(registry, canonical_id))
-    smoke_passed = bool(previous and previous.get("stages", {}).get("smoke_passed"))
+    smoke_passed = bool(
+        previous
+        and previous.get("stages", {}).get("smoke_passed")
+        and previous.get("environment", {}).get("manifest_sha256")
+        == manifest_sha256
+        and previous.get("environment", {}).get("lock_sha256")
+        == environment_lock_sha256
+    )
     license_name = str(model["source"].get("license", ""))
     license_audit_passed = not any(
         marker in license_name.lower()
@@ -254,10 +284,8 @@ def build_installation_report(
         },
         "environment": {
             "manifest": str(registry.environment_path(canonical_id)),
-            "manifest_sha256": sha256_file(registry.environment_path(canonical_id)),
-            "lock_sha256": (
-                sha256_file(environment_lock) if environment_lock.is_file() else None
-            ),
+            "manifest_sha256": manifest_sha256,
+            "lock_sha256": environment_lock_sha256,
         },
         "checkpoint": {
             "sha256": checkpoint_hash,
@@ -367,6 +395,9 @@ def _prepare_environment(
 ) -> None:
     executable = _resolve_micromamba(micromamba)
     environment_dir.parent.mkdir(parents=True, exist_ok=True)
+    environment_lock = _environment_lock_path(str(model["id"]))
+    if environment_lock.exists():
+        environment_lock.unlink()
     _run(
         [
             executable,
@@ -379,6 +410,10 @@ def _prepare_environment(
             "--file",
             str(environment_manifest),
         ]
+    )
+    _validate_torch_environment(
+        environment_dir=environment_dir,
+        micromamba=executable,
     )
     for command in _post_install_commands(str(model["id"])):
         _run(
@@ -396,6 +431,29 @@ def _prepare_environment(
         model_id=str(model["id"]),
         environment_dir=environment_dir,
         micromamba=executable,
+    )
+
+
+def _validate_torch_environment(
+    *,
+    environment_dir: Path,
+    micromamba: str,
+) -> None:
+    code = (
+        "import torch; "
+        "assert torch.version.cuda, 'PyTorch was installed without CUDA support'; "
+        "print(f'torch={torch.__version__} cuda={torch.version.cuda}')"
+    )
+    _run(
+        [
+            micromamba,
+            "run",
+            "--prefix",
+            str(environment_dir),
+            "python",
+            "-c",
+            code,
+        ]
     )
 
 
@@ -555,6 +613,7 @@ def _write_environment_lock(
         check=True,
         capture_output=True,
         text=True,
+        env=_scratch_runtime_environment(),
     )
     pip_result = subprocess.run(
         [
@@ -571,6 +630,7 @@ def _write_environment_lock(
         check=True,
         capture_output=True,
         text=True,
+        env=_scratch_runtime_environment(),
     )
     path = _environment_lock_path(model_id)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -621,7 +681,11 @@ def _read_json(path: Path) -> dict[str, Any] | None:
 
 
 def _run(command: list[str]) -> None:
-    subprocess.run(command, check=True)
+    subprocess.run(
+        command,
+        check=True,
+        env=_scratch_runtime_environment(),
+    )
 
 
 def parse_args() -> argparse.Namespace:

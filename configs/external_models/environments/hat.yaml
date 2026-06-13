@@ -10,6 +10,7 @@ dependencies:
   - pytorch::pytorch=1.13.1
   - pytorch::torchvision=0.14.1
   - pytorch::pytorch-cuda=11.7
+  - defaults::mkl=2024.0
   - gcc_linux-64
   - gxx_linux-64
   - ninja

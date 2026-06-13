@@ -2,6 +2,7 @@ import json
 import hashlib
 import subprocess
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -82,6 +83,24 @@ def test_setup_bootstraps_pinned_micromamba_with_checksum(monkeypatch, tmp_path)
     assert path.read_bytes() == payload
 
 
+def test_setup_runtime_caches_are_project_local(monkeypatch, tmp_path):
+    monkeypatch.setattr(setup_external_model, "PROJECT_ROOT", tmp_path)
+
+    environment = setup_external_model._scratch_runtime_environment()
+
+    for name in (
+        "MAMBA_ROOT_PREFIX",
+        "PIP_CACHE_DIR",
+        "XDG_CACHE_HOME",
+        "TORCH_HOME",
+        "HF_HOME",
+        "TMPDIR",
+    ):
+        path = tmp_path / Path(environment[name]).relative_to(tmp_path)
+        assert path.is_dir()
+        assert str(path).startswith(str(tmp_path / "external"))
+
+
 def test_external_environment_creation_uses_strict_channel_priority(
     monkeypatch,
     tmp_path,
@@ -103,6 +122,11 @@ def test_external_environment_creation_uses_strict_channel_priority(
         "_write_environment_lock",
         lambda **_kwargs: tmp_path / "lock.txt",
     )
+    monkeypatch.setattr(
+        setup_external_model,
+        "_environment_lock_path",
+        lambda _model_id: tmp_path / "lock.txt",
+    )
 
     setup_external_model._prepare_environment(
         model={"id": "dynamicvit_deit_small_keep_0_7"},
@@ -114,6 +138,15 @@ def test_external_environment_creation_uses_strict_channel_priority(
 
     assert commands[0][1:4] == ["create", "--yes", "--channel-priority"]
     assert commands[0][4] == "strict"
+    assert commands[1][-3:] == [
+        "python",
+        "-c",
+        (
+            "import torch; "
+            "assert torch.version.cuda, 'PyTorch was installed without CUDA support'; "
+            "print(f'torch={torch.__version__} cuda={torch.version.cuda}')"
+        ),
+    ]
 
 
 def test_legacy_torch_six_compatibility_restores_old_timm_symbols():
@@ -145,6 +178,7 @@ def test_legacy_cuda_manifests_use_official_pytorch_builds(manifest_name):
     assert "pytorch::pytorch=1.13.1" in dependencies
     assert "pytorch::torchvision=0.14.1" in dependencies
     assert "pytorch::pytorch-cuda=11.7" in dependencies
+    assert "defaults::mkl=2024.0" in dependencies
 
 
 def test_scientific64_runner_builds_resilient_local_job_sequence():

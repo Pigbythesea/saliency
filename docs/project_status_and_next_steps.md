@@ -570,14 +570,20 @@ Current implementation state:
   setup flow before the cluster smoke continues.
 - The subsequent cluster rebuild exposed a second solver defect:
   `libtorch_cpu.so` failed to import with undefined symbol
-  `iJIT_NotifyEvent`. Its environment lock showed a conda-forge PyTorch build
-  and conda-forge LLVM/MKL runtime rather than the official PyTorch CUDA build.
-  The Torch 1.13 manifests now channel-qualify PyTorch, torchvision, and
-  `pytorch-cuda`, and resolve the compatible Intel runtime from `defaults`
-  before falling back to conda-forge.
-- Verification status: `305` repository tests pass. Generated Python files
-  compile, `git diff --check` reports no whitespace errors, and the PCA cache
-  equivalence audit passes `12/12`.
+  `iJIT_NotifyEvent`. Channel-qualifying PyTorch did not resolve the import
+  because the unconstrained MKL runtime remained incompatible with Torch
+  1.13.1. The Torch 1.13 manifests now pin `defaults::mkl=2024.0`.
+- The same rebuild placed micromamba and pip package caches under the cluster
+  home directory despite environment prefixes living on scratch. Setup now
+  forces micromamba, pip, XDG, Torch, Hugging Face, and temporary-file roots
+  under `external/` on project scratch. It validates Torch import and CUDA
+  build immediately after environment creation, before any model-specific pip
+  installation. Environment locks are invalidated before recreation, and smoke
+  status is reused only when manifest and lock hashes still match.
+- Verification status: the last full suite passed `305` tests; the current
+  cache/MKL/provenance changes pass all `17` focused external-integration tests.
+  Generated Python files compile, `git diff --check` reports no whitespace
+  errors, and the PCA cache equivalence audit passes `12/12`.
 
 Latest session report:
 
@@ -594,10 +600,10 @@ Latest session report:
 4. `Reviewer risk reduced`: adds explicit behavior-only artifact scope,
    deterministic cache identity, cached/uncached numerical equivalence, and
    partition/resource-specific execution provenance.
-5. `Next decisive step`: resync the environment and adapter fixes, recreate all
-   three adaptive-comparison environments with official PyTorch CUDA builds,
-   require successful Torch imports, non-empty `torch.version.cuda`, and
-   passing adapter smokes, then continue core setup and `submit_smoke.sh`.
+5. `Next decisive step`: clean the setup-created package caches from cluster
+   home, resync the cache/MKL/provenance fixes, and rebuild DynamicViT alone.
+   Require successful Torch import, CUDA 11.7, and a passing adapter smoke
+   before recreating DeiT-S or ToMe.
 
 Implementation history was moved to `docs/project_status_changelog.md`.
 
@@ -665,19 +671,19 @@ blocked until all smoke arrays pass on the actual L40S and CPU nodes.
 2. Sync `data/manifests/`, `data/raw/nsd_algonauts/subj01/`,
    `data/raw/SALICON/`, `data/raw/CAT2000/`, and
    `data/raw/COCO-Search18/`.
-3. Remove the three isolated model environments created or potentially created
-   by the old non-strict solver, then rebuild them with strict channel priority.
-   Preserve the downloaded sources and checkpoints.
-4. Require every model to report a CUDA-built PyTorch runtime and all
-   installation stages through `smoke_passed`.
-5. Create `external/environments/paper1_matrix_v2_core` from
+3. Audit and clean the package-manager caches created under cluster home.
+4. Remove and rebuild DynamicViT alone with the scratch-local caches and MKL
+   compatibility pin. Preserve its downloaded source and checkpoint.
+5. Require DynamicViT to import Torch, report CUDA 11.7, and pass its adapter
+   smoke before recreating DeiT-S and ToMe.
+6. Create `external/environments/paper1_matrix_v2_core` from
    `configs/cluster/paper1_matrix_v2_core.yaml`, then install this repository
    editable into that environment.
-6. Run `cluster/paper1_matrix_v2/submit_smoke.sh`.
-7. Require all four submitted job arrays and every array task to finish
+7. Run `cluster/paper1_matrix_v2/submit_smoke.sh`.
+8. Require all four submitted job arrays and every array task to finish
    `COMPLETED`. Inspect preflight JSON and Slurm logs for warnings, tracebacks,
    missing maps, invalid artifacts, or cache inconsistencies.
-8. Return smoke outputs/logs locally for Codex inspection. Only then run
+9. Return smoke outputs/logs locally for Codex inspection. Only then run
    `submit_full.sh`.
 
 ### User/agent split
@@ -704,54 +710,67 @@ SALICON, CAT2000, and COCO-Search18 data:
 wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --info=progress2 -R data/./manifests/ data/./raw/nsd_algonauts/subj01/ data/./raw/SALICON/ data/./raw/CAT2000/ data/./raw/COCO-Search18/ zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/data/"
 ```
 
-3. Remove the three isolated external environments without deleting sources or
-checkpoints. Missing environments are skipped:
+3. Audit the setup-created home caches, clean package caches only, and verify
+home usage afterward:
 
 ```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && MM=external/tools/micromamba/2.8.1-0/micromamba; for MODEL in deit_small_static dynamicvit_deit_small_keep_0_7 tome_deit_small_r13; do if [ -d external/environments/$MODEL ]; then $MM env remove --yes --prefix external/environments/$MODEL || exit 1; fi; done'"
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'echo ===BEFORE===; du -sh $HOME/.local/share/mamba $HOME/.cache/pip $HOME/.cache/torch $HOME/.cache/huggingface 2>/dev/null || true; MM=/scratch/tshu2/zzhan330/saliency/external/tools/micromamba/2.8.1-0/micromamba; if [ -d $HOME/.local/share/mamba ]; then MAMBA_ROOT_PREFIX=$HOME/.local/share/mamba $MM clean --all --yes; fi; python3 -m pip cache purge >/dev/null 2>&1 || true; echo ===AFTER===; du -sh $HOME/.local/share/mamba $HOME/.cache/pip $HOME/.cache/torch $HOME/.cache/huggingface 2>/dev/null || true; df -h $HOME'"
 ```
 
-4. Rebuild and smoke all three models with the corrected solver and adapter
-compatibility shim:
+4. Remove only the invalid DynamicViT environment. Its source and checkpoint
+remain intact:
 
 ```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && python3 scripts/setup_external_model.py --model deit_small_static --install --download-checkpoint --smoke && python3 scripts/setup_external_model.py --model dynamicvit_deit_small_keep_0_7 --install --download-checkpoint --smoke && python3 scripts/setup_external_model.py --model tome_deit_small_r13 --install --download-checkpoint --smoke'"
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && MM=external/tools/micromamba/2.8.1-0/micromamba; if [ -d external/environments/dynamicvit_deit_small_keep_0_7 ]; then MAMBA_ROOT_PREFIX=$PWD/external/cache/micromamba $MM env remove --yes --prefix external/environments/dynamicvit_deit_small_keep_0_7; fi'"
 ```
 
-5. Confirm each rebuilt environment reports CUDA-built PyTorch, then audit all
-three setup reports. Each report must have `smoke_passed: true`:
+5. Rebuild DynamicViT alone. The setup now stops before pip installation if
+Torch import or CUDA validation fails:
 
 ```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && MM=external/tools/micromamba/2.8.1-0/micromamba; for MODEL in deit_small_static dynamicvit_deit_small_keep_0_7 tome_deit_small_r13; do echo ===$MODEL===; $MM run --prefix external/environments/$MODEL python -m torch.utils.collect_env || exit 1; python3 scripts/setup_external_model.py --model $MODEL --report-only || exit 1; done'"
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && python3 scripts/setup_external_model.py --model dynamicvit_deit_small_keep_0_7 --install --download-checkpoint --smoke'"
 ```
 
-6. Create the core analysis environment and install the project:
+6. Validate DynamicViT. Require a successful Torch import, CUDA `11.7`, and
+`smoke_passed: true`:
+
+```cmd
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && MM=external/tools/micromamba/2.8.1-0/micromamba; MAMBA_ROOT_PREFIX=$PWD/external/cache/micromamba $MM run --prefix external/environments/dynamicvit_deit_small_keep_0_7 python -m torch.utils.collect_env && python3 scripts/setup_external_model.py --model dynamicvit_deit_small_keep_0_7 --report-only'"
+```
+
+7. Only after step 6 passes, recreate DeiT-S and ToMe:
+
+```cmd
+wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && MM=external/tools/micromamba/2.8.1-0/micromamba; for MODEL in deit_small_static tome_deit_small_r13; do if [ -d external/environments/$MODEL ]; then MAMBA_ROOT_PREFIX=$PWD/external/cache/micromamba $MM env remove --yes --prefix external/environments/$MODEL || exit 1; fi; python3 scripts/setup_external_model.py --model $MODEL --install --download-checkpoint --smoke || exit 1; done'"
+```
+
+8. Create the core analysis environment and install the project:
 
 ```cmd
 wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && external/tools/micromamba/2.8.1-0/micromamba create --yes --prefix external/environments/paper1_matrix_v2_core --file configs/cluster/paper1_matrix_v2_core.yaml && external/tools/micromamba/2.8.1-0/micromamba run --prefix external/environments/paper1_matrix_v2_core python -m pip install -e .'"
 ```
 
-7. Validate every generated Bash/Slurm file remotely, submit the bounded smoke,
+9. Validate every generated Bash/Slurm file remotely, submit the bounded smoke,
 and retain the four printed job IDs:
 
 ```cmd
 wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && for f in cluster/paper1_matrix_v2/*.sh cluster/paper1_matrix_v2/*.sbatch; do bash -n $f || exit 1; done && bash cluster/paper1_matrix_v2/submit_smoke.sh'"
 ```
 
-8. Monitor:
+10. Monitor:
 
 ```cmd
 wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'squeue -u zzhan330'"
 ```
 
 After the arrays leave `squeue`, inspect them by replacing `<JOB_IDS>` with the
-four comma-separated IDs printed by step 7:
+four comma-separated IDs printed by step 9:
 
 ```cmd
 wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'sacct -j <JOB_IDS> --format=JobID,JobName,Partition,State,ExitCode,Elapsed,MaxRSS'"
 ```
 
-9. Return outputs and logs for Codex inspection:
+11. Return outputs and logs for Codex inspection:
 
 ```cmd
 wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --info=progress2 zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/outputs/paper1_matrix_v2/ outputs/paper1_matrix_v2/ && rsync -az --info=progress2 zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/slurm_logs/ slurm_logs/"
