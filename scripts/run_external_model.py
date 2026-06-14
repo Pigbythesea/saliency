@@ -19,6 +19,7 @@ if str(SRC_ROOT) not in sys.path:
 from hma.external.adapters import build_adapter, hardware_metadata
 from hma.external.artifacts import ExternalArtifactWriter, sha256_file, sha256_tree
 from hma.external.registry import load_external_registry
+from hma.saliency.precomputed import precomputed_map_key
 from hma.utils.paths import resolve_path
 
 
@@ -37,7 +38,11 @@ def run_external_model(
     device: str = "cuda",
     seed: int = 123,
     artifact_scope: str = "full",
+    artifact_key: str = "image_id",
+    profile_efficiency: bool = True,
 ) -> Path:
+    if artifact_key not in {"image_id", "map_key"}:
+        raise ValueError(f"Unsupported artifact key: {artifact_key}")
     registry = load_external_registry(registry_path)
     model = registry.model(model_id)
     canonical_id = str(model["id"])
@@ -50,6 +55,7 @@ def run_external_model(
         subject_id=subject_id,
         roi=roi,
         max_items=max_items,
+        artifact_key=artifact_key,
     )
     adapter = build_adapter(
         str(model["adapter"]),
@@ -78,6 +84,7 @@ def run_external_model(
         "hardware": hardware_metadata(adapter.torch),
         "preprocessing": model.get("preprocessing", {}),
         "adapter": model["adapter"],
+        "artifact_key": artifact_key,
         "source_license": model["source"]["license"],
     }
     writer = ExternalArtifactWriter(
@@ -90,10 +97,11 @@ def run_external_model(
     first_images: list[Image.Image] = []
     for start in range(0, len(rows), batch_size):
         batch = rows[start : start + batch_size]
-        image_ids = [row["image_id"] for row in batch]
+        image_ids = [row[artifact_key] for row in batch]
         images = [Image.open(row["image_path"]).convert("RGB") for row in batch]
-        if not first_images:
-            first_images = [image.copy() for image in images[: min(4, len(images))]]
+        if len(first_images) < 16:
+            remaining = 16 - len(first_images)
+            first_images.extend(image.copy() for image in images[:remaining])
         output = adapter.run_batch(images, image_ids)
         writer.write_batch(
             image_ids=image_ids,
@@ -105,7 +113,8 @@ def run_external_model(
         )
         for image in images:
             image.close()
-    writer.set_efficiency(adapter.profile_efficiency(first_images))
+    if profile_efficiency:
+        writer.set_efficiency(adapter.profile_efficiency(first_images[:16]))
     for image in first_images:
         image.close()
     return writer.finalize()
@@ -141,7 +150,10 @@ def _load_image_rows(
     subject_id: str | None,
     roi: str | None,
     max_items: int | None,
+    artifact_key: str = "image_id",
 ) -> list[dict[str, str]]:
+    if artifact_key not in {"image_id", "map_key"}:
+        raise ValueError(f"Unsupported artifact key: {artifact_key}")
     path = resolve_path(manifest_path)
     root = resolve_path(image_root)
     rows: list[dict[str, str]] = []
@@ -159,7 +171,10 @@ def _load_image_rows(
             if roi is not None and record.get("roi") != roi:
                 continue
             image_id = str(record["image_id"])
-            if image_id in seen:
+            manifest_image_path = str(record["image_path"])
+            map_key = precomputed_map_key(manifest_image_path)
+            routing_key = image_id if artifact_key == "image_id" else map_key
+            if routing_key in seen:
                 continue
             image_path = Path(record["image_path"]).expanduser()
             if not image_path.is_absolute():
@@ -167,8 +182,15 @@ def _load_image_rows(
             image_path = image_path.resolve()
             if not image_path.is_file():
                 raise FileNotFoundError(f"External-model image not found: {image_path}")
-            rows.append({"image_id": image_id, "image_path": str(image_path)})
-            seen.add(image_id)
+            rows.append(
+                {
+                    "image_id": image_id,
+                    "image_path": str(image_path),
+                    "manifest_image_path": manifest_image_path,
+                    "map_key": map_key,
+                }
+            )
+            seen.add(routing_key)
             if max_items is not None and len(rows) >= int(max_items):
                 break
     if not rows:
@@ -204,7 +226,14 @@ def parse_args() -> argparse.Namespace:
         choices=["full", "resource_only"],
         default="full",
     )
+    parser.add_argument(
+        "--artifact-key",
+        choices=["image_id", "map_key"],
+        default="image_id",
+        help="Identity written to the artifact; behavior exports must use map_key.",
+    )
     parser.add_argument("--smoke-only", action="store_true")
+    parser.add_argument("--skip-efficiency-profile", action="store_true")
     return parser.parse_args()
 
 
@@ -235,6 +264,8 @@ def main() -> int:
         device=args.device,
         seed=args.seed,
         artifact_scope=args.artifact_scope,
+        artifact_key=args.artifact_key,
+        profile_efficiency=not args.skip_efficiency_profile,
     )
     print(manifest)
     return 0

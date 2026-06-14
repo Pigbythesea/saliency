@@ -1,6 +1,6 @@
 # HMA Project Results Numbers
 
-Updated: 2026-06-13
+Updated: 2026-06-14
 
 This document contains scientific outcomes and the sample sizes needed to interpret them. It excludes implementation milestones, test results, artifact audits, and validation bookkeeping. Matrix efficiency measurements are retained because efficiency is an explicit experimental axis.
 
@@ -19,15 +19,18 @@ This document contains scientific outcomes and the sample sizes needed to interp
 | confirmatory-subject encoding result | DINOv2 leads in `2/3`; ResNet-50 leads in `subj04` |
 | prior V1 subject-level interpretation | `geometry_replicated_encoding_ambiguous` |
 | Matrix V2 full-run scope | `3` models, `4` ROIs, `3` behavioral datasets |
-| Matrix V2 full-run rows | `12` encoding, `48` geometry, `9` behavior, `3` efficiency |
-| Matrix V2 scientific interpretation | not accepted in this session |
+| Matrix V2 full-run rows | `12` encoding, `264` geometry, `9` behavior, `3` efficiency |
+| Matrix V2 methodological audit | accepted; all `18/18` checks pass |
+| Matrix V2 scientific interpretation | not updated in this session |
 
 ## Matrix V2 Full Run
 
-The full run completed on June 13, 2026. Neural artifacts contain `9841`
-images per model. Behavioral cells contain `2000` images per
-dataset/model. The numerical tables below do not assign a winner or scientific
-interpretation.
+The repaired full run completed on June 14, 2026, and
+`full_result_audit.json` reports `passed: true`. Neural artifacts contain
+`9841` images per model. Every behavioral cell scores `2000` manifest rows.
+SALICON and CAT2000 each route `2000` unique maps; COCO-Search18 routes `668`
+unique maps across `2000` repeated-trial rows. The numerical tables below do
+not revise a scientific claim.
 
 Source tables:
 
@@ -35,6 +38,8 @@ Source tables:
 - `outputs/paper1_matrix_v2/summary/full/full_geometry.csv`
 - `outputs/paper1_matrix_v2/summary/full/full_behavior.csv`
 - `outputs/paper1_matrix_v2/summary/full/matrix_v2_efficiency.csv`
+- `outputs/paper1_matrix_v2/summary/full/full_model_summary.csv`
+- `outputs/paper1_matrix_v2/summary/full/behavior_map_key_audit.csv`
 - `outputs/paper1_matrix_v2/summary/full/full_result_audit.json`
 
 ### Neural Encoding
@@ -43,18 +48,18 @@ Each row uses `7873` training images and `1968` test images.
 
 | model | ROI | selected layer | targets | mean raw Pearson | reported secondary score |
 | --- | --- | --- | ---: | ---: | ---: |
-| DeiT-S static | lateral | blocks.11 | 6707 | 0.487642 | 0.533339 |
-| DeiT-S static | parietal | blocks.11 | 4660 | 0.379219 | 0.401169 |
-| DeiT-S static | V1 | blocks.3 | 2973 | 0.582330 | 0.615580 |
-| DeiT-S static | ventral | blocks.11 | 9826 | 0.424608 | 0.504909 |
+| DeiT-S static | lateral | blocks.11 | 6707 | 0.486128 | 0.530062 |
+| DeiT-S static | parietal | blocks.11 | 4660 | 0.377373 | 0.397089 |
+| DeiT-S static | V1 | blocks.0 | 2973 | 0.582325 | 0.615052 |
+| DeiT-S static | ventral | blocks.11 | 9826 | 0.422706 | 0.500425 |
 | DynamicViT-DeiT-S/0.7 | lateral | blocks.9 | 6707 | 0.478093 | 0.511779 |
 | DynamicViT-DeiT-S/0.7 | parietal | blocks.9 | 4660 | 0.368242 | 0.378220 |
 | DynamicViT-DeiT-S/0.7 | V1 | blocks.0 | 2973 | 0.582653 | 0.615748 |
 | DynamicViT-DeiT-S/0.7 | ventral | blocks.9 | 9826 | 0.414040 | 0.481485 |
-| ToMe-DeiT-S/r13 | lateral | blocks.9 | 6707 | 0.473549 | 0.502007 |
-| ToMe-DeiT-S/r13 | parietal | blocks.6 | 4660 | 0.373669 | 0.389622 |
-| ToMe-DeiT-S/r13 | V1 | blocks.0 | 2973 | 0.539559 | 0.530374 |
-| ToMe-DeiT-S/r13 | ventral | blocks.6 | 9826 | 0.414178 | 0.481211 |
+| ToMe-DeiT-S/r13 | lateral | blocks.9 | 6707 | 0.477245 | 0.510447 |
+| ToMe-DeiT-S/r13 | parietal | blocks.11 | 4660 | 0.361931 | 0.366490 |
+| ToMe-DeiT-S/r13 | V1 | blocks.0 | 2973 | 0.539537 | 0.530179 |
+| ToMe-DeiT-S/r13 | ventral | blocks.6 | 9826 | 0.411776 | 0.475521 |
 
 The reported secondary score has scope
 `benchmark_style_noise_normalized` for V1, lateral, and parietal, and
@@ -63,50 +68,81 @@ The reported secondary score has scope
 ### Representational Geometry
 
 Linear CKA uses all `9841` images. Subset RSA uses deterministic subsets with
-seed `123`.
+seeds `123`, `456`, and `789`; the values below are seed means. Each observed
+geometry row has a paired response-permutation control.
 
 | model | ROI | linear CKA | RSA 512 | RSA 1024 | RSA 2048 |
 | --- | --- | ---: | ---: | ---: | ---: |
-| DeiT-S static | lateral | 0.128910 | 0.177343 | 0.171356 | 0.174981 |
-| DeiT-S static | parietal | 0.082306 | 0.142352 | 0.141445 | 0.151441 |
-| DeiT-S static | V1 | 0.230644 | 0.273363 | 0.261676 | 0.267248 |
-| DeiT-S static | ventral | 0.161824 | 0.206102 | 0.207718 | 0.204578 |
-| DynamicViT-DeiT-S/0.7 | lateral | 0.122352 | 0.176048 | 0.142771 | 0.162176 |
-| DynamicViT-DeiT-S/0.7 | parietal | 0.058152 | 0.104534 | 0.090172 | 0.103704 |
-| DynamicViT-DeiT-S/0.7 | V1 | 0.226143 | 0.218034 | 0.231019 | 0.230988 |
-| DynamicViT-DeiT-S/0.7 | ventral | 0.124275 | 0.170960 | 0.149954 | 0.160598 |
-| ToMe-DeiT-S/r13 | lateral | 0.144723 | 0.194257 | 0.189413 | 0.193580 |
-| ToMe-DeiT-S/r13 | parietal | 0.117040 | 0.198758 | 0.189940 | 0.206819 |
-| ToMe-DeiT-S/r13 | V1 | 0.206134 | 0.183551 | 0.197467 | 0.198444 |
-| ToMe-DeiT-S/r13 | ventral | 0.231328 | 0.302144 | 0.292500 | 0.301554 |
+| DeiT-S static | lateral | 0.129737 | 0.175127 | 0.172973 | 0.178442 |
+| DeiT-S static | parietal | 0.082443 | 0.146514 | 0.137745 | 0.147058 |
+| DeiT-S static | V1 | 0.225848 | 0.220722 | 0.225475 | 0.230286 |
+| DeiT-S static | ventral | 0.162565 | 0.208903 | 0.204269 | 0.208041 |
+| DynamicViT-DeiT-S/0.7 | lateral | 0.122352 | 0.164712 | 0.147298 | 0.154129 |
+| DynamicViT-DeiT-S/0.7 | parietal | 0.058152 | 0.103609 | 0.091014 | 0.098062 |
+| DynamicViT-DeiT-S/0.7 | V1 | 0.226143 | 0.220565 | 0.225346 | 0.230115 |
+| DynamicViT-DeiT-S/0.7 | ventral | 0.124275 | 0.164999 | 0.152072 | 0.156165 |
+| ToMe-DeiT-S/r13 | lateral | 0.145653 | 0.190130 | 0.195507 | 0.196868 |
+| ToMe-DeiT-S/r13 | parietal | 0.077436 | 0.125707 | 0.125148 | 0.129617 |
+| ToMe-DeiT-S/r13 | V1 | 0.207030 | 0.187893 | 0.190881 | 0.195862 |
+| ToMe-DeiT-S/r13 | ventral | 0.233192 | 0.295554 | 0.303917 | 0.305704 |
+
+The geometry table contains `120` observed rows and `144` null-control rows.
+Across all cells, response-permutation CKA has mean `0.003441` and range
+`[0.001888, 0.005997]`; response-permutation subset RSA has mean `0.000669`
+and range `[-0.004225, 0.006836]`.
 
 ### Behavioral Routing Outputs
 
-These are the raw aggregate values written by the cluster scoring jobs.
+These are the accepted metric-layer aggregate values. Static uniform maps have
+AUC-Judd, AUC-Borji, and shuffled AUC defined as `0.5`, with NSS and CC
+defined as `0`.
 
 | dataset | model | NSS | shuffled AUC | AUC-Borji | AUC-Judd | CC | SIM | KL |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| CAT2000 | DeiT-S static | 0.000000 | 1.000000 | 1.000000 | 0.503129 | 0.000000 | 0.339212 | 1.455525 |
-| CAT2000 | DynamicViT-DeiT-S/0.7 | 0.207509 | 0.604279 | 0.602537 | 0.562325 | 0.081893 | 0.292021 | 3.036433 |
-| CAT2000 | ToMe-DeiT-S/r13 | 0.247265 | 0.579089 | 0.585134 | 0.575173 | 0.099700 | 0.312982 | 1.782331 |
-| COCO-Search18 | DeiT-S static | 0.000000 | 1.000000 | 1.000000 | 0.514984 | 0.000000 | 0.154334 | 2.345130 |
-| COCO-Search18 | DynamicViT-DeiT-S/0.7 | 0.296046 | 0.589842 | 0.621938 | 0.592239 | 0.078072 | 0.168313 | 3.550812 |
-| COCO-Search18 | ToMe-DeiT-S/r13 | 0.359375 | 0.598198 | 0.624300 | 0.620591 | 0.093884 | 0.175837 | 2.455029 |
-| SALICON | DeiT-S static | 0.000000 | 1.000000 | 1.000000 | 0.521301 | 0.000000 | 0.371960 | 1.206196 |
-| SALICON | DynamicViT-DeiT-S/0.7 | 0.496748 | 0.657607 | 0.669612 | 0.647664 | 0.247719 | 0.414802 | 1.912160 |
-| SALICON | ToMe-DeiT-S/r13 | 0.406063 | 0.623542 | 0.636728 | 0.633251 | 0.201812 | 0.403020 | 1.262211 |
+| CAT2000 | DeiT-S static | 0.000000 | 0.500000 | 0.500000 | 0.500000 | 0.000000 | 0.339212 | 1.455525 |
+| CAT2000 | DynamicViT-DeiT-S/0.7 | 0.272452 | 0.583292 | 0.582460 | 0.582739 | 0.099110 | 0.305274 | 2.770345 |
+| CAT2000 | ToMe-DeiT-S/r13 | 0.291132 | 0.592351 | 0.597792 | 0.598111 | 0.106247 | 0.321160 | 1.682785 |
+| COCO-Search18 | DeiT-S static | 0.000000 | 0.500000 | 0.500000 | 0.500000 | 0.000000 | 0.154334 | 2.345130 |
+| COCO-Search18 | DynamicViT-DeiT-S/0.7 | 0.296046 | 0.561972 | 0.592596 | 0.592376 | 0.078072 | 0.168313 | 3.550812 |
+| COCO-Search18 | ToMe-DeiT-S/r13 | 0.358140 | 0.592741 | 0.616195 | 0.616520 | 0.090742 | 0.174626 | 2.462638 |
+| SALICON | DeiT-S static | 0.000000 | 0.500000 | 0.500000 | 0.500000 | 0.000000 | 0.371960 | 1.206196 |
+| SALICON | DynamicViT-DeiT-S/0.7 | 0.496748 | 0.635476 | 0.645673 | 0.646762 | 0.247719 | 0.414802 | 1.912160 |
+| SALICON | ToMe-DeiT-S/r13 | 0.396480 | 0.616726 | 0.629159 | 0.629842 | 0.194036 | 0.399046 | 1.275367 |
 
-`full_behavior.csv` also contains derived AUC columns produced during this
-session and preserves these cluster values under `raw_*` columns. Acceptance
-of the derived treatment is not recorded here.
+The routing audit passes all `9/9` cells. SALICON and CAT2000 each have
+`2000` manifest rows, paths, maps, scorer lookups, and unique row keys.
+COCO-Search18 has `2000` rows, `668` unique paths/maps, `2000` scorer lookups,
+`2000` unique row keys, and `1332` repeated-trial rows.
 
 ### Efficiency Measurements
 
-| model | parameters | realized GFLOPs | latency ms/image | peak memory MiB | minimum mean tokens | maximum mean tokens |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| DeiT-S static | 22050664 | 4.608338 | 2.549054 | 107.671875 | 197 | 197 |
-| DynamicViT-DeiT-S/0.7 | 22774414 | 2.987612 | 2.930344 | 106.044922 | 67 | 137 |
-| ToMe-DeiT-S/r13 | 22050664 | 2.711674 | 3.586662 | 104.801758 | 41 | 184 |
+| model | parameters | realized GFLOPs | latency ms/image mean | latency SD | latency range | peak memory MiB |
+| --- | ---: | ---: | ---: | ---: | --- | ---: |
+| DeiT-S static | 22050664 | 4.608338 | 2.163315 | 0.082262 | 2.109456-2.304331 | 168.326660 |
+| DynamicViT-DeiT-S/0.7 | 22774414 | 2.987612 | 2.276905 | 0.062600 | 2.197200-2.342516 | 152.636230 |
+| ToMe-DeiT-S/r13 | 22050664 | 2.711674 | 2.464362 | 0.034911 | 2.430323-2.512477 | 154.920898 |
+
+Relative to static, DynamicViT records `35.169%` lower realized FLOPs,
+`5.251%` higher measured latency, and `9.321%` lower peak memory. ToMe records
+`41.157%` lower realized FLOPs, `13.916%` higher measured latency, and `7.964%`
+lower peak memory.
+
+Each timing result uses batch size `16`, `20` warmup batches, and `5` repeats
+of `100` measured batches with CUDA synchronization on an NVIDIA L40S.
+Unsupported and uncalled `fvcore` operations are retained in the CSV.
+
+### Compact Model Aggregates
+
+These are descriptive aggregates from `full_model_summary.csv`.
+
+| model | behavior rank | encoding rank | geometry rank | mean raw encoding | mean secondary encoding | mean CKA | mean RSA-2048 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| DeiT-S static | 0.190476 | 0.875000 | 0.687500 | 0.467133 | 0.510657 | 0.150148 | 0.190956 |
+| DynamicViT-DeiT-S/0.7 | 0.547619 | 0.625000 | 0.187500 | 0.460757 | 0.496808 | 0.132731 | 0.159618 |
+| ToMe-DeiT-S/r13 | 0.761905 | 0.000000 | 0.625000 | 0.447622 | 0.470659 | 0.165828 | 0.207013 |
+
+The associated cross-axis high/low labels remain `diagnostic_only` because
+they are rank-threshold summaries over `n=3` models and one subject.
 
 ## Behavioral Benchmark
 

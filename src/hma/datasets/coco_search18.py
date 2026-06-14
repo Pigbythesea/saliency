@@ -14,6 +14,7 @@ from PIL import Image
 from hma.datasets.base import BaseVisionDataset, VisionDatasetItem
 from hma.datasets.fixation_utils import points_to_fixation_map
 from hma.datasets.registry import register_dataset
+from hma.saliency.precomputed import precomputed_map_key, precomputed_row_key
 
 
 REQUIRED_MANIFEST_COLUMNS = {
@@ -42,6 +43,9 @@ class _COCOSearch18Row:
     fixation_points: np.ndarray
     subject_id: str | None
     trial_id: str | None
+    manifest_image_path: str
+    map_key: str
+    row_key: str
 
 
 class COCOSearch18Dataset(BaseVisionDataset):
@@ -126,6 +130,9 @@ class COCOSearch18Dataset(BaseVisionDataset):
             "image": output_image,
             "image_id": row.image_id,
             "image_path": str(row.image_path),
+            "manifest_image_path": row.manifest_image_path,
+            "map_key": row.map_key,
+            "row_key": row.row_key,
             "fixation_map": fixation_map,
             "fixation_points": fixation_points,
             "metadata": {
@@ -157,9 +164,12 @@ class COCOSearch18Dataset(BaseVisionDataset):
                     f"{sorted(missing)}"
                 )
 
+            filtered_index = 0
             for record in reader:
                 if record["split"] != self.split:
                     continue
+                manifest_image_path = str(record["image_path"])
+                map_key = precomputed_map_key(manifest_image_path)
                 rows.append(
                     _COCOSearch18Row(
                         image_id=record["image_id"],
@@ -172,8 +182,12 @@ class COCOSearch18Dataset(BaseVisionDataset):
                         fixation_points=_parse_points(record["fixation_points"]),
                         subject_id=_optional_str(record.get("subject_id")),
                         trial_id=_optional_str(record.get("trial_id")),
+                        manifest_image_path=manifest_image_path,
+                        map_key=map_key,
+                        row_key=precomputed_row_key(map_key, filtered_index),
                     )
                 )
+                filtered_index += 1
 
         if self.max_items is not None:
             rows = rows[: int(self.max_items)]

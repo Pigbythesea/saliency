@@ -6,6 +6,7 @@ import importlib
 import json
 import sys
 import time
+import statistics
 from abc import ABC, abstractmethod
 from collections import abc as collections_abc
 from dataclasses import dataclass, field
@@ -86,24 +87,34 @@ class ExternalModelAdapter(ABC):
         self,
         images: list[Image.Image],
         *,
-        warmup_runs: int = 2,
-        measured_runs: int = 5,
+        warmup_runs: int = 20,
+        measured_runs: int = 100,
+        repeats: int = 5,
     ) -> dict[str, Any]:
         if not images:
             return {}
         torch = self.torch
         if self.device.startswith("cuda") and torch.cuda.is_available():
             torch.cuda.reset_peak_memory_stats()
+        image_ids = [str(index) for index in range(len(images))]
         for _ in range(max(0, warmup_runs)):
-            self.run_batch(images, [str(index) for index in range(len(images))])
-        if self.device.startswith("cuda") and torch.cuda.is_available():
-            torch.cuda.synchronize()
-        start = time.perf_counter()
-        for _ in range(max(1, measured_runs)):
-            self.run_batch(images, [str(index) for index in range(len(images))])
-        if self.device.startswith("cuda") and torch.cuda.is_available():
-            torch.cuda.synchronize()
-        elapsed = time.perf_counter() - start
+            self.run_batch(images, image_ids)
+        cuda_synchronized = bool(
+            self.device.startswith("cuda") and torch.cuda.is_available()
+        )
+        repeat_latencies: list[float] = []
+        for _repeat in range(max(1, repeats)):
+            if cuda_synchronized:
+                torch.cuda.synchronize()
+            start = time.perf_counter()
+            for _ in range(max(1, measured_runs)):
+                self.run_batch(images, image_ids)
+            if cuda_synchronized:
+                torch.cuda.synchronize()
+            elapsed = time.perf_counter() - start
+            repeat_latencies.append(
+                1000.0 * elapsed / (max(1, measured_runs) * len(images))
+            )
         parameter_count = sum(int(parameter.numel()) for parameter in self.model.parameters())
         peak_memory = (
             int(torch.cuda.max_memory_allocated())
@@ -111,15 +122,37 @@ class ExternalModelAdapter(ABC):
             else 0
         )
         theoretical_flops = self.adapter_config.get("full_token_flops")
-        realized_flops = _profile_flops(
+        flop_profile = _profile_flops(
             self.model,
             self.preprocess(images[:1]),
         )
+        realized_flops = flop_profile["total_flops"]
         if theoretical_flops is None and realized_flops is not None:
             theoretical_flops = realized_flops
         return {
             "parameters": parameter_count,
-            "latency_ms_per_image": 1000.0 * elapsed / (max(1, measured_runs) * len(images)),
+            "latency_ms_per_image": statistics.mean(repeat_latencies),
+            "latency_ms_per_image_std": (
+                statistics.stdev(repeat_latencies)
+                if len(repeat_latencies) > 1
+                else 0.0
+            ),
+            "latency_ms_per_image_cv": (
+                statistics.stdev(repeat_latencies)
+                / statistics.mean(repeat_latencies)
+                if len(repeat_latencies) > 1
+                and statistics.mean(repeat_latencies) != 0.0
+                else 0.0
+            ),
+            "latency_ms_per_image_min": min(repeat_latencies),
+            "latency_ms_per_image_max": max(repeat_latencies),
+            "latency_repeats_ms_per_image": repeat_latencies,
+            "batch_size": len(images),
+            "warmup_batches": int(warmup_runs),
+            "measured_batches_per_repeat": int(measured_runs),
+            "timing_repeats": int(repeats),
+            "cuda_synchronized": cuda_synchronized,
+            "hardware": hardware_metadata(torch),
             "peak_memory_bytes": peak_memory,
             "theoretical_flops": (
                 int(theoretical_flops) if theoretical_flops is not None else None
@@ -127,6 +160,8 @@ class ExternalModelAdapter(ABC):
             "realized_flops": (
                 int(realized_flops) if realized_flops is not None else None
             ),
+            "fvcore_unsupported_ops": flop_profile["unsupported_ops"],
+            "fvcore_uncalled_modules": flop_profile["uncalled_modules"],
         }
 
     def smoke(self) -> dict[str, Any]:
@@ -556,12 +591,26 @@ def _first_tensor(value: Any) -> Any:
     raise ExternalIntegrationError(f"Could not identify tensor output in {type(value)!r}")
 
 
-def _profile_flops(model: Any, tensor: Any) -> int | None:
+def _profile_flops(model: Any, tensor: Any) -> dict[str, Any]:
     try:
         analysis_class = importlib.import_module("fvcore.nn").FlopCountAnalysis
         analysis = analysis_class(model, tensor)
         analysis.unsupported_ops_warnings(False)
         analysis.uncalled_modules_warnings(False)
-        return int(analysis.total())
+        total = int(analysis.total())
+        unsupported = {
+            str(key): int(value)
+            for key, value in analysis.unsupported_ops().items()
+        }
+        uncalled = sorted(str(value) for value in analysis.uncalled_modules())
+        return {
+            "total_flops": total,
+            "unsupported_ops": unsupported,
+            "uncalled_modules": uncalled,
+        }
     except (ImportError, RuntimeError, TypeError, ValueError):
-        return None
+        return {
+            "total_flops": None,
+            "unsupported_ops": {},
+            "uncalled_modules": [],
+        }

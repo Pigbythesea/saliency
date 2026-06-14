@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-06-13
+Updated: 2026-06-14
 
 ## Purpose And Codex Operating Contract
 
@@ -27,52 +27,115 @@ The paper should be organized around a cross-axis outcome grid:
 | high                            | low                                  | saliency-map mimicry or human-like output may arise from non-human internal processing |
 | low                             | low                                  | weak alignment on both behavioral and neural axes                                      |
 
-Codex must treat every implementation task as subordinate to building this cross-axis matrix. A task counts only if it directly clarifies the relationship among behavioral fixation alignment, neural encoding, representational geometry, ROI/stream specificity, model family, and efficiency.
+## Publication Evidence Contract Override
+
+This file now prioritizes Paper 1 Publication Matrix V0 over all previous Matrix V2 and V1 outputs.
+
+Whenever older sections, paths, or result summaries conflict with the publication-scope reset, Codex must follow the publication-scope reset.
+
+The publication evidence root is:
+
+`outputs/paper1_publication_v0/`
+
+No result outside this root is final Paper 1 evidence unless it is explicitly regenerated under the frozen publication contract or certified by an equivalence audit.
+
+No publication-root full rerun is allowed unless the relevant behavioral, neural, geometry, adapter-comparability, efficiency, and cross-axis method gates are passed or explicitly accepted with limitations.
+
+The next task is publication method-contract freezing, scope freezing, and full model adapter certification. It is not interpretation, adaptive sweep, manuscript writing, full publication rerun, broad model execution, or legacy result consolidation.
+
+The `Current Implementation Progress` section must summarize publication-readiness state only; it must not re-list historical runs, smoke passes, old Matrix V2 outputs, old result numbers, or debugging milestones.
+
+### Paper 1 scope refinement
+
+The current Paper 1 claim remains valid. It should sharpen the neural-alignment axis by explicitly separating:
+
+- brain-region / stream structure:
+  - early visual / retinotopic ROIs;
+  - dorsal, lateral, and parietal spatial-selection ROIs;
+  - ventral and semantic/object-related ROIs;
+- model-role categories:
+  - human gaze-prediction models;
+  - human-gaze-inspired efficient or foveated models;
+  - generic efficient-computation models;
+  - general visual representation models;
+  - spatial-prior and task-prior controls;
+- representation type:
+  - latent-feature neural encoding and latent-feature representational geometry as mandatory main evidence;
+  - behavioral fixation/scanpath output as behavioral evidence;
+  - output-map-to-fMRI encoding only as a secondary diagnostic/control, not the primary neural-comparison scheme.
+
+Paper 1 should remain centered on whether fixation alignment, latent neural encoding, latent representational geometry, cortical stream structure, model role, and efficiency converge or dissociate. The publication-facing version must test whether these axes dissociate systematically by cortical stream and by model role.
+
+The model universe is fixed by the research question, not by convenience. Feasibility determines implementation status and adapter order; it must not shrink the scientific scope before a model-role and latent-feature audit is complete.
+
+All publication-facing central evidence must be regenerated under a frozen Paper 1 publication contract and written under a new publication output root. Existing behavioral, neural, geometry, efficiency, and cross-axis outputs are scaffold/provenance unless explicitly regenerated under the publication contract or certified by an equivalence audit.
+
+Codex must treat every implementation task as subordinate to building the publication evidence matrix. A task counts only if it clarifies the relationship among behavioral fixation/scanpath alignment, latent-feature neural encoding, latent-feature representational geometry, ROI/stream specificity, model role, and efficiency under the frozen publication contract.
 
 ### What counts as progress
 
-A change counts as project progress only if it advances **Paper 1 Matrix V2**, meaning a model × axis × ROI/stream × efficiency matrix that can test convergence and dissociation among:
+A change counts as progress only if it advances **Paper 1 Publication Matrix V0** by improving either:
 
-- behavioral fixation / saliency alignment;
-- task-search or scanpath alignment where feasible;
-- neural encoding across early, ventral, lateral/dorsal, and parietal/stream ROIs;
-- representational geometry using CKA plus subset RSA or another metric family;
-- computational efficiency, including parameters, FLOPs/MACs, latency, memory, token count, and retained-token fraction where applicable;
-- model-family contrasts between CNN, plain ViT, self-supervised dense-feature models, vision-language models, efficient/hybrid models, and adaptive/foveated/selective-computation models.
+1. the scientific scope of the publication matrix; or
+2. the academic validity of the methods used to generate publication-root evidence.
 
 A change counts as progress only if it produces at least one of the following:
 
-- a new Matrix V2 accepted evidence table;
-- a new model-family feasibility audit for modern frontier-relevant models;
-- a new ROI/stream grouping table or neural-manifest expansion that enables ventral/dorsal/where-vs-what analysis;
-- a behavioral-to-neural cross-axis table that can classify models into high/high, low/high, high/low, or low/low alignment quadrants;
-- an efficiency profile that can be merged into alignment-per-compute analysis;
-- a scanpath, foveation, token-selection, or adaptive-computation axis that tests the original attention-as-resource-allocation hypothesis;
-- a negative decision that stops a stale branch, especially claim-table generation from the superseded interpretation.
+- a frozen publication contract or publication-scope audit;
+- a literature-grounded method audit comparing the project pipeline against relevant SOTA methods;
+- a method acceptance gate decision for behavioral evaluation, neural encoding, geometry, adapter comparability, efficiency/resource allocation, or cross-axis inference;
+- a model-role matrix covering every required candidate model;
+- an adapter-certification result proving which models expose behavioral outputs, latent features, scanpaths/glimpses, efficiency metadata, and controlled input conditions;
+- a clean behavioral rerun artifact under the publication output root;
+- a clean latent-feature neural encoding artifact under the publication output root;
+- a clean latent-feature geometry artifact under the publication output root;
+- a stream/ROI grouping table tied to actual neural manifests and publication configs;
+- an efficiency/resource-allocation table merged into the publication matrix;
+- a cross-axis table using only publication-root evidence;
+- a negative, audited decision that marks a method, model, or result family as behavior-only, diagnostic-only, accepted-with-limitations, or rejected for publication evidence.
 
-Engineering achievements, successful smoke runs, code reorganization, new logs, new configs, and paper-pack updates do not count as scientific progress unless they directly produce one of the Matrix V2 outputs above.
+Engineering achievements, successful smoke runs, code reorganization, log expansion, paper-pack updates, and summaries of legacy outputs do not count as scientific progress unless they directly produce one of the publication-root, method-gate, or scope-reset artifacts above.
 
-Do not apply publication hardening before actual scientific discovery. First build the stronger Matrix V2 scientific object, then decide what the paper can claim.
+A full publication-root rerun is not allowed until the relevant method acceptance gates are passed or explicitly marked as accepted limitations.
 
 ### What Codex should prioritize
 
 Codex should prioritize:
 
-- modern model-family coverage over generic model count;
-- stream/ROI structure over another flat PRF-only score table;
-- efficiency and alignment-per-compute over decorative paper artifacts;
-- adaptive/foveated/selective-computation mechanisms over more post-hoc heatmap variants;
-- direct quadrant classification of models across behavioral, neural, geometry, and efficiency axes.
+- full required model-role coverage before convenience-based model reduction;
+- adapter certification before evidence generation;
+- literature-grounded method acceptance before full publication reruns;
+- SOTA-method comparison before treating any pipeline as paper-valid;
+- method-gate decisions over merely executable pipelines;
+- clean publication-root reruns over legacy-result consolidation;
+- latent-feature neural encoding and latent-feature geometry over output-map neural controls;
+- stream/ROI structure over flat ROI averages;
+- adaptive/foveated/scanpath/selective-computation mechanisms over additional post-hoc heatmap variants;
+- efficiency and resource-allocation metadata as first-class evidence;
+- explicit paper-evidence status for every model, artifact, and result table.
+
+
+Codex should avoid:
+
+- treating scaffold outputs as paper evidence;
+- generating interpretation from the three-model adaptive pilot;
+- beginning adaptive sweep or broad model execution before the full model-role matrix and adapter-certification plan exist;
+- shrinking the model universe before availability, checkpoint, feature-hook, and behavioral-output audits are complete.
 
 ### Required end-of-session report
 
+Until publication-root evidence exists, Codex must report publication-readiness changes, not claim changes.
+
 At the end of each Codex session, update this file with:
 
-1. `Scientific change`: what changed in the evidence, not merely the code.
-2. `Accepted artifact`: exact path(s) to the new table/figure/config.
-3. `Claim impact`: whether the result strengthens, weakens, or fails to affect the Paper 1 dissociation claim.
-4. `Reviewer risk reduced`: which concrete reviewer objection the change addresses.
-5. `Next decisive step`: the next task most likely to improve the publication argument.
+1. `Publication-contract change`: what changed in the frozen scope, method contract, model-role matrix, adapter certification, or clean rerun plan.
+2. `Accepted artifact`: exact path(s) under `outputs/paper1_scope_reset/`, `configs/`, or `outputs/paper1_publication_v0/`.
+3. `Method gate status change`: which method gate moved among `not_started`, `audit_required`, `method_gap_found`, `accepted_with_limitations`, or `accepted_for_publication_rerun`.
+4. `Paper evidence status change`: which model/artifact moved among `not_started`, `adapter_in_progress`, `adapter_certified`, `publication_rerun_ready`, `publication_rerun_complete`, `accepted_publication_evidence`, `diagnostic_only`, or `rejected_for_paper_evidence`.
+5. `Reviewer risk reduced`: which concrete risk was reduced, such as SOTA-method mismatch, legacy-output contamination, missing latent features, behavioral-regime mixing, adapter incomparability, stream/ROI ambiguity, or weak uncertainty.
+6. `Next decisive step`: the next task most likely to make publication-root evidence scientifically valid.
+
+Do not report smoke tests, debugging fixes, old-result summaries, legacy audits, or paper-pack generation as progress unless they directly change one of the publication-contract or method-gate artifacts above.
 
 
 ## Reference Documents Reviewed
@@ -80,8 +143,8 @@ At the end of each Codex session, update this file with:
 Current steering documents under `docs/`:
 
 - `project_status_and_next_steps.md`: this engineering status file.
-- `project_results_numbers.md`: current numerical result source of truth. Use it to inspect actual outcomes, margins, sample sizes, and confidence intervals before making any claim.
-- `paper1_cross_axis_alignment_roadmap.md`: useful background, but partially superseded. Keep its cross-axis dissociation framing; revise its implementation priorities toward Matrix V2: modern model families, stream-level neural analysis, adaptive/foveated mechanisms, and efficiency.
+- `project_results_numbers.md`: historical numerical context for expected ranges and regression checks. It is not the source of final Paper 1 evidence.
+- `paper1_cross_axis_alignment_roadmap.md`: useful background, but superseded for implementation. Keep only the cross-axis dissociation framing; Publication Matrix V0 is the active execution target.
 - `paper1_literaturereview.md`: current literature review for Paper 1. It raises the required controls around dataset bias, scanpath/task specificity, subject variability, encoding reliability, representational-geometry metrics, and transformer attribution.
 - `Literature Review and Research Redesign for the Human-Like Adaptive Visual Attention Project.md`: argues the project should become a multi-axis NeuroAI alignment study, not a saliency-map leaderboard.
 - `Deep Research Assessment of the Human-Machine Visual Alignment Project.md`: emphasizes the publishable question as convergence versus dissociation among fixation alignment, neural predictivity, representational geometry, and efficiency.
@@ -89,378 +152,307 @@ Current steering documents under `docs/`:
 - `Zhang_Zihuan_zzhan330_proposal.docx`: original proposal; defines behavioral saliency, neural encoding, RSA, Brain-Score-style comparison, and compute efficiency as the core axes.
 - `Comparing Human and Machine Visual Saliency_ A Comprehensive Review.pdf`: reinforces that fixation prediction requires strong controls such as center bias, DeepGaze-class references, point-based NSS/AUC, and separate treatment of free-viewing versus task-driven viewing.
 - `__Attention and Saliency Map Extraction in Visual AI Models_ A Comprehensive Review__.pdf`: reinforces that gradients, CAMs, attention rollout, perturbation maps, LRP-style methods, and transformer attribution are different explanation objects and should not be collapsed into one "attention" score.
+- Method SOTA audit sources must be treated as active methodological constraints, not background citations. Codex must compare the project pipeline against actual methods and reported numbers before authorizing publication-root full reruns.
 
 ## Current Snapshot
 
-The repository now contains the first complete Paper 1 Matrix V2
-adaptive-computation full-run output panel, plus the earlier diagnostic scaffold.
+The repository currently contains a large scaffold/provenance base, including repaired Matrix V2 outputs, older behavioral aggregates, older neural/geometry summaries, and methodology-trace audits. These artifacts validate code paths and reveal prior failure modes, but they are not the final Paper 1 evidence matrix.
 
-Completed scaffold layers:
+Current scaffold/provenance assets:
 
-- behavioral saliency / fixation benchmarking on SALICON, CAT2000, and COCO-Search18;
-- accepted behavioral controls, including DeepGaze MSDB for SALICON/CAT2000, a COCO-Search18 task prior, center bias, observer controls, and transformer relevance as a separated attribution family;
-- local Algonauts / NSD neural encoding for `subj01`, including a complete six-model PRF visual ROI `flatten_pca` panel and a four-model x ten-ROI discovery matrix;
-- representational geometry using full-image CKA and deterministic subset RSA;
-- reduced confirmatory subject robustness for `subj02`-`subj04` over PRF visual ROIs;
-- DINOv2 learned spatial readout provenance;
-- paper inspection and audit infrastructure.
+- repaired behavior-map routing infrastructure with collision-safe `map_key` / `row_key` semantics;
+- metric-layer constant-map handling;
+- external-model artifact infrastructure for feature export, routing resources, efficiency metadata, provenance, hashes, and validation;
+- local NSD/Algonauts-style neural encoding and representational-geometry pipelines;
+- behavioral benchmark infrastructure for SALICON, CAT2000, and COCO-Search18;
+- existing adapters or registry scaffolds for static DeiT-S, DynamicViT, ToMe, DINOv3, SigLIP, MambaVision, Hiera, Swin, HAT, ScanDiff, and related external models;
+- cluster workflow templates and scratch-isolated environment setup;
+- older diagnostic outputs that can be used for expected-range checks and regression testing only.
 
-Current diagnostic outcome:
+Current publication-facing status:
 
-- behavioral scoring is sane: dedicated fixation/task references outperform generic classifier attribution maps;
-- DINOv2 is strong in current encoding and CKA results, but the ten-ROI subset-RSA top rank is method-sensitive and often favors ResNet-50;
-- confirmatory-subject geometry favors DINOv2, while encoding is subject-sensitive and reverses to ResNet-50 in `subj04`;
-- transformer relevance improves over rollout and vanilla gradients behaviorally on SALICON/CAT2000, but it remains a post-hoc attribution family rather than operational attention;
-- the current evidence is useful as a pilot scaffold, but it is too narrow to define the final paper story.
+- No final Paper 1 publication evidence matrix exists yet.
+- No legacy output is accepted as final paper evidence by default.
+- The next accepted scientific artifact must be a frozen Paper 1 publication contract plus a full model-role and adapter-certification matrix.
+- The repaired static DeiT-S / DynamicViT / ToMe run is a method-validation artifact for the generic efficient-computation role. It must not define the final model scope or paper interpretation.
+- All final behavioral, latent-feature neural, latent-feature geometry, efficiency, and cross-axis evidence must be regenerated under a new publication output root unless explicitly certified by an equivalence audit.
 
-Active missing evidence for Paper 1 Matrix V2:
+Publication output root:
 
-- frontier-family evidence from DINOv3, SigLIP, MambaVision, Hiera, and Swin after the adaptive comparison passes;
-- sequential/foveated behavioral evidence from HAT and ScanDiff;
-- an accepted scientific interpretation of the completed three-model full run;
-- an accepted next-step decision based on the completed full-run numbers.
+- `outputs/paper1_publication_v0/`
 
 Main package: `src/hma/`.
 
 Main scripts: `scripts/`.
 
-Current generated outputs are classified as follows:
+Required scaffold/provenance rule:
 
-Accepted diagnostic evidence:
-
-- Corrected behavioral aggregate merged with SSL/VLM rows and accepted transformer relevance control: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`.
-- Matched full-image `flatten_pca` neural panel: `outputs/neural_roi_summary/matched_full_panel_model_rankings.csv`.
-- Matched full-image geometry rankings and sensitivity summaries: `outputs/neural_roi_summary/matched_geometry_model_rankings.csv`, `outputs/neural_roi_summary/matched_geometry_method_agreement.csv`.
-- Matched cross-level analysis outputs: `outputs/neural_roi_summary/matched_cross_level_observations.csv`, `outputs/neural_roi_summary/matched_cross_level_correlations.csv`.
-- V1 ROI-expanded discovery evidence: `outputs/paper1_experiment_v1/summary/roi_expanded_encoding_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_agreement.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_sensitivity_decisions.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_cross_level_correlations.csv`, and `outputs/paper1_experiment_v1/summary/roi_expanded_cross_axis_decisions.csv`.
-
-Robustness/control artifacts:
-
-- Matched panel audit: `outputs/neural_roi_summary/matched_full_panel_artifact_audit.csv`.
-- Cross-axis sensitivity and decision diagnostics: `outputs/neural_roi_summary/matched_cross_axis_sensitivity.csv`, `outputs/neural_roi_summary/matched_cross_axis_decisions.csv`.
-- V1 ROI-expanded artifact audit: `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`; current status is all checks passing after `40` geometry cells x `10` geometry rows per cell, plus sensitivity-decision and failure-gate output checks.
-- V1 geometry-method sensitivity and failure-gate outputs: `outputs/paper1_experiment_v1/summary/roi_expanded_geometry_method_sensitivity_decisions.csv`, `outputs/paper1_experiment_v1/summary/roi_expanded_failure_gate_summary.csv`.
-- V1 subject-robustness outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_decisions.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_encoding_model_rankings.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_model_rankings.csv`, and `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_method_sensitivity_decisions.csv`.
-- V1 subject-robustness uncertainty outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_encoding_margin_uncertainty.csv`, `outputs/paper1_experiment_v1/summary/subject_robustness_geometry_margin_summary.csv`, and `outputs/paper1_experiment_v1/summary/subject_robustness_uncertainty_decisions.csv`.
-- V1 paper-facing synthesis outputs: `outputs/paper1_experiment_v1/summary/subject_robustness_paper_interpretation.csv` and `outputs/paper1_experiment_v1/summary/behavioral_observer_control_summary.csv`.
-- Behavioral-control hardening outputs: `outputs/paper1_experiment_v1/summary/behavioral_control_gap_audit.csv`, `outputs/paper1_experiment_v1/summary/behavioral_bridge_integration_audit.csv`, `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`, `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv`, `outputs/real_matrix_v2_transformer_relevance/aggregated/results.csv`, `outputs/paper1_experiment_v1/summary/transformer_relevance_control_audit.csv`, `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`, and the merged accepted behavioral aggregate `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`.
-- Free-viewing reference feasibility output: `outputs/paper1_experiment_v1/summary/free_viewing_reference_feasibility_decision.csv`.
-- Observer-control outputs: `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`, `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`.
-
-Diagnostics/provenance:
-
-- Core behavioral aggregate before SSL/VLM merge: `outputs/real_matrix_v2/aggregated/results.csv`.
-- Corrected SSL/VLM behavioral aggregate before merge: `outputs/real_matrix_v2_ssl_behavior/aggregated/results.csv`.
-- Full neural ROI summary directory, including learned-readout provenance rows: `outputs/neural_roi_summary/`.
-- Paper inspection pack: `outputs/paper_inspection_v1/README.md`, including `outputs/paper_inspection_v1/tables/table14_subject_robustness_interpretation.csv` and `outputs/paper_inspection_v1/tables/table15_observer_control_summary.csv`.
-- The deleted V1 outcome-interpretation document is intentionally not restored or
-  archived. Its geometry-first claims are not active steering for Matrix V2.
-
-Experiment-definition artifacts:
-
-- Paper-grade experiment specification V1: `docs/paper1_experiment_spec_v1.md`.
-- Forward-looking experiment contract: `configs/paper1_experiment_v1.yaml`.
-- Scope decision table: `outputs/planning/paper1_experiment_scope_decisions.csv`.
-- Matrix V2 experiment contract: `configs/paper1_matrix_v2.yaml`.
-- External-model registry and environment manifests:
-  `configs/external_models/registry.yaml` and
-  `configs/external_models/environments/`.
-- Matrix V2 planning/status artifacts: `outputs/paper1_matrix_v2/feasibility.json`,
-  `outputs/paper1_matrix_v2/environment_status.csv`,
-  `outputs/paper1_matrix_v2/axis_scope.csv`,
-  `outputs/paper1_matrix_v2/adaptive_matrix_cells.csv`, and
-  `outputs/paper1_matrix_v2/next_run.md`.
-
-Matrix V2 full-run outputs generated in this session:
-
-- Full-result audit: `outputs/paper1_matrix_v2/summary/full/full_result_audit.json`.
-- Neural encoding table: `outputs/paper1_matrix_v2/summary/full/full_neural_encoding.csv`.
-- Geometry table: `outputs/paper1_matrix_v2/summary/full/full_geometry.csv`.
-- Behavioral table with raw and derived AUC columns:
-  `outputs/paper1_matrix_v2/summary/full/full_behavior.csv`.
-- Efficiency table:
-  `outputs/paper1_matrix_v2/summary/full/matrix_v2_efficiency.csv`.
-- Derived scope/axis/ROI/model table, generated but not scientifically accepted:
-  `outputs/paper1_matrix_v2/summary/full/matrix_v2_cross_axis_quadrants.csv`.
-
-These artifacts are numerically documented in
-`docs/project_results_numbers.md`. Their scientific interpretation and use in
-the next-step decision are not accepted in this session.
+- Existing outputs may guide debugging, expected-value sanity checks, and adapter regression tests.
+- Existing outputs must not be merged into publication summaries unless their `paper_evidence_status` is upgraded by publication-rerun completion or equivalence audit.
 
 ## Scientific Boundary
 
-The corrected behavioral layer is now usable for diagnostic paper-style analysis. It should still be framed carefully:
+Paper 1 is now governed by a publication evidence contract, not by legacy output availability.
 
-- NSS and AUC-style claims are valid only for rows with `fixation_protocol=points` or `fixation_protocol=task_points`.
-- CC, SIM, KL, and related map-distribution metrics should be discussed separately from point-fixation metrics.
-- DeepGaze and center bias are reference controls. Grad-CAM, gradients, rollout, and similar rows are explanation-map-to-fixation comparisons, not dedicated SOTA fixation-prediction models.
-- COCO-Search18 is task-driven search and should not be pooled with free-viewing SALICON/CAT2000 as if all three datasets measure the same behavior.
+### Publication evidence rule
 
-The neural layer is now a stronger local baseline, but still not a leaderboard result:
+All final Paper 1 central evidence must be regenerated under the frozen publication contract and written under `outputs/paper1_publication_v0/`.
 
-- Current neural outputs include one-subject diagnostic `subj01` results plus a reduced `subj02`-`subj04` PRF-ROI subject-robustness panel. The accepted diagnostic cross-model comparison object remains the complete six-model matched full-image-count PRF visual ROI `flatten_pca` panel. Four full-image-count learned-readout rows for DINOv2 are method provenance only.
-- They are not Algonauts leaderboard-equivalent scores because the official challenge averages held-out visual-cortex vertices across subjects and hemispheres.
-- The matched `flatten_pca` panel is the primary evidence for cross-model neural comparisons. The four-ROI DINOv2 learned-readout rows are the strongest local single-backbone method result and should be treated as method provenance, not as matched-panel ranking rows.
-- The matched cross-level correlation tables are now primary descriptive cross-axis evidence, but they remain small-n model-level analyses and are not causal tests.
+This applies to:
 
-Paper 1 should be held to these publication gates before strong top-venue claims:
+- behavioral fixation / saliency / scanpath metrics;
+- latent-feature neural encoding;
+- latent-feature representational geometry;
+- efficiency and resource-allocation metrics;
+- cross-axis and quadrant summaries.
 
-- Full-image matched representational geometry now exists for the same six-model x four-ROI panel, but geometry claims still require method/seed stability and explicit CKA/subset-RSA sensitivity.
-- Cross-axis results must report uncertainty and sensitivity, especially bootstrap intervals, leave-one-model-out behavior, and exact model counts.
-- Claims must be framed as descriptive convergence/dissociation, not causal attention intervention.
-- At least one nontrivial dissociation or convergence pattern must survive sensitivity checks; otherwise Paper 1 should be framed as a measurement framework, workshop paper, thesis chapter, or methods note.
+Legacy behavioral, neural, geometry, efficiency, and cross-axis outputs remain scaffold/provenance. They are useful for method tracing, expected-range checks, and debugging. They are not final Paper 1 evidence unless regenerated under the publication contract or certified by an explicit equivalence audit.
 
-## Publication Claim State
+### Representation rule
 
-### Current paper status
+Latent-feature neural encoding and latent-feature representational geometry are mandatory for every central model class.
 
-Paper 1 is not yet top-venue ready. The current repository supports a serious diagnostic study, but the accepted evidence is still too narrow for a strong conference claim because it is mainly:
+A model can carry the neural-alignment claim only if it exposes latent features that can be passed through the same neural encoding and geometry scheme as the other central models.
 
-* one discovery subject plus a reduced three-subject PRF-ROI robustness panel with geometry replication but subject-sensitive encoding;
-* small model-level correlations (`n=4` for the V1 discovery matrix, `n=6` for the older PRF diagnostic panel);
-* one completed ROI-expanded discovery pass with subject robustness only on PRF visual ROIs, not the full stream-ROI scope;
-* behavioral controls that are strong for the current static-image scope but still scoped rather than exhaustive;
-* transformer attribution coverage that is now sufficient for Paper 1 reporting but not a broad attribution-method inventory;
-* geometry-method-dependent cross-axis analysis.
+Output-map-to-fMRI encoding is allowed only as secondary diagnostic/control evidence and must be labeled:
 
-The current project should therefore be treated as a publication-directed evidence-building pipeline, not as a finished paper.
+`output_map_neural_control`
 
-### Current strongest result
+It must not be labeled:
 
-The strongest current result is a **pilot scaffold result**, not the final Paper 1 claim:
+`latent_feature_neural_encoding`
 
-> Current diagnostics show that behavioral fixation alignment, neural encoding, and representational geometry are measurable in one pipeline and already show non-identical behavior across model family, attribution family, subject, ROI, and geometry method.
+### Behavioral rule
 
-Important current numerical facts:
+SALICON and CAT2000 are free-viewing datasets. COCO-Search18 is task-search. They must remain separated in all publication-root summaries.
 
-- behavioral references dominate generic attribution maps: DeepGaze MSDB is strongest on SALICON/CAT2000, and the COCO-Search18 task prior is strongest for task search;
-- transformer relevance improves over rollout and vanilla gradients on SALICON/CAT2000 but remains below DeepGaze MSDB and is not operational attention;
-- DINOv2 leads the six-model PRF encoding panel and the four-model ten-ROI discovery encoding panel;
-- DINOv2 leads ten-ROI full-image CKA, but ResNet-50 leads most ten-ROI subset-RSA settings, with small top-rank margins;
-- confirmatory-subject geometry favors DINOv2 in `3/3` subjects, while encoding favors DINOv2 in `2/3` and ResNet-50 in `subj04`.
+Point-fixation metrics, map-distribution metrics, task-search metrics, and scanpath/sequence metrics must be reported as distinct behavioral objects.
 
-Interpretation:
+DeepGaze, HAT, ScanDiff, SemBA/SemBA-FAST, AdaptiveNN, center priors, random baselines, task priors, attribution maps, routing maps, and token/glimpse maps must each retain their model-role and behavioral-object labels.
 
-These results justify building Matrix V2. They should not be hardened into a final geometry-first story. The next claim must be tested across a deliberately designed model-family panel, stream/ROI grouping, and efficiency axis.
+### Model inclusion rule
 
-### Current weakest links
+The model universe is not reduced before audit. DINOv3, SigLIP, MambaVision, Hiera, Swin, HAT, ScanDiff, SemBA/SemBA-FAST, AdaptiveNN, DynamicViT, ToMe, DeepGaze, CNN anchors, ViT anchors, SSL models, VLM/semantic models, spatial priors, and task priors must all receive model-role and adapter-certification inspection.
 
-These are reviewer risks and scientific design risks in priority order.
+Feasibility produces implementation status. It does not silently remove a model from the scientific scope.
 
-1. **Wrong abstraction risk:** the project may over-harden a narrow DINOv2-vs-ResNet geometry/encoding observation instead of testing the broader human-machine alignment question.
-2. **Modern model coverage risk:** the current panel has useful anchors, but it does not yet cover enough current frontier-relevant families such as newer SSL dense-feature models, stronger VLMs, efficient/hybrid backbones, or adaptive/foveated/selective-computation models.
-3. **Attention-mechanism risk:** most current behavioral rows are post-hoc explanation maps. The project still lacks a strong operational attention, scanpath, foveation, token-selection, or adaptive-computation axis.
-4. **Stream/anatomy risk:** current subject robustness is PRF-ROI limited. A paper about attention and “where/what” alignment needs stream-level analysis, especially ventral versus lateral/dorsal/parietal groupings.
-5. **Efficiency missing:** compute and alignment-per-compute remain untested even though efficiency is central to the original proposal’s attention-as-resource-allocation hypothesis.
-6. **Small model-level `n`:** current cross-axis correlations over `n=4` or `n=6` are descriptive. Matrix V2 needs a designed compact panel with enough model-family contrast to make quadrant classification meaningful.
-7. **Geometry method sensitivity:** full-image CKA and subset-RSA do not always agree at the top rank. Geometry must remain a multi-method axis.
-8. **Attribution ambiguity:** Grad-CAM, gradients, rollout, transformer relevance, perturbation maps, internal routing, scanpaths, and retained-token masks are different objects and must remain separated.
-9. **Causality absent:** Paper 1 remains observational. Causal gaze/adaptive-attention intervention belongs to Paper 2 unless Matrix V2 explicitly adds a small controlled intervention.
+### Publication-gate rule
 
+Paper-facing interpretation begins only after:
 
-## Current Behavioral Status
+1. the full model-role matrix exists;
+2. every required candidate has adapter-certification status;
+3. clean behavioral outputs are regenerated under `outputs/paper1_publication_v0/`;
+4. clean latent-feature neural encoding outputs are regenerated under `outputs/paper1_publication_v0/`;
+5. clean latent-feature geometry outputs are regenerated under `outputs/paper1_publication_v0/`;
+6. efficiency/resource-allocation metrics are regenerated or certified under the same contract;
+7. cross-axis summaries use publication-root evidence only.
 
-Corrected merged behavioral aggregate:
+## Publication Method Acceptance Gates
 
-- Path: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`
-- Rows: `455`
-- Dataset rows: `161` each for SALICON and CAT2000, `133` for COCO-Search18
-- Protocol rows: `322` with `points`, `133` with `task_points`
-- Blank / `unknown` / `density_fallback` protocol rows: none
+Paper 1 is not allowed to proceed from scope definition to publication-root full reruns until the core methods pass explicit acceptance gates.
 
-Accepted scoped transformer-relevance control:
+The current repository method is a controlled baseline pipeline, not a SOTA leaderboard pipeline. This is acceptable only if the paper claim is framed as a controlled multi-axis NeuroAI alignment benchmark rather than a claim of SOTA fMRI prediction, SOTA saliency prediction, or causal attention mechanism.
 
-- Path: `outputs/real_matrix_v2_transformer_relevance/aggregated/results.csv`
-- Rows: `56`
-- Scope: `2` free-viewing datasets x `4` transformer models x `7` metrics; datasets are SALICON/CAT2000 only, with `points` protocol only.
-- Evidence-gate audit: `outputs/paper1_experiment_v1/summary/transformer_relevance_control_audit.csv`; all `7` scope/method/family/metric/cell checks pass and `evidence_decision=accepted_evidence_ready`.
-- Current integration status: merged into the accepted behavioral bridge candidate at `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`; `outputs/paper1_experiment_v1/summary/behavioral_bridge_integration_audit.csv` has `12/12` checks passing.
+### Method position rule
 
-Corrected NSS headline:
+The publication method must be described as:
 
-- SALICON: DeepGaze MSDB `1.760`, DeepGaze IIE `1.743`, center bias `0.933`, DINOv2 ViT-S/14 gradient `0.736`, ConvNeXt-T Grad-CAM `0.633`, ResNet-50 Grad-CAM `0.598`.
-- CAT2000: DeepGaze MSDB `1.979`, DeepGaze IIE `1.838`, center bias `1.619`, ResNet-50 Grad-CAM `0.882`, DINOv2 ViT-S/14 gradient `0.810`, ConvNeXt-T Grad-CAM `0.759`.
-- COCO-Search18: DeepGaze `1.745`, center bias `1.310`, ResNet-50 Grad-CAM `0.955`, ConvNeXt-T Grad-CAM `0.908`, DINOv2 ViT-S/14 gradient `0.713`.
-- Transformer relevance NSS, accepted scoped control and now merged into reporting: SALICON DINOv2 `1.033`, CLIP ViT `0.981`, DeiT `0.931`, ViT-B `0.851`; CAT2000 DINOv2 `1.141`, CLIP ViT `0.940`, DeiT `0.886`, ViT-B `0.733`.
+> A controlled frozen-feature and behavioral-output benchmark for comparing model roles across behavioral fixation/scanpath alignment, latent-feature neural encoding, representational geometry, cortical stream structure, and efficiency/resource allocation.
 
-Current interpretation:
+The publication method must not be described as:
 
-- Corrected outputs have valid point/task-point protocol labels.
-- DeepGaze MSDB is now the accepted modern free-viewing reference for SALICON/CAT2000 and improves over the earlier DeepGaze IIE row in both datasets.
-- DeepGaze IIE remains a useful historical/reference control and COCO-Search18 DeepGaze IIE remains diagnostic because it is a free-viewing reference on task-search data.
-- DINOv2 gradient is a strong attribution/fixation-similarity row, especially on SALICON and CAT2000.
-- Transformer relevance is now the strongest tested transformer attribution family on SALICON/CAT2000 within the scoped four-model panel. Across the `8` matched dataset/model cells, it improves over attention rollout and vanilla gradients for every checked metric; mean NSS gain is `+0.426` over rollout and `+0.715` over vanilla gradients.
-- Transformer relevance does **not** overturn the reference-control story. DeepGaze MSDB / DeepGaze IIE remain the strongest free-viewing fixation references, and center bias remains stronger than transformer relevance on CAT2000 and remains competitive on SALICON map-distribution metrics.
-- The behavioral layer is strong enough to serve as one axis in the broader alignment study. It should not be expanded into a larger leaderboard before the paper-grade matrix is defined.
-- Behavioral controls are now sufficient for the current static-image Paper 1 scope: observer controls, center bias, DeepGaze IIE, DeepGaze MSDB for free-viewing, the COCO-Search18 task prior, and a separate transformer-relevance attribution family are represented. Broad scanpath/video expansion belongs after Paper 1 unless the paper explicitly shifts away from static-image dissociation.
+* an Algonauts leaderboard-equivalent fMRI model;
+* a SOTA saliency model;
+* a causal attention-intervention study;
+* proof that fixation alignment causes neural alignment;
+* proof that output-map alignment replaces latent-feature neural encoding.
 
-## Current Neural Status
+### Gate 1 — Behavioral evaluation acceptance
 
-Current neural summary:
+Status: `audit_required`.
 
-- Path: `outputs/neural_roi_summary/`
-- Behavioral bridge CSV: `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`
-- Efficiency CSV: not provided in the latest summary.
-- Summary scope: `120` encoding rows, `289740` encoding target rows, and `92` RSA rows across accepted, diagnostic, and provenance outputs.
-- Accepted matched-panel scope: `24` validation-selected full-image-count `flatten_pca` rows for six model families across four `subj01` PRF visual ROIs.
-- Method-provenance scope: `4` full-image-count DINOv2 learned spatial readout rows.
-- Matched cross-level analysis rows: `385` correlation/regression groups, with `280` complete and `105` marked `insufficient_models`; transformer relevance contributes `70` SALICON/CAT2000 groups and remains separate from `internal_routing`.
-- Matched cross-level datasets remain separate: SALICON/CAT2000 include the merged transformer relevance rows, while COCO-Search18 remains task-search only with no transformer relevance expansion.
-- New paper-pack artifacts: `outputs/paper_inspection_v1/tables/table9_matched_cross_level_correlations.md` and `outputs/paper_inspection_v1/figures/figure5_matched_cross_level_correlations.png`.
-- Benchmark-style per-target encoding scope: mixed because four hV4 targets have `noise_ceiling=0.0`; `289620` rows are `benchmark_style_noise_normalized` and `120` rows are intentionally left `benchmark_style_non_noise_normalized`.
-- Matched-panel reporting is now implemented separately from the mixed-scope neural ranking. The full-image-count validation-selected `flatten_pca` panel is now complete for all six planned model families across all four PRF visual ROIs: `resnet50`, `convnext_tiny`, `deit_small_patch16_224`, `vit_base_patch16_224`, `vit_small_patch14_dinov2`, and `vit_base_patch16_clip_224`.
-- Final matched-panel mean noise-normalized ranking: `vit_small_patch14_dinov2` `0.591`, `vit_base_patch16_clip_224` `0.581`, `resnet50` `0.581`, `deit_small_patch16_224` `0.562`, `vit_base_patch16_224` `0.534`, `convnext_tiny` `0.510`.
-- Artifact audit path: `outputs/neural_roi_summary/matched_full_panel_artifact_audit.csv`; current status is `24` complete cells and `0` missing/skipped cells.
+Before clean behavioral reruns, Codex must produce:
 
-Current accepted neural ranking:
+* `outputs/paper1_scope_reset/method_behavioral_sota_audit.md`
+* `outputs/paper1_scope_reset/behavioral_metric_acceptance_table.csv`
 
-- Use the six-model matched full-image `flatten_pca` ranking for cross-model claims: `vit_small_patch14_dinov2` first, then `vit_base_patch16_clip_224`, `resnet50`, `deit_small_patch16_224`, `vit_base_patch16_224`, and `convnext_tiny`.
-- Each matched-panel model ranking row aggregates `9654` valid positive-ceiling targets and excludes `4` zero-ceiling hV4 targets from noise-normalized aggregates.
-- Current ROI set: `V1`, `V2`, `V3`, `hV4` for `subj01`.
-- Detailed per-ROI/layer/alpha numbers belong in `docs/project_results_numbers.md`, not in this steering file.
-- The DINOv2 learned spatial readout materially improves all four PRF visual ROIs over DINOv2 `flatten_pca`, but it is not method-matched to the other backbones and should not be used as the primary cross-model row.
+The audit must decide:
 
-Matched cross-level readout:
+* which metrics are primary for point-fixation maps;
+* which metrics are primary for map-distribution comparisons;
+* which metrics are primary for task-search outputs;
+* which metrics are primary for scanpath or sequential outputs;
+* whether image-level, observer-level, or clustered bootstrap uncertainty is required;
+* how SALICON/CAT2000 free-viewing and COCO-Search18 task-search remain separated;
+* how DeepGaze, HAT, ScanDiff, SemBA/SemBA-FAST, AdaptiveNN, center priors, task priors, attribution maps, routing maps, and token/glimpse maps are labeled as distinct behavioral objects.
 
-- The matched cross-level table uses only the six-model full-image `flatten_pca` panel and excludes learned-readout and other non-matched provenance rows.
-- Across-ROI behavior-vs-encoding correlations are small-`n` descriptive results (`n=4` transformer-only groups or `n=6` full matched groups). They are useful for designing the paper-grade experiment, not for making a final claim.
-- Grad-CAM across-ROI NSS groups are marked `insufficient_models` because only `resnet50` and `convnext_tiny` have matched Grad-CAM behavioral rows in the six-model panel.
-- Lower-is-better behavioral metrics such as KL are sign-aligned before correlation while retaining the raw behavioral mean in the observation table.
+A behavioral rerun can proceed only after this gate is `accepted_for_publication_rerun` or `accepted_with_limitations`.
 
-V1 ROI-expanded discovery matrix:
+### Gate 2 — Latent-feature neural encoding acceptance
 
-- Path: `outputs/paper1_experiment_v1/summary/`.
-- Artifact audit: `outputs/paper1_experiment_v1/summary/experiment_artifact_audit.csv`; all `9` audit checks pass.
-- Encoding scope: `40` completed full-image `flatten_pca` cells across four models x ten ROIs, with `148144` target rows.
-- Geometry scope: `40` completed cells, each with `10` valid geometry rows: one `linear_cka_full9841` row and nine deterministic `subset_rsa` rows from subset sizes `512`, `1024`, and `2048` with seeds `123`, `456`, and `789`.
-- V1 encoding ranking across ten ROIs: `vit_small_patch14_dinov2` `0.556`, `resnet50` `0.537`, `vit_base_patch16_clip_224` `0.521`, and `vit_base_patch16_224` `0.502`.
-- V1 full-image CKA ranking: `vit_small_patch14_dinov2` `0.194`, `resnet50` `0.187`, `vit_base_patch16_clip_224` `0.099`, and `vit_base_patch16_224` `0.089`.
-- V1 subset-RSA rankings are not identical to CKA: most subset-RSA variants rank `resnet50` first, `vit_small_patch14_dinov2` second, `vit_base_patch16_224` third, and `vit_base_patch16_clip_224` fourth; two subset seeds rank DINOv2 first.
-- CKA/subset-RSA rank agreement at `across_roi_mean` is complete but moderate: Spearman is mostly `0.6`, occasionally `0.8`; Kendall is mostly `0.333`, occasionally `0.667`.
+Status: `audit_required`.
 
-Interpretation:
+Before clean neural reruns, Codex must produce:
 
-- The project has a complete full-image-count matched `flatten_pca` panel for six model families, plus a stronger DINOv2 learned-readout method result.
-- The matched-panel ranking is now the accepted basis for cross-model neural comparisons: `vit_small_patch14_dinov2` first, `vit_base_patch16_clip_224` second, `resnet50` third, `deit_small_patch16_224` fourth, `vit_base_patch16_224` fifth, and `convnext_tiny` sixth by mean valid-target noise-normalized score.
-- The previous test-set feedback risk for layer choice has been addressed for the current one-subject PRF visual ROI baselines by validation-only layer selection.
-- The V1 discovery, robustness, and uncertainty matrices change the scientific state: geometry robustly favors DINOv2 across confirmatory subjects, while encoding is subject-sensitive enough that the accepted aggregate label is `geometry_replicated_encoding_ambiguous`.
+* `outputs/paper1_scope_reset/method_neural_encoding_sota_audit.md`
+* `outputs/paper1_scope_reset/neural_encoding_acceptance_table.csv`
 
-## SSL / Multimodal Status
+The audit must decide:
 
-Current SSL/VLM behavioral rows are corrected and merged into the main behavioral aggregate.
+* whether the primary method is a controlled frozen-feature baseline;
+* whether a learned spatial readout is required as a sensitivity analysis;
+* which score is primary: raw Pearson, noise-normalized score, or both separately;
+* how zero, negative, unavailable, or non-finite noise ceilings are handled;
+* whether noise-normalized and non-noise-normalized rows may enter the same aggregate;
+* how layer selection, ridge-alpha selection, dimensionality reduction, and validation splits are prevented from leaking test information;
+* how subject-level and ROI-level robustness are reported;
+* what uncertainty unit is used: images, targets, ROIs, subjects, or model families.
 
-SSL/multimodal candidate inventory:
+A neural rerun can proceed only after this gate is `accepted_for_publication_rerun` or `accepted_with_limitations`.
 
-- Path: `outputs/neural_roi_summary/ssl_multimodal_candidate_inventory.csv`
-- Dry-inspected compatible candidates: `8`
-- Pretrained debug runs complete: `3`
-- Complete pretrained debug candidates: `vit_small_patch14_dinov2`, `vit_base_patch16_clip_224`, `resnet50_clip`
-- Not yet run pretrained debug candidates: `vit_base_patch14_dinov2`, `vit_small_patch16_dinov3`, `vit_base_patch16_dinov3`, `vit_base_patch16_siglip_224`, `eva02_base_patch16_clip_224`
+### Gate 3 — Representational geometry acceptance
 
+Status: `audit_required`.
+
+Before clean geometry reruns, Codex must produce:
+
+* `outputs/paper1_scope_reset/method_geometry_sota_audit.md`
+* `outputs/paper1_scope_reset/geometry_acceptance_table.csv`
+
+The audit must decide:
+
+* whether full-image CKA remains primary, secondary, or diagnostic;
+* whether debiased CKA or another bias-corrected geometry metric must be implemented;
+* how subset RSA sizes and seeds are selected;
+* how response-permutation controls are used;
+* how image-resampling uncertainty is reported;
+* how CKA/RSA agreement and disagreement are interpreted;
+* how geometry avoids becoming the sole evidence for neural alignment.
+
+A geometry rerun can proceed only after this gate is `accepted_for_publication_rerun` or `accepted_with_limitations`.
+
+### Gate 4 — Model adapter comparability acceptance
+
+Status: `audit_required`.
+
+Before any model enters publication-root evidence generation, Codex must produce:
+
+* `outputs/paper1_scope_reset/model_adapter_comparability_audit.md`
+* `outputs/paper1_scope_reset/model_adapter_comparability_table.csv`
+
+The audit must certify for every required candidate:
+
+* deterministic input condition;
+* preprocessing path;
+* checkpoint and environment provenance;
+* behavioral output type;
+* latent-feature tensor availability;
+* layer or block candidates;
+* gaze-history, task, text, foveation, or stochastic conditioning;
+* resource-allocation output;
+* efficiency metadata;
+* whether the model is central, behavior-only, diagnostic-only, or rejected after audit.
+
+This gate applies especially to DeepGaze, HAT, ScanDiff, SemBA/SemBA-FAST, and AdaptiveNN.
+
+### Gate 5 — Efficiency/resource-allocation acceptance
+
+Status: `audit_required`.
+
+Before efficiency results enter cross-axis analysis, Codex must produce:
+
+* `outputs/paper1_scope_reset/method_efficiency_sota_audit.md`
+* `outputs/paper1_scope_reset/efficiency_acceptance_table.csv`
+
+The audit must decide:
+
+* which efficiency metrics are comparable across static, token-pruning, token-merging, foveated, scanpath, and active-vision models;
+* how FLOPs/MACs, latency, memory, token count, retained-token fraction, selected-glimpse count, fixation count, scanpath length, stopping behavior, and foveated high-resolution area are reported;
+* whether efficiency is measured under matched image resolution, batch size, hardware, and preprocessing;
+* whether sequential models report total cost per image/task rather than per-glimpse cost only.
+
+### Gate 6 — Cross-axis inference acceptance
+
+Status: `audit_required`.
+
+Before paper-facing interpretation, Codex must produce:
+
+* `outputs/paper1_scope_reset/method_cross_axis_inference_audit.md`
+* `outputs/paper1_scope_reset/cross_axis_inference_acceptance_table.csv`
+
+The audit must decide:
+
+* minimum model count by role;
+* whether leave-one-model and leave-one-family sensitivity are required;
+* whether bootstrap or permutation uncertainty is required;
+* how free-viewing, task-search, and scanpath analyses remain separate;
+* how ROI/stream-specific claims are reported;
+* when a quadrant label is descriptive only;
+* what language is allowed for convergence, dissociation, measurement pluralism, and causality.
+
+### Method gate status values
+
+Every method gate must be assigned one of:
+
+* `not_started`
+* `audit_required`
+* `method_gap_found`
+* `accepted_with_limitations`
+* `accepted_for_publication_rerun`
+* `rejected_for_publication_claim`
+
+A publication-root full rerun may begin only for axes whose gates are `accepted_for_publication_rerun` or `accepted_with_limitations`.
 
 
 ## Global Direction Rationale
 
-The project direction is a multi-axis NeuroAI alignment study. The central goal is to test whether behavioral fixation alignment, neural encoding, representational geometry, cortical stream alignment, and computational efficiency measure the same underlying human-likeness factor or dissociate across model families and viewing regimes.
+Paper 1 is a multi-axis NeuroAI alignment study. The central question is:
 
-The project should now be shaped around this question:
+> Do human gaze-prediction models, human-gaze-inspired adaptive/foveated models, generic efficient-computation models, general representation models, VLM/semantic models, hierarchical/hybrid models, and spatial/task-prior controls converge or dissociate across behavioral fixation/scanpath alignment, latent-feature neural encoding, latent representational geometry, stream specificity, and efficiency/resource allocation?
 
-> Which models align with humans behaviorally, neurally, geometrically, anatomically, and computationally, and where do those axes fail to agree?
+### Paper 1 Publication Matrix V0 target
 
-### Matrix V2 target
+Publication Matrix V0 is the required paper-facing evidence object.
 
-Paper 1 Matrix V2 should be a compact, deliberate model × axis × ROI/stream × efficiency matrix.
+It must contain:
 
-Required axes:
+- model-role matrix;
+- adapter-certification matrix;
+- clean behavioral rerun;
+- clean latent-feature neural encoding rerun;
+- clean latent-feature geometry rerun;
+- stream/ROI grouping;
+- efficiency/resource-allocation profiling;
+- cross-axis publication analysis using publication-root evidence only.
 
-- behavioral fixation/saliency alignment:
-  - SALICON and CAT2000 as free-viewing;
-  - COCO-Search18 as task search;
-  - scanpath/task-search metrics if feasible;
-- neural encoding:
-  - early visual PRF ROIs;
-  - ventral stream / “what” ROIs;
-  - lateral/dorsal/parietal or stream ROIs relevant to spatial selection / “where” processing;
-- representational geometry:
-  - full-image CKA;
-  - deterministic subset RSA;
-  - explicit method-agreement and disagreement reporting;
-- efficiency:
-  - parameters;
-  - FLOPs/MACs;
-  - latency;
-  - memory;
-  - visual token count;
-  - retained-token fraction or selected-glimpse count where applicable;
-- attention/resource-allocation mechanism:
-  - post-hoc attribution families remain controls;
-  - adaptive/foveated/token-pruning/scanpath models are needed to test the original attention hypothesis.
+Required candidate families:
 
-Required model categories:
-
-- CNN anchor: e.g. ResNet-50 or ConvNeXt;
-- plain ViT anchor: e.g. ViT-B or DeiT;
-- self-supervised dense-feature model: current DINOv2 plus a newer available DINO-family candidate if feasible;
-- VLM / semantic model: CLIP plus a stronger current SigLIP-like or comparable candidate if feasible;
-- efficient/hybrid sequence model: MambaVision-like or comparable candidate if feasible;
-- hierarchical/multiscale transformer if feasible;
-- adaptive/foveated/token-pruning/scanpath model or mechanism if feasible;
-- dedicated fixation/scanpath model as behavioral reference only, not as neural backbone unless features are extractable and scientifically justified.
-
-### Current interpretation of existing results
-
-The current behavioral results show that scoring is sane and that dedicated fixation/task references outperform generic classifier attribution maps. This supports the pipeline but is not central novelty.
-
-The current neural and geometry results show that the pipeline can produce plausible local alignment signals. DINOv2 is strong in several current scores, but the result is not enough to support a universal DINOv2 claim.
-
-The DINOv2 learned spatial readout is method provenance. It suggests spatial readout and adaptive sampling matter, which should motivate Matrix V2 and Paper 2, but it cannot be used as a matched cross-model headline.
-
-The reduced subject-robustness result is useful pilot evidence. It should be treated as motivation for stream-level and model-family expansion rather than as the final paper story.
-
-### Current priority
-
-The completed Matrix V2 full run has been extracted and numerically documented.
-Scientific interpretation and next-step selection are intentionally left
-unresolved in this session.
-
-The adapter16 and scientific64 gates have passed for:
-
-- static DeiT-S as the full-token paired control;
-- DynamicViT-DeiT-S/0.7 with retained-token masks;
-- ToMe-DeiT-S/r13 with source-traced merge assignments.
-
-The bounded smoke and full JHU workflows are complete. The full run produced
-three 9,841-image neural artifacts, twelve model/ROI neural analyses, nine
-full behavioral resource artifacts, and nine behavioral score outputs.
-
-Local extraction and audit are complete. The generated tables contain `12`
-neural encoding rows, `48` geometry rows, `9` behavioral rows, `3` efficiency
-rows, and `72` scope/axis/ROI/model cross-axis rows.
-
-### Explicit non-priorities
-
-Do not prioritize:
-
-- formalizing `geometry_first_dissociation_candidate`;
-- generating `paper1_claim_decision_table.csv` from the old interpretation;
-- new paper inspection packs before Matrix V2 exists;
-- broad saliency leaderboard expansion;
-- broad timm model-zoo accumulation without designed model-family contrast;
-- DINOv2-only readout variants unless used to test adaptive sampling or readout as a specific mechanism;
-- COCO-Search18 transformer relevance expansion unless the Matrix V2 design requires it;
-- manuscript polishing.
+- ResNet + ConvNeXt anchors;
+- ViT + DeiT anchors;
+- DINOv2 and DINOv3 family;
+- CLIP + SigLIP-family candidates;
+- MambaVision;
+- Hiera;
+- Swin + SwinV2;
+- DynamicViT;
+- ToMe;
+- DeepGaze;
+- HAT;
+- ScanDiff;
+- SemBA / SemBA-FAST where applicable;
+- AdaptiveNN;
+- center, random, spatial-prior, and task-prior controls.
 
 ### Decision rule
 
-Continue Paper 1 only if Matrix V2 can say more than:
+Paper interpretation is allowed only after Publication Matrix V0 exists under `outputs/paper1_publication_v0/`.
 
-> DINOv2 leads under some encoding and geometry settings.
+If Publication Matrix V0 produces a robust convergence or dissociation pattern across model role, ROI/stream, and efficiency, Paper 1 can pursue a main-track submission.
 
-The desired paper-level statement is:
+If the result is mainly a measurement-framework contribution, Paper 1 should become a methods/workshop/thesis paper.
 
-> Under a controlled cross-axis experiment, behavioral fixation alignment, neural encoding, representational geometry, stream specificity, and computational efficiency converge or dissociate in identifiable model-family and viewing-regime patterns.
-
-If Matrix V2 cannot produce this, demote Paper 1 to a methods/workshop paper and shift main effort toward Paper 2’s causal adaptive-attention or foveated-computation intervention.
+If observational cross-axis results remain weak after the full contract, shift main effort toward Paper 2’s causal adaptive-attention or foveated-computation intervention.
 
 ### Relevant SOTA references:
 
@@ -478,174 +470,76 @@ If Matrix V2 cannot produce this, demote Paper 1 to a methods/workshop paper and
 - AttnLRP transformer attribution: `https://icml.cc/virtual/2024/poster/33480`
 
 
-## What Is Already Built
-
-Behavioral infrastructure:
-
-- Manifest loaders for SALICON, CAT2000, COCO-Search18, and NSD / Algonauts-style data.
-- Fixation parsers for SALICON and CAT2000 `.mat` files.
-- SALICON official JSON annotation conversion to worker-level observer manifests via `scripts/create_salicon_observer_manifest.py`.
-- Task/scanpath point handling for COCO-Search18, including target-present and target-absent train/validation annotations.
-- Inter-observer control summaries for inline JSON fixation rows and `.mat` fixation rows; inline fixation rows are scaled from original image size to evaluation map size.
-- Static metrics: NSS, AUC-Judd, AUC-Borji, shuffled AUC, CC, SIM, KL, EMD, MAE, Pearson.
-- Saliency methods: center bias, random saliency, gradient, integrated gradients, Grad-CAM, attention rollout, transformer relevance, occlusion, and precomputed DeepGaze-style maps.
-- Matrix execution, aggregation, summaries, plots, and paper inspection pack generation.
-
-Neural infrastructure:
-
-- `timm` wrappers with named-layer activation extraction.
-- Ridge encoding over ROI response vectors.
-- Train-only `flatten_pca` feature reduction for full flattened activation tensors.
-- Frozen-backbone learned spatial readout with target-wise spatial pooling, target-wise channel weights, inner-validation early stopping, and summary-compatible output rows.
-- Cross-validated ridge alpha selection on an inner split of training images.
-- RSA over model and neural response RDMs.
-- Full-image-count PRF ROI summaries, model rankings, ROI winners, and matched cross-level behavior-neural tables.
-- V1 ROI-expanded full-image `flatten_pca` summaries for four models x ten ROIs.
-- V1 ROI-expanded geometry scoring and summaries for `linear_cka_full9841` plus deterministic subset-RSA.
-- Additional Algonauts subject full PRF visual ROI manifests are prepared for `subj02`, `subj03`, and `subj04`, with per-image `V1`/`V2`/`V3`/`hV4` response files.
-
-Reporting infrastructure:
-
-- Corrected behavioral aggregate and merged SSL/VLM aggregate.
-- Neural ROI summary tables.
-- Paper inspection pack with behavior, neural, matched cross-level, SSL/VLM candidate, benchmark sanity, subject-robustness interpretation, observer-control summary tables, and an academic SOTA context section comparing the current figures against MIT/Tuebingen saliency, DeepGaze IIE SALICON, COCO-Search18 task-search, and Algonauts 2023 evaluation references.
-- Paper inspection README now explicitly distinguishes mixed-scope diagnostics from the complete six-model matched full-image-count PRF ROI `flatten_pca` panel, includes the four DINOv2 learned spatial readout rows only as method-provenance context, states the geometry-first dissociation / measurement framing, and labels observer-control rows as human/interobserver context rather than model performance.
-
 ## Current Implementation Progress
 
-Updated: 2026-06-12
+Updated: 2026-06-14
 
-Current implementation state:
+Current implementation state is now classified by **publication readiness**, not by accumulated runs, smoke passes, or legacy Matrix V2 progress.
 
-- Matrix V2 now has a machine-readable experiment contract in `configs/paper1_matrix_v2.yaml` and an external-model registry in `configs/external_models/registry.yaml`.
-- Pinned isolated-environment manifests exist for DynamicViT, ToMe, DINOv3, SigLIP, MambaVision, Hiera, Swin, HAT, ScanDiff, and the static DeiT-S control. Environments, source checkouts, and checkpoints remain outside Git.
-- `scripts/setup_external_model.py` implements source checkout, micromamba environment creation, checkpoint download/hash locking, installation reports, and adapter smokes. Its entry point is bootstrap-safe under bare WSL Python: it no longer imports NumPy/Pillow-backed adapter code before environment creation, creates a small PyYAML runtime only when needed, and automatically downloads the pinned official micromamba `2.8.1-0` Linux binary into `external/tools/` with SHA-256 verification when micromamba is absent from `PATH`.
-- `scripts/run_external_model.py` and `src/hma/external/` implement the shared external artifact contract, ordered chunked feature export, operational resource outputs, efficiency/provenance metadata, validation, and core-environment import.
-- First-run adapters exist for static DeiT-S, DynamicViT-DeiT-S/0.7, and ToMe-DeiT-S/r13. DynamicViT exports learned pruning decisions; ToMe exports source-traced merge assignments.
-- Forty-five stage-specific configs exist under `configs/experiments/paper1_matrix_v2/`: `12` adapter16, `12` scientific64, `12` full neural cells, and `9` behavioral-routing configs.
-- The audit emits `feasibility.json`, `environment_status.csv`, `axis_scope.csv`, `adaptive_matrix_cells.csv`, and `next_run.md` under `outputs/paper1_matrix_v2/`.
-- All three adaptive-computation models pass `source_ready`,
-  `environment_ready`, `checkpoint_ready`, `adapter_ready`, and `smoke_passed`.
-- The three accepted adapter16 artifacts contain the same `16` ordered image
-  IDs, five hash-verified feature layers, complete provenance, logits,
-  efficiency metadata, and required operational outputs. DynamicViT masks retain
-  `137`, `96`, and `67` patch tokens across its three pruning stages. ToMe
-  source assignments reduce realized tokens from `184` at `blocks.0` to `41`
-  at `blocks.11`.
-- The three adapter16 shared-core analyses pass. Each produces one selected
-  encoding row, `2973` V1 target rows, full-image CKA, deterministic subset RSA,
-  noise-ceiling metadata, and finite scores. These outputs validate the
-  integration path but are not claim evidence because `n=16`.
-- `scripts/run_paper1_matrix_v2_scientific64.py` now provides a sequential local
-  runner for three 64-image exports, artifact validation, twelve ROI analyses,
-  audit refresh, per-job logs, failure continuation, and Windows sleep
-  prevention.
-- The scientific64 runner completed all `16` jobs in about `8m55s`: three
-  exports, twelve V1/ventral/lateral/parietal analyses, and the audit refresh.
-  All three artifacts contain the same ordered `64` image IDs, all artifact
-  hashes validate, and all encoding, CKA, and subset-RSA scores are finite.
-- A selection-provenance defect found during inspection was fixed: the winning
-  candidate is now marked consistently in both `selection_candidates.csv` and
-  embedded `selection_artifact.json` candidate metadata. All twelve analyses
-  were regenerated in about `5m36s`, and all twelve artifacts now have exactly
-  one embedded winner matching `selected_candidate_index`.
-- The scientific64 layer choices vary across model and ROI, so smoke-selected
-  layers must not be frozen for the full run. The full matrix retains
-  validation-based layer and ridge-alpha selection.
-- Full-run capacity projection from the accepted artifacts is approximately
-  `27.5 GiB` for the three compressed external artifacts plus `29.5 GiB` for
-  raw feature memmaps. The largest outer-train layer matrix is approximately
-  `2.2 GiB` before randomized-PCA workspace. The full matrix is therefore a
-  cluster job, not a laptop job.
-- Resource-only external artifacts now preserve logits/task outputs,
-  operational routing decisions, efficiency, image order, and provenance while
-  forbidding neural feature tensors. This is the artifact mode used by the nine
-  SALICON/CAT2000/COCO-Search18 behavioral cells.
-- External raw features now use a validated persistent memmap cache. Train-only
-  PCA reductions use a content-addressed cache keyed by artifact provenance and
-  chunk hashes, image order, layer, split indices, PCA settings, and seed.
-- Cached/uncached equivalence passed for all twelve scientific64 cells.
-  Selected scientific candidates, ridge alphas, selection scores, encoding
-  scores, CKA, and subset RSA agree within `1e-7`; encoding and geometry CSVs
-  were identical in the accepted audit.
-- Cluster tooling now includes a pinned core environment, source/checkpoint/data
-  preflight, behavioral runtime-config preparation, and ten generated files
-  under `cluster/paper1_matrix_v2/` for bounded smoke and full execution.
-- JHU inventory: `l40s` is the default GPU partition with eight L40S GPUs per
-  node and about `755 GiB` RAM; `cpu` nodes provide `112` CPUs and about
-  `503 GiB` RAM; both allow jobs up to three days. Scratch has about `11 TiB`
-  free. The login environment has Python `3.13.13`, no micromamba, and no
-  environment modules, so the pinned project-local micromamba bootstrap is
-  required.
-- The first cluster DynamicViT installation reached source, environment, and
-  checkpoint readiness but failed its CPU smoke because pinned `timm==0.3.2`
-  imports `container_abcs` from legacy `torch._six`. The adapter now installs
-  the required legacy symbols before importing DynamicViT/timm.
-- That installation also exposed CPU-only PyTorch and torchvision builds chosen
-  alongside the CUDA metapackage. External environment creation now enforces
-  strict channel priority, and cluster preflight rejects environments where
-  `torch.version.cuda` is empty. DynamicViT must be rebuilt with the corrected
-  setup flow before the cluster smoke continues.
-- The subsequent cluster rebuild exposed a second solver defect:
-  `libtorch_cpu.so` failed to import with undefined symbol
-  `iJIT_NotifyEvent`. Channel-qualifying PyTorch did not resolve the import
-  because the unconstrained MKL runtime remained incompatible with Torch
-  1.13.1. The Torch 1.13 manifests now pin `defaults::mkl=2024.0`.
-- The same rebuild placed micromamba and pip package caches under the cluster
-  home directory despite environment prefixes living on scratch. Setup now
-  forces micromamba, pip, XDG, Torch, Hugging Face, and temporary-file roots
-  under `external/` on project scratch. It validates Torch import and CUDA
-  build immediately after environment creation, before any model-specific pip
-  installation. Environment locks are invalidated before recreation, and smoke
-  status is reused only when manifest and lock hashes still match.
-- Cluster setup is now fully scratch-isolated: setup and Slurm jobs replace
-  `HOME` with `external/runtime_home` and redirect conda, pip, Torch, Hugging
-  Face, CUDA, Triton, Numba, matplotlib, Python bytecode, and temporary paths
-  under `external/`. Preflight rejects any runtime path outside that root.
-  Reinstallation deletes only the selected stale environment, resets its pinned
-  source checkout, and preserves a checkpoint only when its lock hash matches.
-- `scripts/clean_cluster_home.py` audits or removes only an allowlist of
-  setup-created package/model caches from the real cluster home. The bounded
-  `cluster/paper1_matrix_v2/setup_models.sbatch` job rebuilds the three model
-  environments and core environment, then runs smoke preflight. Cluster access
-  remains user-operated; Codex did not execute remote commands.
-- The bounded JHU cluster smoke passed on June 13, 2026. All three L40S neural
-  exports, nine L40S behavioral resource exports, three CPU neural-analysis
-  tasks covering twelve model/ROI cells, and nine CPU behavioral-scoring tasks
-  completed successfully. Runtime preflight passed every environment, CUDA
-  11.7, manifest, scratch-path, and free-space check. Two script-entry import
-  defects and a NumPy 1.26/2.x trapezoidal-integration API mismatch were fixed
-  without rebuilding the completed environments.
-- The full JHU Matrix V2 run passed on June 13, 2026. All `24` Slurm array
-  tasks completed with exit code `0:0`: three neural exports, nine behavioral
-  exports, three model-level neural analyses covering twelve ROI cells, and
-  nine behavioral scorers. Output inventory is complete (`3` neural artifacts,
-  `9` behavioral artifacts, `12` neural results, and `9` behavioral results).
-  All three independent analysis preflights passed and hash-validated `9841`
-  images for every full neural artifact.
-- Verification status: the current full suite passes `318` tests with `3`
-  existing Grad-CAM hook warnings. Generated Python files compile,
-  `git diff --check` reports no whitespace errors, and the PCA cache
-  equivalence audit passes `12/12`.
+### Publication-readiness classification
 
-Latest session report:
+Current implementation readiness is:
 
-1. `Scientific change`: no scientific interpretation was accepted. The
-   completed full-run outputs are now available locally as explicit neural,
-   geometry, behavioral, and efficiency numerical tables.
-2. `Accepted artifact`: `outputs/paper1_matrix_v2/summary/full/`, especially
-   `full_result_audit.json`, `full_neural_encoding.csv`, `full_geometry.csv`,
-   `full_behavior.csv`, and `matrix_v2_efficiency.csv`.
-3. `Claim impact`: not assessed in this session.
-4. `Reviewer risk reduced`: the full-run values and provenance are now
-   inspectable without relying on Slurm logs or feature artifacts.
-5. `Next decisive step`: not updated in this session.
+| component | current classification | publication-facing meaning |
+| --- | --- | --- |
+| behavioral benchmark code | scaffold_ready | usable for clean rerun after publication contract |
+| repaired behavior map routing | scaffold_ready | must be reused in publication rerun |
+| constant-map metric handling | scaffold_ready | must be reused in publication rerun |
+| external artifact schema | scaffold_ready | must be extended/certified for all required models |
+| static DeiT / DynamicViT / ToMe adapters | scaffold_ready_for_generic_efficiency_role | validate the adapter pattern; do not define final paper scope |
+| DINOv3 / SigLIP / MambaVision / Hiera / Swin registry entries | adapter_audit_required | required candidates; must receive certification status |
+| DeepGaze / HAT / ScanDiff / SemBA / SemBA-FAST | adapter_audit_required | required gaze/scanpath candidates; must be inspected for behavioral and latent-feature evidence |
+| AdaptiveNN | adapter_audit_required | required human-gaze-inspired adaptive/foveated candidate |
+| old behavioral aggregates | scaffold_only | excluded from publication evidence unless regenerated or equivalence-certified |
+| old neural/geometry outputs | scaffold_only | excluded from publication evidence unless regenerated or equivalence-certified |
+| old Matrix V2 three-model full run | method_validation_only | validates repaired pipeline; not final Paper 1 evidence |
+| paper inspection packs | scaffold_only | not publication evidence |
+| `docs/project_results_numbers.md` | historical_numeric_context | useful for expected ranges only; not publication evidence |
+| `docs/actual_methodology_trace.md` | provenance_context | useful for avoiding repeated mistakes; not publication evidence |
+| behavioral evaluation method | method_gate_audit_required | standard metrics exist, but scanpath/task-search uncertainty and metric hierarchy must be accepted before publication rerun |
+| latent-feature neural encoding method | method_gate_audit_required | current PCA/ridge method is controlled-baseline grade; SOTA gap and readout-sensitivity policy must be accepted before rerun |
+| representational geometry method | method_gate_audit_required | CKA/RSA exist; debiased/bias-corrected geometry and uncertainty policy must be audited before rerun |
+| model adapter comparability | method_gate_audit_required | required candidates must be certified for deterministic input, latent features, behavioral outputs, and resource metadata |
+| efficiency/resource-allocation method | method_gate_audit_required | static/token/adaptive/foveated/sequential cost metrics must be made comparable before cross-axis use |
+| cross-axis inference method | method_gate_audit_required | no quadrant or convergence claim until model count, uncertainty, and sensitivity rules are accepted |
 
-Implementation history was moved to `docs/project_status_changelog.md`.
+### Current blockers to real paper progress
+The project cannot move to publication-facing full runs until these blockers are resolved:
+
+1. no frozen Paper 1 publication contract exists;
+2. no `outputs/paper1_publication_v0/` evidence root exists;
+3. no full required model-role matrix exists;
+4. no `paper_evidence_status` exists for each model and artifact;
+5. no method-gate status exists for behavioral evaluation, neural encoding, geometry, adapter comparability, efficiency, or cross-axis inference;
+6. no literature-grounded method audit compares the project pipeline against relevant SOTA methods;
+7. no adapter-certification matrix exists for all required candidate models;
+8. no evidence reset manifest excludes legacy outputs from paper evidence;
+9. AdaptiveNN has not yet been audited as a required adaptive/foveated candidate;
+10. gaze/scanpath models have not yet been audited for latent-feature extraction;
+11. no clean behavioral rerun can be launched until the behavioral method gate passes;
+12. no clean latent-feature neural/geometry rerun can be launched until the neural and geometry method gates pass.
+
+### Current implementation priority
+
+Active priority:
+
+> Freeze Paper 1 Publication Matrix V0, certify adapters for the full required model universe, and prepare clean publication-root reruns.
+
+The canonical artifact list lives in `Next Concrete Milestone`. Do not duplicate it here.
+
+### Required end-of-session report
+
+Use the publication-readiness report format in `Current Implementation Progress`. Do not use the older scientific-claim report format until publication-root evidence exists.
+
+Do not report smoke tests, debugging fixes, old-result summaries, or legacy audits as progress unless they directly change one of the publication-contract artifacts above.
+
+Implementation history is archived in `docs/project_status_changelog.md`.
 
 ## Cluster Workflow Guidance
 
-Use the JHU DSAI cluster for long GPU or high-I/O jobs, including full-dataset saliency map export, full-image neural encoding reruns, large geometry regeneration, broad benchmark scoring, or other runs that would tie up the laptop for hours. Keep smoke tests, audit scripts, config generation, small unit tests, and result inspection local unless a local dependency or device issue blocks progress.
+Use the JHU DSAI cluster for long GPU or high-I/O jobs, including full-dataset saliency map export, full-image neural encoding reruns, large geometry regeneration, broad benchmark scoring, or other runs that would tie up the laptop for hours. 
+
+DO NOT ACCESS THE CLUSTER YOURSELF-ALL CLUSTER INTERACTION MUST BE DONE WITH COMMANDS GIVEN TO USER!!!
 
 Cluster account and workspace:
 
@@ -690,144 +584,263 @@ Cluster-side Slurm policy:
 
 - Put Slurm scripts and logs under `/scratch/tshu2/zzhan330/saliency/slurm_logs/` or another project-local log directory.
 - Prefer `sbatch` for long jobs and `srun --pty` only for debugging.
-- Use a small `--max-items` or reduced-scope command before the full job whenever the code path has not already run on that environment.
+- Use reduced-scope cluster commands only when they produce an adapter-certification artifact, method-gate artifact, publication-contract audit, or environment-readiness result required by `Next Concrete Milestone`.
 - Monitor with `squeue -u zzhan330` and `tail -f` on the relevant Slurm log.
 - After cluster completion, verify expected file counts before copying outputs back.
 
 ## Next Concrete Milestone
 
-Priority: **pass the generated bounded JHU cluster smoke**.
+Priority: **Paper 1 Publication Method Contract, Scope Reset, And Full Model Adapter Certification**.
 
-The local implementation milestone is complete. Full submission remains
-blocked until all smoke arrays pass on the actual L40S and CPU nodes.
+The next task is not paper interpretation, not adaptive strength sweep, not full publication rerun, and not broad model execution. The next task is to freeze both:
 
-### Next-session implementation plan
+1. the publication-facing scientific scope; and
+2. the academic method contract that makes the future full runs paper-valid.
 
-1. Sync tracked code without local environments, outputs, logs, or data.
-2. Sync `data/manifests/`, `data/raw/nsd_algonauts/subj01/`,
-   `data/raw/SALICON/`, `data/raw/CAT2000/`, and
-   `data/raw/COCO-Search18/`.
-3. Audit and clean the package-manager caches created under cluster home.
-4. Remove and rebuild DynamicViT alone with the scratch-local caches and MKL
-   compatibility pin. Preserve its downloaded source and checkpoint.
-5. Require DynamicViT to import Torch, report CUDA 11.7, and pass its adapter
-   smoke before recreating DeiT-S and ToMe.
-6. Create `external/environments/paper1_matrix_v2_core` from
-   `configs/cluster/paper1_matrix_v2_core.yaml`, then install this repository
-   editable into that environment.
-7. Run `cluster/paper1_matrix_v2/submit_smoke.sh`.
-8. Require all four submitted job arrays and every array task to finish
-   `COMPLETED`. Inspect preflight JSON and Slurm logs for warnings, tracebacks,
-   missing maps, invalid artifacts, or cache inconsistencies.
-9. Return smoke outputs/logs locally for Codex inspection. Only then run
-   `submit_full.sh`.
+### Required outcome
 
-### User/agent split
+Create:
 
-- User: perform the sync, cluster environment setup, and bounded smoke commands.
-- Codex next session: inspect returned smoke artifacts/logs, fix any
-  cluster-specific defect, and decide whether full submission is accepted.
-- `submit_full.sh` exists but remains blocked until that inspection.
+* `outputs/paper1_scope_reset/model_role_matrix.csv`
+* `outputs/paper1_scope_reset/model_availability_audit.md`
+* `outputs/paper1_scope_reset/model_adapter_comparability_table.csv`
+* `outputs/paper1_scope_reset/model_adapter_comparability_audit.md`
+* `outputs/paper1_scope_reset/latent_feature_adapter_requirements.csv`
+* `outputs/paper1_scope_reset/behavioral_output_adapter_requirements.csv`
+* `outputs/paper1_scope_reset/evidence_reset_manifest.csv`
+* `outputs/paper1_scope_reset/publication_output_root_plan.md`
+* `outputs/paper1_scope_reset/method_sota_alignment_audit.md`
+* `outputs/paper1_scope_reset/method_acceptance_gates.md`
+* `outputs/paper1_scope_reset/behavioral_metric_acceptance_table.csv`
+* `outputs/paper1_scope_reset/neural_encoding_acceptance_table.csv`
+* `outputs/paper1_scope_reset/geometry_acceptance_table.csv`
+* `outputs/paper1_scope_reset/efficiency_acceptance_table.csv`
+* `outputs/paper1_scope_reset/cross_axis_inference_acceptance_table.csv`
+* `outputs/paper1_scope_reset/clean_behavioral_rerun_plan.md`
+* `outputs/paper1_scope_reset/clean_behavioral_rerun_matrix.csv`
+* `outputs/paper1_scope_reset/latent_feature_neural_matrix_plan.md`
+* `outputs/paper1_scope_reset/stream_roi_grouping_spec.md`
+* `outputs/paper1_scope_reset/efficiency_resource_allocation_plan.md`
+* `configs/paper1_publication_contract.yaml`
+* `configs/paper1_clean_behavioral_rerun.yaml`
+* `configs/paper1_latent_neural_matrix.yaml`
 
-### User-run cluster smoke commands
+Publication output root:
 
-Run these sequentially from Windows `cmd.exe`.
+* `outputs/paper1_publication_v0/`
 
-1. Sync code without local environments, data, outputs, or logs:
+### Required method SOTA alignment audit
 
-```cmd
-wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --delete --exclude '/.git/' --exclude '/.venv/' --exclude '/external/' --exclude '/data/' --exclude '/outputs/' --exclude '/logs/' --exclude '/.pytest_tmp/' --exclude '__pycache__/' ./ zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/"
-```
+Create `outputs/paper1_scope_reset/method_sota_alignment_audit.md`.
 
-2. Sync the required manifests and approximately `14 GiB` of `subj01`,
-SALICON, CAT2000, and COCO-Search18 data:
+The audit must compare the project method against relevant academic methods for:
 
-```cmd
-wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --info=progress2 -R data/./manifests/ data/./raw/nsd_algonauts/subj01/ data/./raw/SALICON/ data/./raw/CAT2000/ data/./raw/COCO-Search18/ zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/data/"
-```
+1. saliency/fixation-map evaluation;
+2. task-search evaluation;
+3. scanpath/sequential gaze prediction;
+4. latent-feature neural encoding;
+5. Algonauts/NSD-style fMRI prediction;
+6. representational geometry with RSA/CKA/debiased CKA;
+7. model-brain comparison frameworks;
+8. efficiency/resource-allocation evaluation;
+9. active/foveated/adaptive vision models.
 
-3. Audit the setup-created home caches, clean package caches only, and verify
-home usage afterward:
+For each literature reference or benchmark family, record:
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'echo ===BEFORE===; du -sh $HOME/.local/share/mamba $HOME/.cache/pip $HOME/.cache/torch $HOME/.cache/huggingface 2>/dev/null || true; MM=/scratch/tshu2/zzhan330/saliency/external/tools/micromamba/2.8.1-0/micromamba; if [ -d $HOME/.local/share/mamba ]; then MAMBA_ROOT_PREFIX=$HOME/.local/share/mamba $MM clean --all --yes; fi; python3 -m pip cache purge >/dev/null 2>&1 || true; echo ===AFTER===; du -sh $HOME/.local/share/mamba $HOME/.cache/pip $HOME/.cache/torch $HOME/.cache/huggingface 2>/dev/null || true; df -h $HOME'"
-```
+* paper or benchmark name;
+* task/data used;
+* model output evaluated;
+* method used;
+* metric used;
+* uncertainty/statistical control used;
+* reported numbers when available;
+* which part of the project method matches;
+* which part of the project method differs;
+* whether the project difference is acceptable, accepted-with-limitations, or blocking.
 
-4. Remove only the invalid DynamicViT environment. Its source and checkpoint
-remain intact:
+The audit must explicitly position the project method as one of:
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && MM=external/tools/micromamba/2.8.1-0/micromamba; if [ -d external/environments/dynamicvit_deit_small_keep_0_7 ]; then MAMBA_ROOT_PREFIX=$PWD/external/cache/micromamba $MM env remove --yes --prefix external/environments/dynamicvit_deit_small_keep_0_7; fi'"
-```
+* `controlled_benchmark_method`;
+* `sota_competitive_method`;
+* `diagnostic_method_only`;
+* `method_gap_blocking_publication_rerun`.
 
-5. Rebuild DynamicViT alone. The setup now stops before pip installation if
-Torch import or CUDA validation fails:
+The expected position is `controlled_benchmark_method` unless the audit proves otherwise.
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && python3 scripts/setup_external_model.py --model dynamicvit_deit_small_keep_0_7 --install --download-checkpoint --smoke'"
-```
+### Required method acceptance gates
 
-6. Validate DynamicViT. Require a successful Torch import, CUDA `11.7`, and
-`smoke_passed: true`:
+Create `outputs/paper1_scope_reset/method_acceptance_gates.md`.
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && MM=external/tools/micromamba/2.8.1-0/micromamba; MAMBA_ROOT_PREFIX=$PWD/external/cache/micromamba $MM run --prefix external/environments/dynamicvit_deit_small_keep_0_7 python -m torch.utils.collect_env && python3 scripts/setup_external_model.py --model dynamicvit_deit_small_keep_0_7 --report-only'"
-```
+The gates are:
 
-7. Only after step 6 passes, recreate DeiT-S and ToMe:
+1. behavioral evaluation;
+2. latent-feature neural encoding;
+3. representational geometry;
+4. model adapter comparability;
+5. efficiency/resource allocation;
+6. cross-axis inference.
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && MM=external/tools/micromamba/2.8.1-0/micromamba; for MODEL in deit_small_static tome_deit_small_r13; do if [ -d external/environments/$MODEL ]; then MAMBA_ROOT_PREFIX=$PWD/external/cache/micromamba $MM env remove --yes --prefix external/environments/$MODEL || exit 1; fi; python3 scripts/setup_external_model.py --model $MODEL --install --download-checkpoint --smoke || exit 1; done'"
-```
+Each gate must receive one of:
 
-8. Create the core analysis environment and install the project:
+* `not_started`;
+* `audit_required`;
+* `method_gap_found`;
+* `accepted_with_limitations`;
+* `accepted_for_publication_rerun`;
+* `rejected_for_publication_claim`.
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && external/tools/micromamba/2.8.1-0/micromamba create --yes --prefix external/environments/paper1_matrix_v2_core --file configs/cluster/paper1_matrix_v2_core.yaml && external/tools/micromamba/2.8.1-0/micromamba run --prefix external/environments/paper1_matrix_v2_core python -m pip install -e .'"
-```
+A publication-root full run may begin only for axes whose method gates are `accepted_for_publication_rerun` or `accepted_with_limitations`.
 
-9. Validate every generated Bash/Slurm file remotely, submit the bounded smoke,
-and retain the four printed job IDs:
+### Required model-role matrix
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'cd /scratch/tshu2/zzhan330/saliency && for f in cluster/paper1_matrix_v2/*.sh cluster/paper1_matrix_v2/*.sbatch; do bash -n $f || exit 1; done && bash cluster/paper1_matrix_v2/submit_smoke.sh'"
-```
+Define model roles as:
 
-10. Monitor:
+1. human gaze-prediction models;
+2. human-gaze-inspired efficient or foveated models;
+3. generic efficient-computation models;
+4. general visual representation models;
+5. self-supervised dense-feature models;
+6. VLM / semantic models;
+7. hierarchical / hybrid / efficient architecture models;
+8. spatial-prior and task-prior controls.
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'squeue -u zzhan330'"
-```
+Required candidate families include:
 
-After the arrays leave `squeue`, inspect them by replacing `<JOB_IDS>` with the
-four comma-separated IDs printed by step 9:
+* ResNet + ConvNeXt anchors;
+* ViT + DeiT anchors;
+* DINOv2 and DINOv3 family;
+* CLIP + SigLIP-family candidates;
+* MambaVision;
+* Hiera;
+* Swin + SwinV2;
+* DynamicViT;
+* ToMe;
+* DeepGaze;
+* HAT;
+* ScanDiff;
+* SemBA + SemBA-FAST where applicable;
+* AdaptiveNN;
+* center, random, spatial-prior, and task-prior controls.
 
-```cmd
-wsl -e bash -lc "ssh zzhan330@dsailogin.arch.jhu.edu 'sacct -j <JOB_IDS> --format=JobID,JobName,Partition,State,ExitCode,Elapsed,MaxRSS'"
-```
+For each candidate model, record:
 
-11. Return outputs and logs for Codex inspection:
+* model name;
+* role;
+* behavioral output available;
+* latent features available;
+* feature extraction path;
+* neural encoding eligibility;
+* representational geometry eligibility;
+* efficiency/resource-allocation eligibility;
+* deterministic input condition required;
+* required environment/checkpoint;
+* current implementation status: `ready_now`, `needs_adapter`, `needs_checkpoint`, `needs_feature_hook`, `needs_behavior_output_adapter`, `behavior_only_after_audit`, `diagnostic_only_after_audit`, or `reject_after_audit`;
+* `paper_evidence_status`: `not_started`, `adapter_in_progress`, `adapter_certified`, `publication_rerun_ready`, `publication_rerun_complete`, `accepted_publication_evidence`, `diagnostic_only`, or `rejected_for_paper_evidence`.
 
-```cmd
-wsl -e bash -lc "cd /mnt/d/Git/saliency && rsync -az --info=progress2 zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/outputs/paper1_matrix_v2/ outputs/paper1_matrix_v2/ && rsync -az --info=progress2 zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/slurm_logs/ slurm_logs/"
-```
+A model can carry the central neural-alignment claim only if latent features can be extracted and passed through the same neural encoding and geometry pipeline as the other central models.
 
-### Stop conditions
+### Required adapter-certification plan
 
-- Do not interpret adapter16 or scientific64 scores as final evidence.
-- Do not launch the full matrix before the cluster smoke passes and is
-  inspected.
-- Do not store neural feature tensors for behavior-only routing exports.
-- Do not submit jobs without disk-space, manifest, environment, checkpoint, and
-  output-resume preflight checks.
-- Do not restore the deleted V1 interpretation or add V1 compatibility work.
-- Do not run the full `9841`-image matrix on the laptop.
+For every required model, certify whether the adapter can produce:
 
-### Milestone completion
+* one deterministic latent feature tensor per NSD image;
+* candidate layer/block features;
+* behavioral fixation/saliency/scanpath/task-search output where applicable;
+* resource-allocation output where applicable;
+* efficiency metadata;
+* preprocessing metadata;
+* checkpoint provenance;
+* environment provenance;
+* deterministic seed and input-condition record.
 
-This milestone is complete when every bounded cluster smoke task passes and its
-artifacts/logs are inspected locally. The following milestone is full cluster
-execution and evidence aggregation.
+For gaze-history-conditioned, task-conditioned, text-conditioned, scanpath, foveated, or active-vision models, the plan must define the fixed input condition before feature extraction.
+
+AdaptiveNN must receive a full adapter-certification row because it is a required human-gaze-inspired adaptive/foveated model. Its certification must inspect selected glimpses/fixations, stopping behavior, integrated latent states or backbone features, and compute/resource metadata.
+
+### Required evidence reset manifest
+
+Create `outputs/paper1_scope_reset/evidence_reset_manifest.csv`.
+
+For every existing output root, classify it as one of:
+
+* `scaffold_only`;
+* `method_validation_only`;
+* `legacy_behavior_discard`;
+* `legacy_neural_discard`;
+* `legacy_geometry_discard`;
+* `legacy_efficiency_discard`;
+* `eligible_for_equivalence_audit`;
+* `publication_root_only`.
+
+Legacy outputs must not enter publication-root summaries unless regenerated under the publication contract or certified by equivalence audit.
+
+### Required clean rerun plans
+
+The clean behavioral rerun plan must cover:
+
+* SALICON free-viewing;
+* CAT2000 free-viewing;
+* COCO-Search18 task search;
+* center and random baselines;
+* DeepGaze / fixation references;
+* COCO-Search18 task prior;
+* attribution controls where required;
+* repaired routing maps for efficient-computation models;
+* gaze-prediction and scanpath outputs for HAT, ScanDiff, SemBA/SemBA-FAST, DeepGaze, and AdaptiveNN where applicable.
+
+The clean latent-feature neural and geometry plans must specify:
+
+* which models expose features;
+* which layers or feature blocks will be candidates;
+* whether the model is image-only, gaze-history-conditioned, task-conditioned, text-conditioned, foveated, active, or stochastic;
+* the fixed input condition used to generate one feature tensor per NSD image;
+* whether preprocessing can be matched or must be explicitly modeled;
+* whether the same `flatten_pca` + validation-selected ridge protocol applies;
+* whether learned spatial readout is required as sensitivity analysis;
+* which ROI groups will be run;
+* which models become behavior-only or diagnostic-only after audit.
+
+Required ROI grouping:
+
+* early visual / retinotopic: V1, V2, V3, hV4;
+* dorsal/lateral/parietal spatial-selection: lateral, midlateral, midparietal, parietal;
+* ventral/semantic/object-related: ventral, midventral, hV4, and fLOC category ROIs if accepted later.
+
+The efficiency/resource-allocation plan must include:
+
+* parameters;
+* FLOPs/MACs;
+* measured latency;
+* peak memory;
+* token counts;
+* retained-token fraction;
+* merge statistics;
+* selected-glimpse count;
+* fixation/scanpath length;
+* stopping behavior;
+* foveated high-resolution area or crop count where applicable.
+
+### Acceptance criteria
+
+This milestone is complete only when Codex can answer:
+
+1. What is the full required model-role matrix?
+2. What is each candidate model’s `paper_evidence_status`?
+3. What is each method gate’s status?
+4. What SOTA methods were used to judge the project method?
+5. Which project methods are accepted for publication rerun, accepted with limitations, or blocking?
+6. Which models have certified latent-feature extraction?
+7. Which gaze-prediction, scanpath, foveated, or active-vision models can enter latent-feature neural/geometry analysis?
+8. Which models are behavior-only or diagnostic-only after audit?
+9. Which existing outputs are scaffold/provenance and excluded from publication evidence?
+10. What exact publication-root paths will contain behavioral, neural, geometry, efficiency, and cross-axis outputs?
+11. What exact clean behavioral rerun jobs are required?
+12. What exact latent-feature neural/geometry configs are required?
+13. What exact efficiency/resource-allocation profiles are required?
+14. Which analyses are primary, which are secondary sensitivity analyses, and which are diagnostic/control only?
+
+Do not start adaptive strength sweep, broad evidence reruns, paper-facing interpretation, or manuscript writing until this milestone is complete.
+
 
 ## Data/control readiness update:
 
@@ -841,342 +854,207 @@ execution and evidence aggregation.
 - `subj01` has local ROI masks for PRF visual ROIs, streams, and fLOC category maps under `data/raw/nsd_algonauts/subj01/roi_masks/`. V1 now uses PRF visual ROIs plus streams; fLOC category maps are deferred.
 - COCO-Search18 target-absent data is integrated. `data/manifests/coco_search18_manifest.csv` now has `74646` rows: `49760` target-present and `24886` target-absent rows. The V2 static manifest now has `2000` validation rows: `1338` target-present and `662` target-absent.
 - SALICON official JSON annotations are integrated. `data/manifests/salicon_observer_annotations_manifest.csv` has `893854` worker-level rows with explicit `worker_id`; the V2 subset `data/manifests/v2/salicon_static2000_observer_annotations_manifest.csv` has `125874` rows over `2000` images.
-- Observer-control outputs are generated:
-  - `outputs/observer_controls_v2/coco_search18_static2000_observer_controls.csv`: `1867` rows.
-  - `outputs/observer_controls_v2/salicon_static2000_worker_json_observer_controls.csv`: `1384614` leave-one-observer-out rows over `2000` images; the paper-facing summary streams this file instead of loading it wholly into memory.
-- COCO-Search18 task-search baseline output is generated:
-  - `outputs/real_matrix_v2_task_search_baseline/aggregated/results.csv`: `7` metric rows for `coco_search18_task_prior_baseline`.
-  - `outputs/real_matrix_v2/coco_search18_static2000/coco_search18_task_prior_baseline_coco_search18_task_prior/aggregate_metrics.json`: `2000` validation rows; NSS `2.199`, AUC-Judd `0.838`, shuffled-AUC `0.674`, CC `0.448`, SIM `0.338`, KL `1.538`.
-- DeepGaze MSDB free-viewing reference output is generated and merged:
-  - `outputs/real_matrix_v2_msdb_reference/aggregated/results.csv`: `14` metric rows for `deepgaze_msdb_reference` across SALICON/CAT2000.
-  - `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior.csv`: `399` merged behavioral rows after task-prior and MSDB integration.
-  - SALICON MSDB NSS `1.760`; CAT2000 MSDB NSS `1.979`.
-- Transformer relevance attribution-family control output is generated and audit-accepted:
-  - `outputs/real_matrix_v2_transformer_relevance/aggregated/results.csv`: `56` metric rows for `transformer_relevance` across SALICON/CAT2000 and four transformer models.
-  - `outputs/paper1_experiment_v1/summary/transformer_relevance_control_audit.csv`: all scope/method/family/metric/cell checks pass; `evidence_decision=accepted_evidence_ready`.
-  - `outputs/real_matrix_v2/aggregated/results_with_ssl_behavior_plus_transformer_relevance.csv`: `455` merged behavioral rows after accepted transformer relevance integration.
-  - `outputs/paper1_experiment_v1/summary/behavioral_bridge_integration_audit.csv`: `12/12` integration checks pass.
-  - SALICON transformer relevance NSS: DINOv2 `1.033`, CLIP ViT `0.981`, DeiT `0.931`, ViT-B `0.851`; CAT2000 transformer relevance NSS: DINOv2 `1.141`, CLIP ViT `0.940`, DeiT `0.886`, ViT-B `0.733`.
 
-Current post-spec implementation priorities:
-
-The V1 outputs remain diagnostic scaffold. Matrix V2 adapter16 and scientific64
-integration evidence is accepted, but full scientific evidence has not started.
-
-Active priority:
-
-- sync code and required data to the JHU workspace;
-- recreate the pinned external and core environments;
-- submit and monitor the generated bounded cluster smoke;
-- return smoke outputs and logs for acceptance inspection;
-- preserve existing behavioral controls, attribution-family separation, CKA/subset-RSA sensitivity, and subject-robustness outputs as controls/provenance.
-
-Do not:
-
-- generate the old claim-decision table;
-- harden the `geometry_replicated_encoding_ambiguous` result into the main story;
-- rerun old subject robustness, observer controls, transformer relevance, or MSDB scoring unless an audit fails;
-- add new summary tables whose only purpose is to restate the old result;
-- begin DINOv3/SigLIP/MambaVision expansion before the full adaptive-computation
-  execution path is cluster-ready.
-
-Completed milestones are archived in `docs/project_status_changelog.md`.
+Generated observer-control, task-prior, DeepGaze, transformer-relevance, and merged behavioral outputs are scaffold/provenance only. They should be listed in `evidence_reset_manifest.csv`, not in the data-readiness section.
 
 ## Later Milestones
 
-Proceed in phases that map directly to the revised Matrix V2 research question:
+Proceed in phases that map directly to the revised publication question:
 
-> Do behavioral fixation alignment, neural encoding, representational geometry, stream specificity, adaptive/resource-allocation mechanisms, and efficiency converge or dissociate across modern vision systems?
+> Do human gaze-prediction models, human-gaze-inspired adaptive/foveated models, generic efficient-computation models, general representation models, VLM/semantic models, hierarchical/hybrid models, and spatial/task-prior controls converge or dissociate across behavioral fixation/scanpath alignment, latent-feature neural encoding, latent representational geometry, stream specificity, and efficiency/resource allocation?
 
-The V1 milestones are now treated as completed scaffold work. They should not determine the next paper direction. The old `geometry_first_dissociation_candidate` framing and the old generated claim-decision-table milestone are superseded.
+### Phase 0 — Evidence reset and publication root freeze
 
-### Phase 0 — Archive stale steering and freeze V1 as scaffold
-
-Status: complete. The deleted interpretation is intentionally not restored.
+Status: active.
 
 Purpose:
 
-* remove the superseded outcome interpretation from active steering;
-* preserve V1 outputs as diagnostic scaffold;
-* prevent Codex from hardening the narrow geometry-first story.
-
-Required actions:
-
-1. Keep the user-deleted `docs/paper1_outcome_interpretation_v1.md` absent.
-2. Remove all active references to `geometry_first_dissociation_candidate` as the Paper 1 destination.
-3. Remove `paper1_claim_decision_table.csv` as the next milestone.
-4. Mark V1 subject robustness, transformer relevance, DeepGaze MSDB, observer controls, CKA/RSA, and paper-pack outputs as completed scaffold/provenance.
-5. Do not rerun V1 outputs unless an audit fails.
-
-Completion artifact:
-
-* updated `docs/project_status_and_next_steps.md`;
-* explicit record that the deleted interpretation remains absent.
-
-### Phase 1 — Paper 1 Matrix V2 redesign and feasibility audit
-
-Status: complete, including the accepted adapter16 integration gate.
-
-Purpose:
-
-Define the real next experiment before any additional large run.
+* prevent legacy outputs from shaping paper claims;
+* preserve old outputs as scaffold/provenance only;
+* create a clean publication evidence root.
 
 Required outputs:
 
-* `configs/paper1_matrix_v2.yaml`
-* `outputs/paper1_matrix_v2/feasibility.json`
-* `outputs/paper1_matrix_v2/environment_status.csv`
-* `outputs/paper1_matrix_v2/axis_scope.csv`
-* `outputs/paper1_matrix_v2/adaptive_matrix_cells.csv`
-* `outputs/paper1_matrix_v2/next_run.md`
-
-The environment-status table tracks actionable stages:
-
-* `source_ready`
-* `environment_ready`
-* `checkpoint_ready`
-* `adapter_ready`
-* `smoke_passed`
-* `evidence_ready`
-
-A dependency mismatch cannot by itself classify a model as deferred.
-
-Required model categories:
-
-1. CNN/local hierarchy anchor.
-2. Plain ViT anchor.
-3. self-supervised dense-feature model.
-4. VLM / semantic model.
-5. efficient or hybrid sequence model.
-6. hierarchical or multiscale transformer.
-7. adaptive/foveated/token-pruning/scanpath/selective-computation model or mechanism.
-8. dedicated fixation or scanpath model as behavioral reference.
-
-Required axis categories:
-
-1. free-viewing fixation alignment;
-2. task-search alignment;
-3. scanpath or sequential gaze alignment if feasible;
-4. neural encoding by ROI/stream group;
-5. representational geometry with CKA and subset RSA separated;
-6. efficiency and alignment-per-compute;
-7. adaptive computation / resource allocation.
-
-Completion evidence:
-
-The smallest executable Matrix V2 run is fixed as static DeiT-S versus
-DynamicViT-DeiT-S/0.7 versus ToMe-DeiT-S/r13, beginning with adapter16 V1 and
-then scientific64 V1/ventral/lateral/parietal cells.
-
-### Phase 2 — Stream/ROI grouping and neural-scope upgrade
-
-Status: the first `subj01` full-run outputs are complete for V1, ventral,
-lateral, and parietal.
-
-Purpose:
-
-Move beyond PRF-only robustness and make the “where versus what” axis explicit.
-
-Required actions:
-
-1. Define ROI groups:
-
-   * early visual / PRF;
-   * ventral or “what” stream;
-   * lateral/dorsal/parietal or “where/spatial selection” stream.
-2. Audit which subjects support each ROI group.
-3. Decide whether Matrix V2 uses:
-
-   * `subj01` stream-expanded discovery plus reduced confirmatory PRF subjects;
-   * stream-expanded replication on additional subjects;
-   * or a smaller model panel that makes stream replication feasible.
-4. Produce model × ROI-group encoding and geometry summaries rather than only flat ROI rankings.
-
-Completion artifacts:
-
-* `outputs/paper1_matrix_v2/axis_scope.csv`
-* `outputs/paper1_matrix_v2/adaptive_matrix_cells.csv`
-* updated `configs/paper1_matrix_v2.yaml`
-* generated `scientific64` and `full` configs under
-  `configs/experiments/paper1_matrix_v2/`
+* `outputs/paper1_scope_reset/evidence_reset_manifest.csv`
+* `outputs/paper1_scope_reset/publication_output_root_plan.md`
+* `configs/paper1_publication_contract.yaml`
+* `outputs/paper1_publication_v0/`
 
 Acceptance rule:
 
-The paper must be able to ask whether fixation-like or adaptive mechanisms align more strongly with spatial/dorsal/parietal regions than with ventral/semantic regions, or whether the reverse pattern appears.
+No old output can enter publication summaries unless regenerated under the publication contract or certified by equivalence audit.
 
-### Phase 3 — Modern model-family expansion with designed contrasts
+### Phase 1 — Literature-grounded method acceptance
 
-Status: registry and environment integration scaffold implemented; start
-MambaVision, DINOv3, and SigLIP after the adaptive full-run execution path is
-cluster-ready.
+Status: next decisive methodological gate.
 
 Purpose:
 
-Replace generic model-zoo accumulation with a compact, scientifically designed model panel.
+* verify that the planned method is academically valid before full publication reruns;
+* position the project as a controlled benchmark method rather than a SOTA leaderboard method;
+* identify method gaps that would make future full runs scientifically weak.
 
-The panel should compare model families, not simply add rows.
+Required outputs:
 
-Required contrast families:
-
-* classical CNN/local hierarchy;
-* plain transformer;
-* self-supervised dense representation;
-* vision-language / semantic training;
-* efficient or hybrid sequence architecture;
-* adaptive/foveated/token-selective computation where feasible.
-
-Rules:
-
-* Do not add many generic `timm` models.
-* Do not add a model unless it contributes a specific contrast.
-* Every added model must expose usable features for encoding and geometry.
-* If a model exposes routing, retained-token masks, scanpaths, foveation, or adaptive compute, record that as a first-class axis.
-
-Completion artifact:
-
-* `outputs/paper1_matrix_v2/feasibility.json`
-* `configs/external_models/registry.yaml`
-* first executable Matrix V2 model panel in `configs/paper1_matrix_v2.yaml`
+* `outputs/paper1_scope_reset/method_sota_alignment_audit.md`
+* `outputs/paper1_scope_reset/method_acceptance_gates.md`
+* `outputs/paper1_scope_reset/behavioral_metric_acceptance_table.csv`
+* `outputs/paper1_scope_reset/neural_encoding_acceptance_table.csv`
+* `outputs/paper1_scope_reset/geometry_acceptance_table.csv`
+* `outputs/paper1_scope_reset/efficiency_acceptance_table.csv`
+* `outputs/paper1_scope_reset/cross_axis_inference_acceptance_table.csv`
 
 Acceptance rule:
 
-The model panel must make at least one of these dissociations testable:
+No publication-root full rerun begins until the relevant method gates are `accepted_for_publication_rerun` or `accepted_with_limitations`.
 
-* high fixation alignment but low neural/geometry alignment;
-* low fixation alignment but high neural/geometry alignment;
-* high neural alignment but poor efficiency;
-* lower raw alignment but stronger alignment-per-compute;
-* stream-specific alignment reversal.
+### Phase 2 — Full model-role matrix and adapter certification
 
-### Phase 4 — Efficiency and alignment-per-compute
-
-Status: complete for the first three-model panel. Realized FLOPs, latency,
-memory, token counts, and alignment-per-compute are merged into the summary.
+Status: after or alongside Phase 1.
 
 Purpose:
 
-Restore the original proposal’s attention-as-resource-allocation axis.
+* inspect every required model family;
+* record behavioral-output, latent-feature, geometry, efficiency, and resource-allocation eligibility;
+* assign `paper_evidence_status`;
+* avoid convenience-based model reduction.
 
-Required metrics:
+Required candidate families:
 
-* parameter count;
-* FLOPs or MACs;
-* measured latency under fixed image resolution and batch size;
-* peak memory if feasible;
-* visual token count;
-* retained-token fraction, selected-glimpse count, or foveated high-resolution area where applicable;
-* accuracy or reference task performance where available;
-* alignment-per-compute for behavioral, encoding, and geometry axes.
+* CNN/local hierarchy anchors;
+* ViT/DeiT anchors;
+* DINOv2/DINOv3 SSL dense-feature models;
+* CLIP/SigLIP VLM/semantic models;
+* MambaVision, Hiera, Swin/SwinV2 hierarchical/hybrid/efficient models;
+* DynamicViT and ToMe generic efficient-computation models;
+* DeepGaze, HAT, ScanDiff, SemBA/SemBA-FAST gaze or scanpath models;
+* AdaptiveNN human-gaze-inspired adaptive/foveated model;
+* center, random, spatial-prior, and task-prior controls.
 
-Required output:
+Required outputs:
 
-* `outputs/paper1_matrix_v2/summary/full/matrix_v2_efficiency.csv`
+* `outputs/paper1_scope_reset/model_role_matrix.csv`
+* `outputs/paper1_scope_reset/model_availability_audit.md`
+* `outputs/paper1_scope_reset/model_adapter_comparability_table.csv`
+* `outputs/paper1_scope_reset/latent_feature_adapter_requirements.csv`
+* `outputs/paper1_scope_reset/behavioral_output_adapter_requirements.csv`
 
 Acceptance rule:
 
-Efficiency must be merged into the Matrix V2 cross-axis table. It should not appear as a decorative supplement.
+Every required candidate has a status. A model may be behavior-only, diagnostic-only, or rejected after audit, but it must not disappear before audit.
 
-### Phase 5 — Behavioral axis upgrade: scanpath/task/adaptive attention where feasible
+### Phase 3 — Clean behavioral rerun
 
-Status: DynamicViT/ToMe routing-map outputs are complete for SALICON, CAT2000,
-and COCO-Search18. HAT and ScanDiff remain later sequential extensions.
+Status: after behavioral method gate and adapter certification.
 
 Purpose:
 
-Move beyond static post-hoc heatmap comparison where possible.
+Regenerate behavioral evidence under the repaired publication contract.
 
-Required actions:
+Required outputs:
 
-1. Keep SALICON/CAT2000 free-viewing separate from COCO-Search18 task search.
-2. Preserve DeepGaze MSDB, center bias, observer controls, and COCO-Search18 task prior as controls.
-3. Audit feasibility of adding:
-
-   * scanpath models;
-   * sequential gaze metrics;
-   * foveated models;
-   * retained-token masks;
-   * token-pruning maps;
-   * adaptive-glimpse trajectories.
-4. Label every behavioral object by type:
-
-   * dedicated fixation model;
-   * scanpath model;
-   * post-hoc attribution;
-   * internal routing;
-   * adaptive compute allocation;
-   * task prior;
-   * center prior;
-   * observer/human context.
+* `configs/paper1_clean_behavioral_rerun.yaml`
+* `outputs/paper1_publication_v0/behavioral/per_image_metrics/`
+* `outputs/paper1_publication_v0/behavioral/aggregate.csv`
+* `outputs/paper1_publication_v0/audits/behavioral_rerun_audit.csv`
 
 Acceptance rule:
 
-Do not claim “human-like attention” from Grad-CAM, gradients, rollout, or transformer relevance. Human-like attention claims require either human fixation/scanpath alignment, explicit routing/computation allocation, or foveated/adaptive mechanism evidence.
+SALICON, CAT2000, COCO-Search18, fixation references, task priors, gaze/scanpath models, adaptive/foveated outputs, routing maps, and controls are all run or explicitly audited as behavior-only/diagnostic/rejected.
 
-### Phase 6 — Matrix V2 cross-axis quadrant analysis
+### Phase 4 — Clean latent-feature neural and geometry rerun
 
-Status: the `72`-row scope/axis/ROI/model table has been generated. Its
-scientific interpretation is not accepted in this session.
+Status: after neural/geometry method gates and adapter certification.
 
 Purpose:
 
-Make the paper story explicit.
+Regenerate latent-feature neural encoding and latent-feature representational geometry under the publication contract.
 
-Required output:
+Required outputs:
 
-* `outputs/paper1_matrix_v2/summary/full/matrix_v2_cross_axis_quadrants.csv`
-
-Each model or model-method pair should be classified into one of four descriptive quadrants:
-
-| behavioral fixation alignment | neural/geometry alignment | interpretation                                                 |
-| ----------------------------- | ------------------------- | -------------------------------------------------------------- |
-| high                          | high                      | behavioral attention may track brain-like representation       |
-| low                           | high                      | representation convergence without human-like overt attention  |
-| high                          | low                       | superficial saliency mimicry or different internal computation |
-| low                           | low                       | weak alignment across axes                                     |
-
-Required safeguards:
-
-* exact model `n`;
-* uncertainty or bootstrap where available;
-* leave-one-model or leave-one-family sensitivity where feasible;
-* separate free-viewing and task-search analyses;
-* separate CKA and subset-RSA geometry;
-* separate ROI/stream groups.
+* `configs/paper1_latent_neural_matrix.yaml`
+* `outputs/paper1_publication_v0/neural_encoding/encoding_scores.csv`
+* `outputs/paper1_publication_v0/geometry/geometry_scores.csv`
+* `outputs/paper1_publication_v0/audits/neural_geometry_audit.csv`
 
 Acceptance rule:
 
-The paper cannot advance to manuscript hardening until Matrix V2 produces at least one interpretable quadrant pattern or a scientifically meaningful null result.
+Central model classes must expose latent features and pass through the same neural/geometry pipeline. Models that cannot do this after audit may remain behavioral or diagnostic models, but they cannot carry the neural-alignment claim.
 
-### Phase 7 — External positioning and Brain-Score-style context
+### Phase 5 — Stream/ROI and subject-robustness analysis
 
-Status: after Matrix V2 has a stable internal result.
+Status: after Phase 4 outputs exist.
 
 Purpose:
 
-Position the result against the broader NeuroAI field.
+Move from flat ROI tables to early / dorsal-lateral-parietal / ventral-semantic conclusions and subject-aware robustness.
 
-Required actions:
+Required outputs:
 
-* compare model-family conclusions against Brain-Score-style expectations where feasible;
-* clarify that local Algonauts/NSD encoding scores are not leaderboard-equivalent;
-* explain whether Matrix V2 supports convergence, dissociation, or measurement pluralism.
+* `outputs/paper1_publication_v0/roi_stream/stream_roi_grouping_spec.csv`
+* `outputs/paper1_publication_v0/roi_stream/model_by_stream_encoding.csv`
+* `outputs/paper1_publication_v0/roi_stream/model_by_stream_geometry.csv`
+* `outputs/paper1_publication_v0/roi_stream/subject_robustness_summary.csv`
 
 Acceptance rule:
 
-External positioning is context. It cannot substitute for the local Matrix V2 behavioral/neural/geometry/efficiency analysis.
+Every neural and geometry claim must state its ROI/stream and subject scope.
 
-### Phase 8 — Paper split decision
+### Phase 6 — Efficiency and resource allocation
 
-Status: after Matrix V2 cross-axis results.
+Status: after model adapters and efficiency method gate are certified.
+
+Purpose:
+
+Make resource allocation central rather than decorative.
+
+Required outputs:
+
+* `outputs/paper1_publication_v0/efficiency/efficiency_profiles.csv`
+* `outputs/paper1_publication_v0/efficiency/resource_allocation_profiles.csv`
+* `outputs/paper1_publication_v0/efficiency/alignment_per_compute.csv`
+
+Acceptance rule:
+
+Efficiency metrics must be connected to model role and behavioral/neural/geometry axes. Sequential and active-vision models must report total task/image cost, not only per-glimpse cost.
+
+### Phase 7 — Cross-axis publication analysis
+
+Status: after Phases 3–6.
+
+Purpose:
+
+Build the actual paper result.
+
+Required outputs:
+
+* `outputs/paper1_publication_v0/cross_axis/model_axis_scores.csv`
+* `outputs/paper1_publication_v0/cross_axis/stream_specific_quadrants.csv`
+* `outputs/paper1_publication_v0/cross_axis/sensitivity_leave_one_model.csv`
+* `outputs/paper1_publication_v0/cross_axis/sensitivity_leave_one_family.csv`
+* `outputs/paper1_publication_v0/cross_axis/bootstrap_or_uncertainty_intervals.csv`
+* `outputs/paper1_publication_v0/cross_axis/paper_claim_decision.md`
+
+Acceptance rule:
+
+Only publication-root evidence can enter cross-axis analysis. Quadrant labels are descriptive unless the cross-axis inference gate allows stronger language.
+
+### Phase 8 — External positioning and paper split decision
+
+Status: after cross-axis results.
+
+Purpose:
+
+Position the findings against broader NeuroAI alignment work and decide the paper shape.
 
 Decision options:
 
-1. **Paper 1 main-track attempt:** only if Matrix V2 shows a robust, interpretable dissociation or convergence pattern across model family, ROI/stream, and efficiency.
-2. **Paper 1 workshop/thesis/methods paper:** if Matrix V2 is useful but underpowered.
-3. **Shift main effort to Paper 2:** if observational Matrix V2 cannot produce a strong story.
-4. **Paper 2 causal adaptive-attention intervention:** use human gaze, foveation, token pruning, adaptive readout, or saliency-guided computation to test whether attention/resource allocation changes alignment, efficiency, or neural predictivity.
+1. **Main-track Paper 1:** if Publication Matrix V0 shows robust, interpretable convergence or dissociation across model role, ROI/stream, and efficiency.
+2. **Workshop/thesis/methods Paper 1:** if the measurement framework is strong but the result is underpowered or mainly methodological.
+3. **Shift main effort to Paper 2:** if observational cross-axis results remain weak after the full contract.
+4. **Paper 2 causal intervention:** use human gaze, foveation, token pruning, adaptive readout, or saliency-guided computation to test whether changing attention/resource allocation changes alignment, efficiency, or neural predictivity.
 
-Do not decide the publication split from V1 alone.
+Do not decide the publication split from scaffold outputs.
 
 
 ## Code Pointers
@@ -1259,3 +1137,20 @@ Reporting:
 - `scripts/audit_neural_reliability_metadata.py`
 - `scripts/merge_behavioral_aggregates.py`
 - `scripts/merge_efficiency_profiles.py`
+
+Adaptive/foveated/gaze-model adapters:
+
+- `src/hma/external/` for publication-contract adapters;
+- `configs/external_models/registry.yaml` for required candidate registration;
+- future AdaptiveNN / HAT / ScanDiff / SemBA adapter modules should expose both behavioral outputs and latent-feature hooks where available.
+
+## Methodology provenance audit session (2026-06-13)
+
+Generated `docs/actual_methodology_trace.md` by tracing the current behavioral,
+neural encoding, geometry, adaptive-routing, efficiency, cross-axis, and older
+V1 outputs backward to their scripts, configs, inputs, and scoring functions.
+Supporting provenance tables are under `outputs/methodology_trace/`.
+
+The trace records unresolved repository-visible assumptions with explicit
+`UNKNOWN_FROM_REPO` and `STATUS_CLAIM_NOT_VERIFIED` labels. It does not change
+the scientific interpretation in this status document.

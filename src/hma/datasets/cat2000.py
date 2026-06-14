@@ -14,6 +14,7 @@ from hma.datasets.base import BaseVisionDataset, VisionDatasetItem
 from hma.datasets.fixation_parsers import load_cat2000_observer_fixations
 from hma.datasets.registry import register_dataset
 from hma.saliency.postprocess import postprocess_saliency_map
+from hma.saliency.precomputed import precomputed_map_key, precomputed_row_key
 
 
 REQUIRED_MANIFEST_COLUMNS = {
@@ -37,6 +38,9 @@ class _CAT2000Row:
     split: str
     width: int | None
     height: int | None
+    manifest_image_path: str
+    map_key: str
+    row_key: str
 
 
 class CAT2000Dataset(BaseVisionDataset):
@@ -111,6 +115,9 @@ class CAT2000Dataset(BaseVisionDataset):
             "image": output_image,
             "image_id": row.image_id,
             "image_path": str(row.image_path),
+            "manifest_image_path": row.manifest_image_path,
+            "map_key": row.map_key,
+            "row_key": row.row_key,
             "fixation_map": fixation_map,
             "fixation_points": fixation_points,
             "metadata": {
@@ -138,12 +145,15 @@ class CAT2000Dataset(BaseVisionDataset):
                     f"CAT2000 manifest missing required columns: {sorted(missing)}"
                 )
 
+            filtered_index = 0
             for record in reader:
                 if record["split"] != self.split:
                     continue
                 category = record["category"]
                 if self.categories is not None and category not in self.categories:
                     continue
+                manifest_image_path = str(record["image_path"])
+                map_key = precomputed_map_key(manifest_image_path)
                 rows.append(
                     _CAT2000Row(
                         image_id=record["image_id"],
@@ -158,8 +168,12 @@ class CAT2000Dataset(BaseVisionDataset):
                         split=record["split"],
                         width=_optional_int(record.get("width")),
                         height=_optional_int(record.get("height")),
+                        manifest_image_path=manifest_image_path,
+                        map_key=map_key,
+                        row_key=precomputed_row_key(map_key, filtered_index),
                     )
                 )
+                filtered_index += 1
 
         if self.max_items is not None:
             rows = rows[: int(self.max_items)]

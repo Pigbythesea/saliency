@@ -402,15 +402,21 @@ def test_routing_map_export_uses_final_dynamicvit_mask(tmp_path):
     )
     writer.finalize()
 
+    maps = tmp_path / "maps"
+    maps.mkdir()
+    np.save(maps / "legacy-image-id.npy", np.zeros((2, 2), dtype=np.float32))
     metadata_path = export_routing_maps(
         tmp_path / "artifact",
-        tmp_path / "maps",
+        maps,
         output_size=(28, 28),
     )
 
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    routing_map = np.load(tmp_path / "maps" / "image-a.npy")
+    routing_map = np.load(maps / "image-a.npy")
     assert metadata["resource_key"] == "prediction_masks.stage_2"
+    assert metadata["stale_map_files_removed"] == 1
+    assert not (maps / "legacy-image-id.npy").exists()
+    assert {path.name for path in maps.glob("*.npy")} == {"image-a.npy"}
     assert routing_map.shape == (28, 28)
     assert routing_map.max() == pytest.approx(1.0)
     assert routing_map.min() == pytest.approx(0.0)
@@ -486,7 +492,11 @@ def test_neural_runner_imports_external_features_without_building_model(
     assert result["num_items"] == 12
     assert metadata["model_backend"] == "external_artifact"
     assert metadata["external_artifact_schema"] == "hma.external.artifact.v1"
-    assert len(result["geometry_rows"]) == 2
+    assert len(result["geometry_rows"]) == 4
+    assert {row["control_type"] for row in result["geometry_rows"]} == {
+        "observed",
+        "response_permutation",
+    }
     assert result["score_rows"] == cached_result["score_rows"]
     assert result["geometry_rows"] == cached_result["geometry_rows"]
     reduction = json.loads(
@@ -557,8 +567,14 @@ def test_cluster_jobs_match_observed_jhu_partitions(tmp_path):
     paths = create_cluster_jobs(tmp_path / "cluster")
     names = {path.name for path in paths}
 
-    assert len(paths) == 10
-    assert {"submit_smoke.sh", "submit_full.sh"} <= names
+    assert len(paths) == 13
+    assert {
+        "submit_smoke.sh",
+        "submit_full.sh",
+        "full_geometry_recompute.sbatch",
+        "full_efficiency_profile.sbatch",
+        "full_summary_audit.sbatch",
+    } <= names
     neural = (tmp_path / "cluster" / "full_neural_analysis.sbatch").read_text(
         encoding="utf-8"
     )
@@ -573,7 +589,10 @@ def test_cluster_jobs_match_observed_jhu_partitions(tmp_path):
     assert "#SBATCH --cpus-per-task=14" in behavior
     assert "#SBATCH --gres=gpu:l40s:1" in behavior
     assert "--artifact-scope resource_only" in behavior
+    assert "--skip-efficiency-profile" in behavior
     assert "--dependency=afterok:$NEURAL_EXPORT" in submit
+    assert "--dependency=afterok:$NEURAL_ANALYSIS" in submit
+    assert "--dependency=afterok:$BEHAVIOR_SCORE:$GEOMETRY:$EFFICIENCY" in submit
     assert 'source "$PROJECT/scripts/cluster_runtime_env.sh"' in neural
     assert 'source "$PROJECT/scripts/cluster_runtime_env.sh"' in behavior
     assert 'source "$PROJECT/scripts/cluster_runtime_env.sh"' in submit

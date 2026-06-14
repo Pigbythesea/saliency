@@ -56,15 +56,23 @@ def test_saliency_benchmark_writes_csv_json_and_visualizations(tmp_path):
         rows = list(csv.DictReader(handle))
     assert len(rows) == 2
     assert rows[0]["image_id"] == "val_0000"
-    assert set(rows[0]) == {
+    assert {
+        "row_key",
+        "map_key",
         "image_id",
         "image_path",
         "fixation_protocol",
+        "prediction_range",
+        "prediction_is_constant",
         "nss",
+        "raw_nss",
         "cc",
+        "raw_cc",
         "similarity",
+        "raw_similarity",
         "kl",
-    }
+        "raw_kl",
+    } <= set(rows[0])
 
     saved = json.loads(aggregate_json.read_text(encoding="utf-8"))
     assert saved["num_items"] == 2
@@ -514,11 +522,87 @@ def test_saliency_benchmark_supports_context_aware_metrics(tmp_path, monkeypatch
     with (output_dir / "per_image_metrics.csv").open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 3
-    assert set(rows[0]) == {
+    assert {
+        "row_key",
+        "map_key",
         "image_id",
         "image_path",
         "fixation_protocol",
         "auc_borji",
+        "raw_auc_borji",
         "shuffled_auc",
+        "raw_shuffled_auc",
         "emd",
-    }
+        "raw_emd",
+    } <= set(rows[0])
+
+
+def test_near_constant_metrics_preserve_raw_provenance_before_aggregation(
+    tmp_path,
+    monkeypatch,
+):
+    class TinyDataset:
+        def __len__(self):
+            return 2
+
+        def __iter__(self):
+            for index in range(2):
+                prediction_target = np.zeros((4, 4), dtype=np.float32)
+                prediction_target[1, 1] = 1.0
+                yield {
+                    "image": Image.new("RGB", (4, 4)),
+                    "image_id": f"image-{index}",
+                    "image_path": f"images/{index}.jpg",
+                    "map_key": f"map-{index}",
+                    "row_key": f"row-{index}",
+                    "fixation_map": prediction_target,
+                    "fixation_points": np.array([[1.0, 1.0]], dtype=np.float32),
+                    "metadata": {"dataset": "salicon"},
+                }
+
+    def near_constant(_model, _image, **_kwargs):
+        values = np.ones((4, 4), dtype=np.float32)
+        values[1, 1] += 1e-7
+        return values
+
+    monkeypatch.setattr(benchmark_module, "build_dataset", lambda _config: TinyDataset())
+    monkeypatch.setattr(
+        benchmark_module,
+        "build_saliency_method",
+        lambda _config: near_constant,
+    )
+    config_path = tmp_path / "constant.yaml"
+    output_dir = tmp_path / "output"
+    save_yaml(
+        {
+            "seed": 1,
+            "device": "cpu",
+            "dataset": {"name": "synthetic", "label": "constant-test"},
+            "model": {"name": "center_bias_baseline"},
+            "saliency": {"method": "center_bias"},
+            "metric_controls": {
+                "auc_borji_splits": 5,
+                "shuffled_auc_splits": 5,
+            },
+            "metrics": [
+                "auc_judd",
+                "auc_borji",
+                "shuffled_auc",
+                "nss",
+                "cc",
+                "similarity",
+                "kl",
+            ],
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+
+    aggregate = run_saliency_benchmark(config_path)
+
+    assert aggregate["constant_map_count"] == 2
+    assert aggregate["metrics"]["auc_judd"] == 0.5
+    assert aggregate["metrics"]["auc_borji"] == 0.5
+    assert aggregate["metrics"]["shuffled_auc"] == 0.5
+    assert aggregate["raw_metrics"]["raw_auc_judd"] == 1.0
+    assert aggregate["raw_metrics"]["raw_auc_borji"] == 1.0

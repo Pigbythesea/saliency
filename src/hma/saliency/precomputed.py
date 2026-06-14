@@ -52,6 +52,7 @@ def _resolve_map_path(
         raw_path = path_template.format(
             image_id=item.get("image_id", ""),
             image_path=item.get("image_path", ""),
+            row_key=item.get("row_key", ""),
             map_key=precomputed_map_key(item),
         )
     if raw_path is None or str(raw_path) == "":
@@ -83,12 +84,35 @@ def _load_map(path: Path, *, npz_key: str | None) -> np.ndarray:
 def precomputed_map_key(item: dict[str, Any] | str | Path) -> str:
     """Return a stable, filesystem-safe key for a precomputed map."""
     if isinstance(item, dict):
-        source = str(item.get("image_path") or item.get("image_id") or "item")
+        explicit = item.get("map_key")
+        if explicit:
+            return str(explicit)
+        source = str(
+            item.get("manifest_image_path")
+            or item.get("image_path")
+            or item.get("image_id")
+            or "item"
+        )
     else:
         source = str(item)
-    normalized = source.replace("\\", "/")
+    normalized = normalize_manifest_image_path(source)
     stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", normalized).strip("._")
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
     if len(stem) > 80:
         stem = stem[-80:].strip("._")
     return f"{stem or 'item'}_{digest}"
+
+
+def precomputed_row_key(map_key: str, manifest_row_index: int) -> str:
+    """Return a stable identity for one filtered manifest row."""
+    payload = f"{int(manifest_row_index)}\0{map_key}"
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+    return f"row_{int(manifest_row_index):06d}_{digest}"
+
+
+def normalize_manifest_image_path(value: str | Path) -> str:
+    """Normalize a manifest path without making it machine-dependent."""
+    normalized = str(value).strip().replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return re.sub(r"/+", "/", normalized)

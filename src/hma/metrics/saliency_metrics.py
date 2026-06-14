@@ -29,6 +29,26 @@ def _sum_normalize(values: np.ndarray, eps: float = 1e-8) -> np.ndarray:
     return (array / total).astype(np.float32)
 
 
+def is_constant_map(
+    values: np.ndarray,
+    *,
+    rtol: float = 1e-6,
+    atol: float = 1e-8,
+) -> bool:
+    """Return whether a finite map is constant within numerical tolerance."""
+    array = _as_float_array(values)
+    if array.size == 0 or not np.all(np.isfinite(array)):
+        return False
+    return bool(np.allclose(array, float(array.flat[0]), rtol=rtol, atol=atol))
+
+
+def _defined_distribution(values: np.ndarray) -> np.ndarray:
+    array = _as_float_array(values)
+    if is_constant_map(array) and float(array.flat[0]) > 0.0:
+        return np.ones_like(array, dtype=np.float32)
+    return array
+
+
 def normalize_map(x: np.ndarray, eps: float = 1e-8) -> np.ndarray:
     """Min-max normalize a map into [0, 1]."""
     array = _as_float_array(x)
@@ -48,9 +68,12 @@ def auc_judd(
     fixation_map: np.ndarray,
     *,
     positive_fixations: np.ndarray | None = None,
+    constant_policy: str = "defined",
 ) -> float:
     """Compute Judd AUC using discrete fixation locations when available."""
     saliency, fixations = _check_same_shape(saliency_map, fixation_map)
+    if constant_policy == "defined" and is_constant_map(saliency):
+        return 0.5
     saliency = normalize_map(saliency)
     fixation_mask = _coords_to_mask(
         _positive_coords(fixations, positive_fixations),
@@ -74,12 +97,15 @@ def auc_borji(
     positive_fixations: np.ndarray | None = None,
     splits: int = 100,
     seed: int = 0,
+    constant_policy: str = "defined",
 ) -> float:
     """Compute Borji AUC with random non-fixation negatives."""
     saliency, fixations = _check_same_shape(saliency_map, fixation_map)
     if splits <= 0:
         raise ValueError("splits must be positive")
 
+    if constant_policy == "defined" and is_constant_map(saliency):
+        return 0.5
     saliency = normalize_map(saliency)
     positive_scores = _positive_scores(saliency, fixations, positive_fixations)
     if positive_scores.size == 0:
@@ -113,12 +139,15 @@ def shuffled_auc(
     positive_fixations: np.ndarray | None = None,
     splits: int = 100,
     seed: int = 0,
+    constant_policy: str = "defined",
 ) -> float:
     """Compute shuffled AUC using fixations from other images as negatives."""
     saliency, fixations = _check_same_shape(saliency_map, fixation_map)
     if splits <= 0:
         raise ValueError("splits must be positive")
 
+    if constant_policy == "defined" and is_constant_map(saliency):
+        return 0.5
     saliency = normalize_map(saliency)
     positive_scores = _positive_scores(saliency, fixations, positive_fixations)
     negative_coords = _as_yx_coords(negative_fixations, saliency.shape)
@@ -175,9 +204,12 @@ def nss(
     fixation_map: np.ndarray,
     *,
     positive_fixations: np.ndarray | None = None,
+    constant_policy: str = "defined",
 ) -> float:
     """Compute normalized scanpath saliency at fixation locations."""
     saliency, fixations = _check_same_shape(saliency_map, fixation_map)
+    if constant_policy == "defined" and is_constant_map(saliency):
+        return 0.0
     fixation_mask = _coords_to_mask(
         _positive_coords(fixations, positive_fixations),
         saliency.shape,
@@ -193,9 +225,18 @@ def nss(
     return float(np.mean(normalized[fixation_mask]))
 
 
-def cc(saliency_map_a: np.ndarray, saliency_map_b: np.ndarray) -> float:
+def cc(
+    saliency_map_a: np.ndarray,
+    saliency_map_b: np.ndarray,
+    *,
+    constant_policy: str = "defined",
+) -> float:
     """Compute Pearson correlation coefficient between two saliency maps."""
     first, second = _check_same_shape(saliency_map_a, saliency_map_b)
+    if constant_policy == "defined" and (
+        is_constant_map(first) or is_constant_map(second)
+    ):
+        return 0.0
     first = first.ravel()
     second = second.ravel()
     first_centered = first - float(np.mean(first))
@@ -208,9 +249,17 @@ def cc(saliency_map_a: np.ndarray, saliency_map_b: np.ndarray) -> float:
     return float(np.dot(first_centered, second_centered) / denominator)
 
 
-def similarity(saliency_map_a: np.ndarray, saliency_map_b: np.ndarray) -> float:
+def similarity(
+    saliency_map_a: np.ndarray,
+    saliency_map_b: np.ndarray,
+    *,
+    constant_policy: str = "defined",
+) -> float:
     """Compute histogram intersection similarity between two saliency maps."""
     first, second = _check_same_shape(saliency_map_a, saliency_map_b)
+    if constant_policy == "defined":
+        first = _defined_distribution(first)
+        second = _defined_distribution(second)
     first = _sum_normalize(first)
     second = _sum_normalize(second)
     return float(np.sum(np.minimum(first, second)))
@@ -220,9 +269,13 @@ def kl_divergence(
     target_map: np.ndarray,
     predicted_map: np.ndarray,
     eps: float = 1e-8,
+    constant_policy: str = "defined",
 ) -> float:
     """Compute stable KL(target || predicted) between two saliency distributions."""
     target, predicted = _check_same_shape(target_map, predicted_map)
+    if constant_policy == "defined":
+        target = _defined_distribution(target)
+        predicted = _defined_distribution(predicted)
     target_prob = _sum_normalize(target, eps=eps)
     predicted_prob = _sum_normalize(predicted, eps=eps)
 

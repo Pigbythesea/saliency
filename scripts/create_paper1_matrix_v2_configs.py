@@ -155,7 +155,8 @@ def _experiment_config(
                 "enabled": True,
                 "methods": ["linear_cka", "subset_rsa"],
                 "subset_sizes": list(settings["subset_sizes"]),
-                "subset_seed": 123,
+                "subset_seeds": [123, 456, 789],
+                "null_control_seeds": [123, 456, 789],
             },
         },
         "output": {

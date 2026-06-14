@@ -79,6 +79,13 @@ neural:
     - subset_rsa
     subset_sizes:
     - 8
-    subset_seed: 123
+    subset_seeds:
+    - 123
+    - 456
+    - 789
+    null_control_seeds:
+    - 123
+    - 456
+    - 789
 output:
   dir: outputs/paper1_matrix_v2/neural/adapter16/dynamicvit_deit_small_keep_0_7/parietal

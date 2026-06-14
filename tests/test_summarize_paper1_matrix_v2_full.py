@@ -1,6 +1,9 @@
 import csv
 import json
+from pathlib import Path
 
+import scripts.summarize_paper1_matrix_v2_full as summary_module
+from hma.saliency.precomputed import precomputed_map_key, precomputed_row_key
 from scripts.summarize_paper1_matrix_v2_full import (
     BEHAVIOR_METRICS,
     MODELS,
@@ -76,42 +79,105 @@ def _build_neural_outputs(root):
                 output / "selection_artifact.json",
                 {"primary_score": "mean_noise_normalized_score"},
             )
-            geometry_rows = []
-            for method, subset_size in [
-                ("linear_cka", ""),
-                ("subset_rsa", 512),
-                ("subset_rsa", 1024),
-                ("subset_rsa", 2048),
-            ]:
+            geometry_rows = [
+                {
+                    "model": model,
+                    "roi": roi,
+                    "subject_id": "subj01",
+                    "layer": layer,
+                    "geometry_method": "linear_cka",
+                    "score": score,
+                    "valid": "true",
+                    "status": "ok",
+                    "num_images_total": 9841,
+                    "num_images_used": 9841,
+                    "subset_seed": "",
+                    "subset_size": "",
+                    "control_type": "observed",
+                    "control_seed": "",
+                    "paired_observed_score": "",
+                    "observed_minus_null": "",
+                }
+            ]
+            for seed in (123, 456, 789):
                 geometry_rows.append(
                     {
                         "model": model,
                         "roi": roi,
                         "subject_id": "subj01",
                         "layer": layer,
-                        "geometry_method": method,
-                        "score": score + (0.01 if method == "subset_rsa" else 0.0),
+                        "geometry_method": "linear_cka",
+                        "score": score - 0.2,
                         "valid": "true",
                         "status": "ok",
                         "num_images_total": 9841,
-                        "num_images_used": 9841 if method == "linear_cka" else subset_size,
-                        "subset_seed": "" if method == "linear_cka" else 123,
-                        "subset_size": subset_size,
+                        "num_images_used": 9841,
+                        "subset_seed": "",
+                        "subset_size": "",
+                        "control_type": "response_permutation",
+                        "control_seed": seed,
+                        "paired_observed_score": score,
+                        "observed_minus_null": 0.2,
                     }
                 )
+            for subset_size in (512, 1024, 2048):
+                for seed in (123, 456, 789):
+                    observed_score = score + 0.01
+                    common = {
+                        "model": model,
+                        "roi": roi,
+                        "subject_id": "subj01",
+                        "layer": layer,
+                        "geometry_method": "subset_rsa",
+                        "valid": "true",
+                        "status": "ok",
+                        "num_images_total": 9841,
+                        "num_images_used": subset_size,
+                        "subset_seed": seed,
+                        "subset_size": subset_size,
+                    }
+                    geometry_rows.append(
+                        {
+                            **common,
+                            "score": observed_score,
+                            "control_type": "observed",
+                            "control_seed": "",
+                            "paired_observed_score": "",
+                            "observed_minus_null": "",
+                        }
+                    )
+                    geometry_rows.append(
+                        {
+                            **common,
+                            "score": observed_score - 0.2,
+                            "control_type": "response_permutation",
+                            "control_seed": seed,
+                            "paired_observed_score": observed_score,
+                            "observed_minus_null": 0.2,
+                        }
+                    )
             _write_csv(output / "geometry_scores.csv", geometry_rows)
 
 
-def _build_behavior_outputs(root):
+def _build_behavior_outputs(root, manifests):
     for dataset, protocol in DATASETS:
+        manifest_rows = _read_csv(manifests[dataset])
+        map_keys = [precomputed_map_key(row["image_path"]) for row in manifest_rows]
+        unique_map_keys = sorted(set(map_keys))
         for model_index, model in enumerate(MODELS):
-            output = root / "behavior" / "full" / dataset / f"{model}_routing"
+            output = (
+                root
+                / "behavior"
+                / "full"
+                / dataset
+                / f"{model}_operational_routing"
+            )
             if model == "deit_small_static":
                 metrics = {
                     "nss": 0.0,
-                    "shuffled_auc": 1.0,
-                    "auc_borji": 1.0,
-                    "auc_judd": 0.51,
+                    "shuffled_auc": 0.5,
+                    "auc_borji": 0.5,
+                    "auc_judd": 0.5,
                     "cc": 0.0,
                     "similarity": 0.3,
                     "kl": 1.5,
@@ -131,16 +197,58 @@ def _build_behavior_outputs(root):
                 {
                     "dataset": dataset,
                     "model": model,
-                    "num_items": 2000,
+                    "num_items": len(manifest_rows),
                     "fixation_protocol": protocol,
                     "saliency_method": "precomputed_map",
                     "metrics": metrics,
+                    "raw_metrics": {
+                        f"raw_{metric}": (
+                            1.0
+                            if model == "deit_small_static"
+                            and metric in {"shuffled_auc", "auc_borji"}
+                            else value
+                        )
+                        for metric, value in metrics.items()
+                    },
+                    "map_lookup_count": len(manifest_rows),
+                    "unique_map_lookup_count": len(unique_map_keys),
+                    "unique_row_key_count": len(manifest_rows),
+                    "constant_map_count": (
+                        len(manifest_rows)
+                        if model == "deit_small_static"
+                        else 0
+                    ),
                 },
             )
             _write_csv(
                 output / "per_image_metrics.csv",
-                [{"image_id": "a", **metrics}],
+                [
+                    {
+                        "row_key": precomputed_row_key(map_key, index),
+                        "map_key": map_key,
+                        "image_id": f"image-{index}",
+                        **metrics,
+                    }
+                    for index, map_key in enumerate(map_keys)
+                ],
             )
+            artifact_dataset = summary_module.BEHAVIOR_ARTIFACT_DATASETS[dataset]
+            artifact = (
+                root
+                / "external_artifacts"
+                / "behavior_full"
+                / artifact_dataset
+                / model
+            )
+            _write_json(
+                artifact / "manifest.json",
+                {"image_ids_file": "image_ids.json"},
+            )
+            _write_json(artifact / "image_ids.json", unique_map_keys)
+            map_dir = root / "routing_maps" / "full" / dataset / model
+            map_dir.mkdir(parents=True, exist_ok=True)
+            for map_key in unique_map_keys:
+                (map_dir / f"{map_key}.npy").write_bytes(b"map")
 
 
 def _build_efficiency_outputs(root):
@@ -153,6 +261,19 @@ def _build_efficiency_outputs(root):
                 "theoretical_flops": 4_600_000_000,
                 "realized_flops": 4_600_000_000 - model_index * 900_000_000,
                 "latency_ms_per_image": 2.5 + model_index * 0.5,
+                "latency_ms_per_image_std": 0.1,
+                "latency_ms_per_image_cv": 0.03,
+                "latency_ms_per_image_min": 2.4 + model_index * 0.5,
+                "latency_ms_per_image_max": 2.6 + model_index * 0.5,
+                "latency_repeats_ms_per_image": [2.5] * 5,
+                "batch_size": 16,
+                "warmup_batches": 20,
+                "measured_batches_per_repeat": 100,
+                "timing_repeats": 5,
+                "cuda_synchronized": True,
+                "hardware": {"device_name": "test-gpu"},
+                "fvcore_unsupported_ops": {},
+                "fvcore_uncalled_modules": [],
                 "peak_memory_bytes": 110_000_000 - model_index * 1_000_000,
                 "resource_summary": {
                     "realized_token_counts.final": {
@@ -165,11 +286,42 @@ def _build_efficiency_outputs(root):
         )
 
 
-def test_summarize_full_results_audits_and_preserves_axis_detail(tmp_path):
+def test_summarize_full_results_audits_and_preserves_axis_detail(
+    tmp_path,
+    monkeypatch,
+):
     root = tmp_path / "outputs" / "paper1_matrix_v2"
     output = root / "summary" / "full"
+    manifests = {}
+    for dataset, _protocol in DATASETS:
+        path = tmp_path / f"{dataset}.csv"
+        paths = (
+            ["images/a.jpg", "images/a.jpg", "images/b.jpg"]
+            if dataset.startswith("coco_search18")
+            else ["images/a.jpg", "images/b.jpg", "images/c.jpg"]
+        )
+        _write_csv(
+            path,
+            [
+                {"image_id": f"id-{index}", "image_path": value}
+                for index, value in enumerate(paths)
+            ],
+        )
+        manifests[dataset] = path
+    monkeypatch.setattr(summary_module, "BEHAVIOR_MANIFESTS", manifests)
+    monkeypatch.setattr(summary_module, "EXPECTED_BEHAVIOR_ITEMS", 3)
+    monkeypatch.setattr(
+        summary_module,
+        "_dinov2_provenance_valid",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        summary_module,
+        "_artifact_preprocessing_valid",
+        lambda _root: True,
+    )
     _build_neural_outputs(root)
-    _build_behavior_outputs(root)
+    _build_behavior_outputs(root, manifests)
     _build_efficiency_outputs(root)
 
     paths = summarize_full_results(root, output)
@@ -193,7 +345,11 @@ def test_summarize_full_results_audits_and_preserves_axis_detail(tmp_path):
     }
     assert all(float(row["shuffled_auc"]) == 0.5 for row in static_rows)
     assert all(float(row["raw_shuffled_auc"]) == 1.0 for row in static_rows)
-    assert all(
-        row["auc_tie_correction_applied"] == "True" for row in static_rows
-    )
+    assert all(row["constant_map_policy"] for row in static_rows)
+    assert all(row["evidence_status"] == "diagnostic_only" for row in quadrants)
+    key_audit = _read_csv(paths["behavior_map_key_audit"])
+    assert len(key_audit) == 9
+    assert all(row["passed"] == "True" for row in key_audit)
+    assert all(row["missing_map_file_count"] == "0" for row in key_audit)
+    assert all(row["unexpected_map_file_count"] == "0" for row in key_audit)
     assert set(BEHAVIOR_METRICS) <= set(behavior[0])

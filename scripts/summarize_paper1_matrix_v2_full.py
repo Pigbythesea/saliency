@@ -30,9 +30,26 @@ BEHAVIOR_METRICS = [
 LOWER_IS_BETTER = {"kl"}
 EXPECTED_COUNTS = {
     "neural_encoding": 12,
-    "geometry": 48,
+    "geometry": 264,
     "behavior": 9,
     "efficiency": 3,
+}
+EXPECTED_BEHAVIOR_ITEMS = 2000
+BEHAVIOR_MANIFESTS = {
+    "salicon_static2000": Path(
+        "data/manifests/v2/salicon_static2000_manifest.csv"
+    ),
+    "cat2000_static2000": Path(
+        "data/manifests/v2/cat2000_static2000_manifest.csv"
+    ),
+    "coco_search18_static2000": Path(
+        "data/manifests/v2/coco_search18_static2000_manifest.csv"
+    ),
+}
+BEHAVIOR_ARTIFACT_DATASETS = {
+    "salicon_static2000": "salicon",
+    "cat2000_static2000": "cat2000",
+    "coco_search18_static2000": "coco_search18",
 }
 
 
@@ -47,6 +64,7 @@ def summarize_full_results(
     neural_rows = _load_neural_rows(root)
     geometry_rows = _load_geometry_rows(root)
     behavior_rows = _load_behavior_rows(root)
+    behavior_key_audit_rows = _build_behavior_map_key_audit(root)
     efficiency_rows = _load_efficiency_rows(root)
     model_rows, quadrant_rows = _build_model_summaries(
         neural_rows,
@@ -55,16 +73,19 @@ def summarize_full_results(
         efficiency_rows,
     )
     audit = _build_audit(
+        root,
         neural_rows,
         geometry_rows,
         behavior_rows,
         efficiency_rows,
+        behavior_key_audit_rows,
     )
 
     paths = {
         "neural_encoding": output / "full_neural_encoding.csv",
         "geometry": output / "full_geometry.csv",
         "behavior": output / "full_behavior.csv",
+        "behavior_map_key_audit": output / "behavior_map_key_audit.csv",
         "efficiency": output / "matrix_v2_efficiency.csv",
         "model_summary": output / "full_model_summary.csv",
         "cross_axis_quadrants": output / "matrix_v2_cross_axis_quadrants.csv",
@@ -74,6 +95,7 @@ def summarize_full_results(
     _write_csv(paths["neural_encoding"], neural_rows)
     _write_csv(paths["geometry"], geometry_rows)
     _write_csv(paths["behavior"], behavior_rows)
+    _write_csv(paths["behavior_map_key_audit"], behavior_key_audit_rows)
     _write_csv(paths["efficiency"], efficiency_rows)
     _write_csv(paths["model_summary"], model_rows)
     _write_csv(paths["cross_axis_quadrants"], quadrant_rows)
@@ -152,6 +174,18 @@ def _load_geometry_rows(root: Path) -> list[dict[str, Any]]:
                     "num_images_used": _as_int(record["num_images_used"]),
                     "subset_seed": record["subset_seed"],
                     "subset_size": record["subset_size"],
+                    "control_type": str(
+                        record.get("control_type") or "legacy_uncontrolled"
+                    ),
+                    "control_seed": record.get("control_seed", ""),
+                    "paired_observed_score": record.get(
+                        "paired_observed_score",
+                        "",
+                    ),
+                    "observed_minus_null": record.get(
+                        "observed_minus_null",
+                        "",
+                    ),
                     "source": path.as_posix(),
                 }
             )
@@ -164,14 +198,12 @@ def _load_behavior_rows(root: Path) -> list[dict[str, Any]]:
     for path in sorted(pattern.glob("*/*/aggregate_metrics.json")):
         aggregate = _read_json(path)
         metrics = aggregate["metrics"]
-        raw = {metric: _as_float(metrics[metric]) for metric in BEHAVIOR_METRICS}
-        per_image_path = path.parent / "per_image_metrics.csv"
-        correction = _uniform_map_auc_correction(per_image_path)
-        corrected = dict(raw)
-        if correction:
-            corrected.update(
-                {"shuffled_auc": 0.5, "auc_borji": 0.5, "auc_judd": 0.5}
-            )
+        raw_metrics = aggregate.get("raw_metrics", {})
+        repaired_contract = bool(raw_metrics) and "constant_map_count" in aggregate
+        raw = {
+            metric: _as_float(raw_metrics.get(f"raw_{metric}", metrics[metric]))
+            for metric in BEHAVIOR_METRICS
+        }
         row: dict[str, Any] = {
             "dataset": str(aggregate["dataset"]),
             "behavior_scope": (
@@ -183,37 +215,147 @@ def _load_behavior_rows(root: Path) -> list[dict[str, Any]]:
             "num_items": _as_int(aggregate["num_items"]),
             "fixation_protocol": str(aggregate["fixation_protocol"]),
             "saliency_method": str(aggregate["saliency_method"]),
-            "auc_tie_correction_applied": correction,
-            "auc_tie_correction_reason": (
-                "verified uniform-map signature; tied ROC scores equal chance"
-                if correction
-                else ""
+            "constant_map_policy": (
+                "metric_layer_defined_behavior"
+                if repaired_contract
+                else "legacy_or_unknown_not_accepted"
+            ),
+            "constant_map_count": _as_int(
+                aggregate.get("constant_map_count", 0)
+            ),
+            "map_lookup_count": _as_int(
+                aggregate.get("map_lookup_count", aggregate["num_items"])
+            ),
+            "unique_map_lookup_count": _as_int(
+                aggregate.get("unique_map_lookup_count", 0)
+            ),
+            "unique_row_key_count": _as_int(
+                aggregate.get("unique_row_key_count", 0)
             ),
         }
         for metric in BEHAVIOR_METRICS:
-            row[metric] = corrected[metric]
+            row[metric] = _as_float(metrics[metric])
             row[f"raw_{metric}"] = raw[metric]
         row["source"] = path.as_posix()
         rows.append(row)
     return rows
 
 
-def _uniform_map_auc_correction(path: Path) -> bool:
-    rows = _read_csv(path)
-    if not rows:
-        return False
-    return all(
-        math.isclose(_as_float(row["nss"]), 0.0, abs_tol=1e-12)
-        and math.isclose(_as_float(row["cc"]), 0.0, abs_tol=1e-12)
-        and math.isclose(_as_float(row["shuffled_auc"]), 1.0, abs_tol=1e-12)
-        and math.isclose(_as_float(row["auc_borji"]), 1.0, abs_tol=1e-12)
-        for row in rows
-    )
+def _build_behavior_map_key_audit(root: Path) -> list[dict[str, Any]]:
+    from hma.saliency.precomputed import precomputed_map_key
+
+    rows: list[dict[str, Any]] = []
+    for dataset, manifest_path in BEHAVIOR_MANIFESTS.items():
+        manifest_rows = _read_csv(manifest_path)
+        map_keys = [
+            precomputed_map_key(record["image_path"])
+            for record in manifest_rows
+        ]
+        unique_paths = {
+            str(record["image_path"]).replace("\\", "/")
+            for record in manifest_rows
+        }
+        for model in MODELS:
+            artifact_dataset = BEHAVIOR_ARTIFACT_DATASETS[dataset]
+            artifact_dir = (
+                root
+                / "external_artifacts"
+                / "behavior_full"
+                / artifact_dataset
+                / model
+            )
+            artifact_manifest_path = artifact_dir / "manifest.json"
+            if artifact_manifest_path.is_file():
+                artifact_manifest = _read_json(artifact_manifest_path)
+                image_ids_path = (
+                    artifact_dir
+                    / str(artifact_manifest["image_ids_file"])
+                )
+                exported_keys = (
+                    json.loads(image_ids_path.read_text(encoding="utf-8"))
+                    if image_ids_path.is_file()
+                    else []
+                )
+            else:
+                exported_keys = []
+            map_dir = root / "routing_maps" / "full" / dataset / model
+            map_files = sorted(map_dir.glob("*.npy"))
+            map_file_keys = {path.stem for path in map_files}
+            expected_map_keys = set(map_keys)
+            artifact_map_keys = set(exported_keys)
+            per_image_path = (
+                root
+                / "behavior"
+                / "full"
+                / dataset
+                / f"{model}_operational_routing"
+                / "per_image_metrics.csv"
+            )
+            scorer_rows = _read_csv(per_image_path) if per_image_path.is_file() else []
+            scorer_map_keys = [
+                str(record.get("map_key", ""))
+                for record in scorer_rows
+            ]
+            scorer_row_keys = [
+                str(record.get("row_key", ""))
+                for record in scorer_rows
+            ]
+            passed = (
+                len(manifest_rows) == EXPECTED_BEHAVIOR_ITEMS
+                and len(unique_paths) == len(set(map_keys))
+                and len(exported_keys) == len(unique_paths)
+                and artifact_map_keys == expected_map_keys
+                and len(map_files) == len(unique_paths)
+                and map_file_keys == expected_map_keys
+                and len(scorer_rows) == len(manifest_rows)
+                and len(set(scorer_map_keys)) == len(unique_paths)
+                and set(scorer_map_keys) == expected_map_keys
+                and len(set(scorer_row_keys)) == len(manifest_rows)
+            )
+            rows.append(
+                {
+                    "dataset": dataset,
+                    "model": model,
+                    "manifest_row_count": len(manifest_rows),
+                    "unique_image_path_count": len(unique_paths),
+                    "unique_map_key_count": len(set(map_keys)),
+                    "artifact_routed_image_count": len(exported_keys),
+                    "artifact_missing_map_key_count": len(
+                        expected_map_keys - artifact_map_keys
+                    ),
+                    "artifact_unexpected_map_key_count": len(
+                        artifact_map_keys - expected_map_keys
+                    ),
+                    "exported_map_file_count": len(map_files),
+                    "missing_map_file_count": len(
+                        expected_map_keys - map_file_keys
+                    ),
+                    "unexpected_map_file_count": len(
+                        map_file_keys - expected_map_keys
+                    ),
+                    "scorer_map_lookup_count": len(scorer_rows),
+                    "scorer_unique_map_lookup_count": len(
+                        set(scorer_map_keys)
+                    ),
+                    "scorer_unique_row_key_count": len(
+                        set(scorer_row_keys)
+                    ),
+                    "repeated_trial_row_count": (
+                        len(manifest_rows) - len(unique_paths)
+                    ),
+                    "passed": passed,
+                }
+            )
+    return rows
 
 
 def _load_efficiency_rows(root: Path) -> list[dict[str, Any]]:
     raw_rows: list[dict[str, Any]] = []
-    for path in sorted((root / "external_artifacts" / "full").glob("*/efficiency.json")):
+    dedicated = sorted((root / "efficiency" / "full").glob("*/efficiency.json"))
+    paths = dedicated or sorted(
+        (root / "external_artifacts" / "full").glob("*/efficiency.json")
+    )
+    for path in paths:
         payload = _read_json(path)
         resource_summary = payload.get("resource_summary", {})
         token_counts = [
@@ -229,6 +371,41 @@ def _load_efficiency_rows(root: Path) -> list[dict[str, Any]]:
                 "realized_flops": _as_int(payload["realized_flops"]),
                 "realized_gflops": _as_float(payload["realized_flops"]) / 1e9,
                 "latency_ms_per_image": _as_float(payload["latency_ms_per_image"]),
+                "latency_ms_per_image_std": payload.get(
+                    "latency_ms_per_image_std",
+                    "",
+                ),
+                "latency_ms_per_image_cv": payload.get(
+                    "latency_ms_per_image_cv",
+                    "",
+                ),
+                "latency_ms_per_image_min": payload.get(
+                    "latency_ms_per_image_min",
+                    "",
+                ),
+                "latency_ms_per_image_max": payload.get(
+                    "latency_ms_per_image_max",
+                    "",
+                ),
+                "latency_repeats_ms_per_image": json.dumps(
+                    payload.get("latency_repeats_ms_per_image", [])
+                ),
+                "batch_size": payload.get("batch_size", ""),
+                "warmup_batches": payload.get("warmup_batches", ""),
+                "measured_batches_per_repeat": payload.get(
+                    "measured_batches_per_repeat",
+                    "",
+                ),
+                "timing_repeats": payload.get("timing_repeats", ""),
+                "cuda_synchronized": payload.get("cuda_synchronized", ""),
+                "hardware": json.dumps(payload.get("hardware", {}), sort_keys=True),
+                "fvcore_unsupported_ops": json.dumps(
+                    payload.get("fvcore_unsupported_ops", {}),
+                    sort_keys=True,
+                ),
+                "fvcore_uncalled_modules": json.dumps(
+                    payload.get("fvcore_uncalled_modules", [])
+                ),
                 "peak_memory_bytes": _as_int(payload["peak_memory_bytes"]),
                 "peak_memory_mib": _as_float(payload["peak_memory_bytes"]) / 2**20,
                 "minimum_mean_tokens": min(token_counts) if token_counts else "",
@@ -271,15 +448,21 @@ def _build_model_summaries(
         group_fields=("roi",),
         value_fields=("mean_noise_normalized_score",),
     )
-    geometry_primary = [
+    geometry_observed = [
         row
         for row in geometry_rows
+        if row["control_type"] in {"observed", "legacy_uncontrolled"}
+    ]
+    geometry_primary_raw = [
+        row
+        for row in geometry_observed
         if row["geometry_method"] == "linear_cka"
         or (
             row["geometry_method"] == "subset_rsa"
             and _as_int(row["subset_size"]) == 2048
         )
     ]
+    geometry_primary = _mean_geometry_seed_rows(geometry_primary_raw)
     geometry_rank = _rank_composite(
         geometry_primary,
         group_fields=("roi", "geometry_method"),
@@ -423,12 +606,33 @@ def _build_model_summaries(
                             "model_n": len(MODELS),
                             "subject_n": 1,
                             "uncertainty": (
-                                "not estimated; one subject and three-model "
-                                "deterministic panel"
+                                "rank threshold only; n=3 models and one subject"
+                            ),
+                            "evidence_status": "diagnostic_only",
+                            "evidence_warning": (
+                                "Do not use high/low labels as evidence; n=3, "
+                                "one-subject, rank-threshold diagnostic."
                             ),
                         }
                     )
     return model_rows, quadrant_rows
+
+
+def _mean_geometry_seed_rows(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        grouped[
+            (row["model"], row["roi"], row["geometry_method"])
+        ].append(row)
+    output: list[dict[str, Any]] = []
+    for group in grouped.values():
+        row = dict(group[0])
+        row["score"] = statistics.mean(_as_float(item["score"]) for item in group)
+        row["subset_seed"] = "mean:123,456,789" if len(group) > 1 else ""
+        output.append(row)
+    return output
 
 
 def _rank_composite(
@@ -488,14 +692,16 @@ def _observation_ranks(
 
 
 def _build_audit(
+    root: Path,
     neural_rows: list[dict[str, Any]],
     geometry_rows: list[dict[str, Any]],
     behavior_rows: list[dict[str, Any]],
     efficiency_rows: list[dict[str, Any]],
+    behavior_key_audit_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
     checks = [
         _check("neural_encoding_count", len(neural_rows) == 12, len(neural_rows)),
-        _check("geometry_count", len(geometry_rows) == 48, len(geometry_rows)),
+        _check("geometry_count", len(geometry_rows) == 264, len(geometry_rows)),
         _check("behavior_count", len(behavior_rows) == 9, len(behavior_rows)),
         _check("efficiency_count", len(efficiency_rows) == 3, len(efficiency_rows)),
         _check(
@@ -511,7 +717,10 @@ def _build_audit(
         ),
         _check(
             "behavior_item_counts",
-            all(row["num_items"] == 2000 for row in behavior_rows),
+            all(
+                row["num_items"] == EXPECTED_BEHAVIOR_ITEMS
+                for row in behavior_rows
+            ),
             sorted({row["num_items"] for row in behavior_rows}),
         ),
         _check(
@@ -533,26 +742,78 @@ def _build_audit(
             "all geometry rows valid over 9841 images",
         ),
         _check(
+            "geometry_observed_seed_coverage",
+            _geometry_seed_coverage_valid(geometry_rows),
+            "RSA seeds 123/456/789 and one observed CKA per cell",
+        ),
+        _check(
+            "geometry_null_controls",
+            _geometry_null_controls_valid(geometry_rows),
+            "paired response-permutation controls for CKA and RSA",
+        ),
+        _check(
+            "behavior_map_key_audit",
+            len(behavior_key_audit_rows) == 9
+            and all(row["passed"] for row in behavior_key_audit_rows),
+            {
+                "passed_cells": sum(
+                    bool(row["passed"]) for row in behavior_key_audit_rows
+                ),
+                "failed_cells": [
+                    f"{row['dataset']}:{row['model']}"
+                    for row in behavior_key_audit_rows
+                    if not row["passed"]
+                ],
+            },
+        ),
+        _check(
+            "matched_preprocessing",
+            _matched_preprocessing_valid(),
+            "all three registered crop_pct values are 0.875",
+        ),
+        _check(
+            "artifact_preprocessing",
+            _artifact_preprocessing_valid(root),
+            "all repaired full and behavior artifacts record crop_pct=0.875",
+        ),
+        _check(
+            "efficiency_protocol",
+            _efficiency_protocol_valid(efficiency_rows),
+            "batch16, 20 warmups, 5x100 measured batches with CUDA sync",
+        ),
+        _check(
+            "dinov2_repository_local_provenance",
+            _dinov2_provenance_valid(),
+            "four repository-local cells with verified hashes",
+        ),
+        _check(
             "all_numeric_results_finite",
             _all_finite(neural_rows, geometry_rows, behavior_rows, efficiency_rows),
             "finite",
         ),
         _check(
-            "uniform_baseline_auc_corrected",
-            sum(row["auc_tie_correction_applied"] for row in behavior_rows) == 3,
-            sum(row["auc_tie_correction_applied"] for row in behavior_rows),
+            "uniform_baseline_metric_policy",
+            sum(
+                row["model"] == "deit_small_static"
+                and row["constant_map_count"] == row["num_items"]
+                and math.isclose(row["auc_judd"], 0.5)
+                and math.isclose(row["auc_borji"], 0.5)
+                and math.isclose(row["shuffled_auc"], 0.5)
+                for row in behavior_rows
+            )
+            == 3,
+            "metric-layer chance AUC",
         ),
     ]
     return {
-        "schema_version": "hma.paper1_matrix_v2.full_result_audit.v1",
+        "schema_version": "hma.paper1_matrix_v2.full_result_audit.v2",
         "passed": all(check["passed"] for check in checks),
         "expected_counts": EXPECTED_COUNTS,
         "checks": checks,
         "notes": [
             (
-                "Raw aggregate AUC values are preserved in raw_* columns. "
-                "The three verified uniform static-routing cells use tie-aware "
-                "chance AUC=0.5 in analysis columns."
+                "Raw metric values are preserved in raw_* columns. Constant "
+                "predictions receive defined metric-layer behavior before aggregation."
             ),
             (
                 "Cross-axis quadrants are descriptive within this three-model, "
@@ -560,6 +821,109 @@ def _build_audit(
             ),
         ],
     }
+
+
+def _geometry_seed_coverage_valid(rows: list[dict[str, Any]]) -> bool:
+    for model in MODELS:
+        for roi in ROIS:
+            cell = [
+                row
+                for row in rows
+                if row["model"] == model
+                and row["roi"] == roi
+                and row["control_type"] == "observed"
+            ]
+            cka = [row for row in cell if row["geometry_method"] == "linear_cka"]
+            if len(cka) != 1:
+                return False
+            for size in (512, 1024, 2048):
+                seeds = {
+                    _as_int(row["subset_seed"])
+                    for row in cell
+                    if row["geometry_method"] == "subset_rsa"
+                    and _as_int(row["subset_size"]) == size
+                }
+                if seeds != {123, 456, 789}:
+                    return False
+    return True
+
+
+def _geometry_null_controls_valid(rows: list[dict[str, Any]]) -> bool:
+    controls = [
+        row for row in rows if row["control_type"] == "response_permutation"
+    ]
+    if len(controls) != 144:
+        return False
+    return all(
+        row["paired_observed_score"] != ""
+        and row["observed_minus_null"] != ""
+        and _as_int(row["control_seed"]) in {123, 456, 789}
+        for row in controls
+    )
+
+
+def _matched_preprocessing_valid() -> bool:
+    from hma.external.registry import load_external_registry
+
+    registry = load_external_registry()
+    return all(
+        math.isclose(
+            _as_float(registry.model(model)["preprocessing"]["crop_pct"]),
+            0.875,
+        )
+        for model in MODELS
+    )
+
+
+def _artifact_preprocessing_valid(root: Path) -> bool:
+    paths = [
+        root / "external_artifacts" / "full" / model / "manifest.json"
+        for model in MODELS
+    ]
+    paths.extend(
+        root
+        / "external_artifacts"
+        / "behavior_full"
+        / artifact_dataset
+        / model
+        / "manifest.json"
+        for artifact_dataset in BEHAVIOR_ARTIFACT_DATASETS.values()
+        for model in MODELS
+    )
+    if not all(path.is_file() for path in paths):
+        return False
+    return all(
+        math.isclose(
+            _as_float(
+                _read_json(path)["provenance"]["preprocessing"]["crop_pct"]
+            ),
+            0.875,
+        )
+        for path in paths
+    )
+
+
+def _efficiency_protocol_valid(rows: list[dict[str, Any]]) -> bool:
+    try:
+        return len(rows) == 3 and all(
+            _as_int(row["batch_size"]) == 16
+            and _as_int(row["warmup_batches"]) == 20
+            and _as_int(row["measured_batches_per_repeat"]) == 100
+            and _as_int(row["timing_repeats"]) == 5
+            and _as_bool(row["cuda_synchronized"])
+            and len(json.loads(row["latency_repeats_ms_per_image"])) == 5
+            for row in rows
+        )
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def _dinov2_provenance_valid() -> bool:
+    path = Path("outputs/methodology_trace/dinov2_provenance_hashes.csv")
+    if not path.is_file():
+        return False
+    rows = _read_csv(path)
+    return bool(rows) and all(_as_bool(row.get("verified", False)) for row in rows)
 
 
 def _all_finite(*tables: list[dict[str, Any]]) -> bool:
@@ -576,11 +940,30 @@ def _summary_markdown(
     behavior_rows: list[dict[str, Any]],
     audit: dict[str, Any],
 ) -> str:
+    if not audit["passed"]:
+        failed = [
+            check["name"]
+            for check in audit["checks"]
+            if not check["passed"]
+        ]
+        return f"""# Paper 1 Matrix V2 Full-Run Summary
+
+Audit status: **failed**
+
+This result set is not an accepted scientific artifact. Required repair reruns
+have not completed for: {", ".join(failed)}.
+
+`matrix_v2_cross_axis_quadrants.csv` remains diagnostic-only and its labels
+must not be used as evidence.
+"""
     by_model = {row["model"]: row for row in model_rows}
     static = by_model["deit_small_static"]
     dynamic = by_model["dynamicvit_deit_small_keep_0_7"]
     tome = by_model["tome_deit_small_r13"]
-    corrections = sum(row["auc_tie_correction_applied"] for row in behavior_rows)
+    constant_cells = sum(
+        row["constant_map_count"] == row["num_items"]
+        for row in behavior_rows
+    )
     return f"""# Paper 1 Matrix V2 Full-Run Summary
 
 Audit status: **{"passed" if audit["passed"] else "failed"}**
@@ -599,11 +982,12 @@ Audit status: **{"passed" if audit["passed"] else "failed"}**
 - ToMe realized FLOPs reduction versus static: {_percent(tome, static, "realized_gflops")}.
 - DynamicViT measured latency change versus static: {_percent_change(dynamic, static, "latency_ms_per_image")}.
 - ToMe measured latency change versus static: {_percent_change(tome, static, "latency_ms_per_image")}.
-- Static uniform-routing AUC corrections: {corrections} dataset cells. Raw values remain in `full_behavior.csv`.
+- Static uniform-routing metric-layer handling: {constant_cells} dataset cells.
+  Raw values remain in `full_behavior.csv`.
 
-The cross-axis classifications are descriptive panel-median splits for a
-three-model, single-subject result. They should be used to organize follow-up
-analysis, not as inferential evidence by themselves.
+`matrix_v2_cross_axis_quadrants.csv` is diagnostic-only. Its high/low labels
+are an n=3, one-subject, rank-threshold organization and must not be used as
+evidence.
 """
 
 

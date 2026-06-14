@@ -11,9 +11,19 @@ NEURAL_EXPORT=$(sbatch --parsable cluster/paper1_matrix_v2/full_neural_exports.s
 BEHAVIOR_EXPORT=$(sbatch --parsable cluster/paper1_matrix_v2/full_behavior_exports.sbatch)
 NEURAL_ANALYSIS=$(sbatch --parsable --dependency=afterok:$NEURAL_EXPORT   cluster/paper1_matrix_v2/full_neural_analysis.sbatch)
 BEHAVIOR_SCORE=$(sbatch --parsable --dependency=afterok:$BEHAVIOR_EXPORT   cluster/paper1_matrix_v2/full_behavior_scores.sbatch)
+if [[ "full" == "full" ]]; then
+  GEOMETRY=$(sbatch --parsable --dependency=afterok:$NEURAL_ANALYSIS     cluster/paper1_matrix_v2/full_geometry_recompute.sbatch)
+  EFFICIENCY=$(sbatch --parsable     cluster/paper1_matrix_v2/full_efficiency_profile.sbatch)
+  SUMMARY=$(sbatch --parsable     --dependency=afterok:$BEHAVIOR_SCORE:$GEOMETRY:$EFFICIENCY     cluster/paper1_matrix_v2/full_summary_audit.sbatch)
+fi
 printf 'mode=full\n'
 printf 'stage=full\n'
 printf 'neural_export=%s\n' "$NEURAL_EXPORT"
 printf 'behavior_export=%s\n' "$BEHAVIOR_EXPORT"
 printf 'neural_analysis=%s\n' "$NEURAL_ANALYSIS"
 printf 'behavior_score=%s\n' "$BEHAVIOR_SCORE"
+if [[ "full" == "full" ]]; then
+  printf 'geometry=%s\n' "$GEOMETRY"
+  printf 'efficiency=%s\n' "$EFFICIENCY"
+  printf 'summary=%s\n' "$SUMMARY"
+fi

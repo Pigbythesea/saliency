@@ -28,7 +28,7 @@ preprocessing:
   - 224
   - 224
   interpolation: bicubic
-  crop_pct: 0.9
+  crop_pct: 0.875
   mean:
   - 0.485
   - 0.456
@@ -83,6 +83,13 @@ neural:
     - 512
     - 1024
     - 2048
-    subset_seed: 123
+    subset_seeds:
+    - 123
+    - 456
+    - 789
+    null_control_seeds:
+    - 123
+    - 456
+    - 789
 output:
   dir: outputs/paper1_matrix_v2/neural/full/tome_deit_small_r13/v1

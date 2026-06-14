@@ -35,8 +35,16 @@ def export_routing_maps(
     source = resources[source_key]
     output_root = resolve_path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
+    expected_filenames = {f"{map_key}.npy" for map_key in image_ids}
+    stale_map_files = [
+        path
+        for path in output_root.glob("*.npy")
+        if path.name not in expected_filenames
+    ]
+    for path in stale_map_files:
+        path.unlink()
     summaries = []
-    for index, image_id in enumerate(image_ids):
+    for index, map_key in enumerate(image_ids):
         routing = _routing_vector(source[index], map_kind=map_kind)
         grid = _square_grid(routing)
         resized = np.asarray(
@@ -46,23 +54,24 @@ def export_routing_maps(
             ),
             dtype=np.float32,
         )
-        np.save(output_root / f"{image_id}.npy", resized)
+        np.save(output_root / f"{map_key}.npy", resized)
         summaries.append(
             {
-                "image_id": image_id,
+                "map_key": map_key,
                 "minimum": float(np.min(resized)),
                 "maximum": float(np.max(resized)),
                 "mean": float(np.mean(resized)),
             }
         )
     metadata = {
-        "schema_version": "hma.external.routing_maps.v1",
+        "schema_version": "hma.external.routing_maps.v2",
         "model_id": manifest["model_id"],
         "artifact_dir": str(resolve_path(artifact_dir)),
         "resource_key": source_key,
         "map_kind": map_kind,
         "output_size": list(output_size),
-        "num_images": len(image_ids),
+        "num_maps": len(image_ids),
+        "stale_map_files_removed": len(stale_map_files),
         "map_definition": _map_definition(map_kind),
         "summaries": summaries,
     }

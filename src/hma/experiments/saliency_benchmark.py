@@ -24,6 +24,7 @@ from hma.metrics.saliency_metrics import (
     nss,
     shuffled_auc,
     similarity,
+    is_constant_map,
 )
 from hma.models import build_model
 from hma.preprocessing import preprocess_image_for_model
@@ -71,6 +72,11 @@ def run_saliency_benchmark(
         _move_model_to_device(model, resolved_device)
 
     metric_fns = _build_metric_functions(metric_names, config)
+    raw_metric_fns = _build_metric_functions(
+        metric_names,
+        config,
+        constant_policy="raw",
+    )
     cache_settings = _build_cache_settings(output_dir, config)
 
     rows: list[dict[str, Any]] = []
@@ -123,10 +129,21 @@ def run_saliency_benchmark(
         row: dict[str, Any] = {
             "image_id": item.get("image_id", f"item_{item_index:04d}"),
             "image_path": item.get("image_path", ""),
+            "map_key": item.get("map_key", ""),
+            "row_key": item.get("row_key", f"item_{item_index:04d}"),
             "fixation_protocol": metric_context.get("fixation_protocol", ""),
+            "prediction_min": float(np.min(prediction_map)),
+            "prediction_max": float(np.max(prediction_map)),
+            "prediction_range": float(np.ptp(prediction_map)),
+            "prediction_is_constant": is_constant_map(prediction_map),
         }
         for metric_name, metric_fn in metric_fns.items():
             row[metric_name] = metric_fn(prediction_map, target, metric_context)
+            row[f"raw_{metric_name}"] = raw_metric_fns[metric_name](
+                prediction_map,
+                target,
+                metric_context,
+            )
         rows.append(row)
 
         if save_visualizations and item_index < num_visualizations:
@@ -160,7 +177,12 @@ def run_saliency_benchmark(
     return aggregate
 
 
-def _build_metric_functions(metric_names: list[str], config: dict[str, Any]) -> dict[str, MetricFn]:
+def _build_metric_functions(
+    metric_names: list[str],
+    config: dict[str, Any],
+    *,
+    constant_policy: str = "defined",
+) -> dict[str, MetricFn]:
     controls = config.get("metric_controls", {})
     seed = int(controls.get("seed", config.get("seed", 0)))
     auc_borji_splits = int(controls.get("auc_borji_splits", 100))
@@ -171,11 +193,13 @@ def _build_metric_functions(metric_names: list[str], config: dict[str, Any]) -> 
             prediction,
             target,
             positive_fixations=context.get("positive_fixations"),
+            constant_policy=constant_policy,
         ),
         "auc_judd": lambda prediction, target, context: auc_judd(
             prediction,
             target,
             positive_fixations=context.get("positive_fixations"),
+            constant_policy=constant_policy,
         ),
         "auc_borji": lambda prediction, target, context: auc_borji(
             prediction,
@@ -183,6 +207,7 @@ def _build_metric_functions(metric_names: list[str], config: dict[str, Any]) -> 
             positive_fixations=context.get("sampled_positive_fixations"),
             splits=auc_borji_splits,
             seed=seed + int(context.get("item_index", 0)),
+            constant_policy=constant_policy,
         ),
         "shuffled_auc": lambda prediction, target, context: shuffled_auc(
             prediction,
@@ -191,11 +216,28 @@ def _build_metric_functions(metric_names: list[str], config: dict[str, Any]) -> 
             positive_fixations=context.get("sampled_positive_fixations"),
             splits=shuffled_auc_splits,
             seed=seed + int(context.get("item_index", 0)),
+            constant_policy=constant_policy,
         ),
-        "cc": lambda prediction, target, _context: cc(prediction, target),
-        "similarity": lambda prediction, target, _context: similarity(prediction, target),
-        "kl": lambda prediction, target, _context: kl_divergence(target, prediction),
-        "kl_divergence": lambda prediction, target, _context: kl_divergence(target, prediction),
+        "cc": lambda prediction, target, _context: cc(
+            prediction,
+            target,
+            constant_policy=constant_policy,
+        ),
+        "similarity": lambda prediction, target, _context: similarity(
+            prediction,
+            target,
+            constant_policy=constant_policy,
+        ),
+        "kl": lambda prediction, target, _context: kl_divergence(
+            target,
+            prediction,
+            constant_policy=constant_policy,
+        ),
+        "kl_divergence": lambda prediction, target, _context: kl_divergence(
+            target,
+            prediction,
+            constant_policy=constant_policy,
+        ),
         "emd": lambda prediction, target, _context: emd_2d(
             target,
             prediction,
@@ -223,6 +265,7 @@ def _build_metric_context(
     settings: dict[str, Any],
 ) -> MetricContext:
     image_id = str(item.get("image_id", f"item_{item_index:04d}"))
+    map_key = str(item.get("map_key") or image_id)
     positive_fixations, fixation_protocol = _fixation_coords_and_protocol_for_item(
         item,
         target_shape,
@@ -236,12 +279,16 @@ def _build_metric_context(
         "item": item,
         "item_index": item_index,
         "image_id": image_id,
+        "map_key": map_key,
         "positive_fixations": positive_fixations,
         "sampled_positive_fixations": sampled_positive_fixations,
         "fixation_protocol": fixation_protocol,
     }
     if shuffled_pool is not None:
-        context["negative_fixations"] = _negative_fixations_for_item(shuffled_pool, image_id)
+        context["negative_fixations"] = _negative_fixations_for_item(
+            shuffled_pool,
+            map_key,
+        )
     return context
 
 
@@ -266,7 +313,7 @@ def _build_shuffled_fixation_pool(
     max_points_per_image = int(controls.get("shuffled_auc_pool_points_per_image", 256))
     rng = np.random.default_rng(seed)
     coords_by_image: list[np.ndarray] = []
-    image_ids: list[str] = []
+    map_keys: list[str] = []
     dataset = build_dataset(config)
     progress_state = _start_progress(
         enabled=progress,
@@ -284,27 +331,31 @@ def _build_shuffled_fixation_pool(
         if max_points_per_image > 0:
             coords = _sample_coords(coords, max_points=max_points_per_image, rng=rng)
         coords_by_image.append(coords.astype(np.int64, copy=False))
-        image_ids.extend([str(item.get("image_id", f"item_{item_index:04d}"))] * coords.shape[0])
+        map_key = str(
+            item.get("map_key")
+            or item.get("image_id", f"item_{item_index:04d}")
+        )
+        map_keys.extend([map_key] * coords.shape[0])
         _maybe_print_progress(progress_state, completed=item_index + 1)
     _finish_progress(progress_state, completed=item_index + 1 if "item_index" in locals() else 0)
 
     if not coords_by_image:
         return {
             "coords": np.zeros((0, 2), dtype=np.int64),
-            "image_ids": np.asarray([], dtype=object),
+            "map_keys": np.asarray([], dtype=object),
         }
     return {
         "coords": np.concatenate(coords_by_image, axis=0),
-        "image_ids": np.asarray(image_ids, dtype=object),
+        "map_keys": np.asarray(map_keys, dtype=object),
     }
 
 
-def _negative_fixations_for_item(pool: dict[str, Any], image_id: str) -> np.ndarray:
+def _negative_fixations_for_item(pool: dict[str, Any], map_key: str) -> np.ndarray:
     coords = pool.get("coords")
-    image_ids = pool.get("image_ids")
-    if coords is None or image_ids is None or len(coords) == 0:
+    map_keys = pool.get("map_keys")
+    if coords is None or map_keys is None or len(coords) == 0:
         return np.zeros((0, 2), dtype=np.int64)
-    return np.asarray(coords)[np.asarray(image_ids, dtype=object) != image_id]
+    return np.asarray(coords)[np.asarray(map_keys, dtype=object) != map_key]
 
 
 def _fixation_coords_for_item(item: dict[str, Any], target_shape: tuple[int, int]) -> np.ndarray:
@@ -541,7 +592,19 @@ def _write_per_image_csv(
     rows: list[dict[str, Any]],
     metric_names: list[str],
 ) -> None:
-    fieldnames = ["image_id", "image_path", "fixation_protocol", *metric_names]
+    fieldnames = [
+        "row_key",
+        "map_key",
+        "image_id",
+        "image_path",
+        "fixation_protocol",
+        "prediction_min",
+        "prediction_max",
+        "prediction_range",
+        "prediction_is_constant",
+        *metric_names,
+        *(f"raw_{metric}" for metric in metric_names),
+    ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
@@ -562,12 +625,31 @@ def _build_aggregate(
         metric: float(np.mean([float(row[metric]) for row in rows])) if rows else 0.0
         for metric in metric_names
     }
+    raw_metric_means = {
+        f"raw_{metric}": (
+            float(np.mean([float(row[f"raw_{metric}"]) for row in rows]))
+            if rows
+            else 0.0
+        )
+        for metric in metric_names
+    }
     return {
         "experiment": config.get("experiment", {}).get(
             "name", Path(config_path).stem
         ),
         "num_items": len(rows),
         "metrics": metric_means,
+        "raw_metrics": raw_metric_means,
+        "map_lookup_count": len(rows),
+        "unique_map_lookup_count": len(
+            {str(row.get("map_key", "")) for row in rows}
+        ),
+        "unique_row_key_count": len(
+            {str(row.get("row_key", "")) for row in rows}
+        ),
+        "constant_map_count": sum(
+            bool(row.get("prediction_is_constant")) for row in rows
+        ),
         "config_path": str(config_path),
         "dataset": config.get("dataset", {}).get("label") or config.get("dataset", {}).get("name"),
         "model": config.get("model", {}).get("name"),

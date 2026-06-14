@@ -57,10 +57,10 @@ paper1_scope:
     - outputs/neural_subj01_full/vit_base_patch16_224_v2_flatten_pca_validation_selection_full
     - outputs/neural_subj01_full/vit_base_patch16_224_v3_flatten_pca_validation_selection_full
     - outputs/neural_subj01_full/vit_base_patch16_224_hv4_flatten_pca_validation_selection_full
-    - C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_v1_flatten_pca_validation_selection_full
-    - C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_v2_flatten_pca_validation_selection_full
-    - C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_v3_flatten_pca_validation_selection_full
-    - C:/saliency_outputs/neural_subj01_full/vit_small_patch14_dinov2_hv4_flatten_pca_validation_selection_full
+    - outputs/neural_subj01_full/vit_small_patch14_dinov2_v1_flatten_pca_validation_selection_full
+    - outputs/neural_subj01_full/vit_small_patch14_dinov2_v2_flatten_pca_validation_selection_full
+    - outputs/neural_subj01_full/vit_small_patch14_dinov2_v3_flatten_pca_validation_selection_full
+    - outputs/neural_subj01_full/vit_small_patch14_dinov2_hv4_flatten_pca_validation_selection_full
     - outputs/neural_subj01_full/vit_base_patch16_clip_224_v1_flatten_pca_validation_selection_full
     - outputs/neural_subj01_full/vit_base_patch16_clip_224_v2_flatten_pca_validation_selection_full
     - outputs/neural_subj01_full/vit_base_patch16_clip_224_v3_flatten_pca_validation_selection_full

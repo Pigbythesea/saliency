@@ -22,7 +22,7 @@ model:
 saliency:
   method: precomputed_map
   root: outputs/paper1_matrix_v2/routing_maps/coco_search18_static2000/tome_deit_small_r13
-  path_template: '{image_id}.npy'
+  path_template: '{map_key}.npy'
   object_type: operational_resource_allocation
 metric_controls:
   seed: 123

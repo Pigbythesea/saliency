@@ -290,7 +290,23 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
             layers=geometry_layers,
             methods=[str(method) for method in geometry_config.get("methods", ["linear_cka"])],
             subset_sizes=[int(size) for size in geometry_config.get("subset_sizes", [])],
-            subset_seed=int(geometry_config.get("subset_seed", seed)),
+            subset_seeds=[
+                int(value)
+                for value in geometry_config.get(
+                    "subset_seeds",
+                    [geometry_config.get("subset_seed", seed)],
+                )
+            ],
+            null_control_seeds=[
+                int(value)
+                for value in geometry_config.get(
+                    "null_control_seeds",
+                    geometry_config.get(
+                        "subset_seeds",
+                        [geometry_config.get("subset_seed", seed)],
+                    ),
+                )
+            ],
             row_context=_score_row_context(config, item_metadata),
             model_feature_reduction=feature_reduction_metadata.get(
                 "feature_reduction",
@@ -2035,7 +2051,8 @@ def _compute_geometry_rows(
     layers: list[str],
     methods: list[str],
     subset_sizes: list[int],
-    subset_seed: int,
+    subset_seeds: list[int],
+    null_control_seeds: list[int],
     row_context: dict[str, Any],
     model_feature_reduction: str,
 ) -> list[dict[str, Any]]:
@@ -2045,33 +2062,101 @@ def _compute_geometry_rows(
         for method in methods:
             if method == "linear_cka":
                 result = linear_cka(features, responses)
-                rows.append(
-                    _geometry_row(
-                        result.as_row(),
-                        row_context=row_context,
-                        layer=layer,
-                        model_feature_reduction=model_feature_reduction,
-                    )
+                observed = _geometry_row(
+                    result.as_row(),
+                    row_context=row_context,
+                    layer=layer,
+                    model_feature_reduction=model_feature_reduction,
                 )
-            elif method == "subset_rsa":
-                for subset_size in subset_sizes:
-                    result = subset_rsa(
+                rows.append(_observed_geometry_row(observed))
+                for control_seed in null_control_seeds:
+                    null_result = linear_cka(
                         features,
-                        responses,
-                        subset_size=subset_size,
-                        seed=subset_seed,
+                        _permuted_responses(responses, control_seed),
                     )
                     rows.append(
-                        _geometry_row(
+                        _null_geometry_row(
+                            _geometry_row(
+                                null_result.as_row(),
+                                row_context=row_context,
+                                layer=layer,
+                                model_feature_reduction=model_feature_reduction,
+                            ),
+                            observed,
+                            control_seed,
+                        )
+                    )
+            elif method == "subset_rsa":
+                for subset_size in subset_sizes:
+                    for subset_seed in subset_seeds:
+                        result = subset_rsa(
+                            features,
+                            responses,
+                            subset_size=subset_size,
+                            seed=subset_seed,
+                        )
+                        observed = _geometry_row(
                             result.as_row(),
                             row_context=row_context,
                             layer=layer,
                             model_feature_reduction=model_feature_reduction,
                         )
-                    )
+                        rows.append(_observed_geometry_row(observed))
+                        null_result = subset_rsa(
+                            features,
+                            _permuted_responses(responses, subset_seed),
+                            subset_size=subset_size,
+                            seed=subset_seed,
+                        )
+                        rows.append(
+                            _null_geometry_row(
+                                _geometry_row(
+                                    null_result.as_row(),
+                                    row_context=row_context,
+                                    layer=layer,
+                                    model_feature_reduction=model_feature_reduction,
+                                ),
+                                observed,
+                                subset_seed,
+                            )
+                        )
             else:
                 raise ValueError("neural.geometry.methods must contain 'linear_cka' or 'subset_rsa'")
     return rows
+
+
+def _permuted_responses(responses: np.ndarray, seed: int) -> np.ndarray:
+    rng = np.random.default_rng(int(seed) + 1_000_000)
+    return np.asarray(responses)[rng.permutation(len(responses))]
+
+
+def _observed_geometry_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **row,
+        "control_type": "observed",
+        "control_seed": "",
+        "paired_observed_score": "",
+        "observed_minus_null": "",
+    }
+
+
+def _null_geometry_row(
+    row: dict[str, Any],
+    observed: dict[str, Any],
+    control_seed: int,
+) -> dict[str, Any]:
+    observed_score = observed.get("score", "")
+    null_score = row.get("score", "")
+    delta: float | str = ""
+    if observed_score != "" and null_score != "":
+        delta = float(observed_score) - float(null_score)
+    return {
+        **row,
+        "control_type": "response_permutation",
+        "control_seed": int(control_seed),
+        "paired_observed_score": observed_score,
+        "observed_minus_null": delta,
+    }
 
 
 def _geometry_row(
@@ -2386,6 +2471,10 @@ def _write_geometry_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "response_rdm_metric",
         "rdm_compare_method",
         "subset_index_policy",
+        "control_type",
+        "control_seed",
+        "paired_observed_score",
+        "observed_minus_null",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)

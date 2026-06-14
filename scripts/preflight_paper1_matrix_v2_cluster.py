@@ -45,12 +45,12 @@ MANIFESTS = {
     "cat2000": (
         "data/manifests/v2/cat2000_static2000_manifest.csv",
         "data/raw/CAT2000",
-        100,
+        2000,
     ),
     "coco_search18": (
         "data/manifests/v2/coco_search18_static2000_manifest.csv",
         "data/raw/COCO-Search18",
-        635,
+        668,
     ),
 }
 RUNTIME_PATH_VARIABLES = (
@@ -205,11 +205,11 @@ def _validate_image_manifest(
     unique: dict[str, Path] = {}
     with manifest_path.open("r", encoding="utf-8-sig", newline="") as handle:
         for row in csv.DictReader(handle):
-            image_id = str(row["image_id"])
-            path = Path(str(row["image_path"])).expanduser()
+            manifest_path_value = str(row["image_path"]).replace("\\", "/")
+            path = Path(manifest_path_value).expanduser()
             if not path.is_absolute():
                 path = image_root / path
-            unique.setdefault(image_id, path)
+            unique.setdefault(manifest_path_value, path)
     missing = []
     if verify_all_images:
         missing = [str(path) for path in unique.values() if not path.is_file()]

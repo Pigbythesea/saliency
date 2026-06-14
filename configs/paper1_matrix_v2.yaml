@@ -76,6 +76,10 @@ first_evidence_run:
   paired_control_policy:
     backbone: DeiT-S
     preprocessing: identical
+    crop_pct: 0.875
+    preprocessing_note: >
+      All three variants use the DynamicViT-native 224/256 evaluation crop.
+      This intentionally replaces the earlier 0.9 static/ToMe crop.
     checkpoint_family: ImageNet-1K
     resource_conditions:
       deit_small_static: full_tokens

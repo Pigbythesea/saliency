@@ -43,4 +43,4 @@ case "$DATASET" in
     SPLIT=val
     ;;
 esac
-"$MM" run -p "$PROJECT/external/environments/$MODEL"   python scripts/run_external_model.py   --model "$MODEL" --manifest "$MANIFEST" --image-root "$ROOT"   --split "$SPLIT" --batch-size 16 --artifact-scope resource_only   --output "outputs/paper1_matrix_v2/external_artifacts/behavior_full/$DATASET/$MODEL"
+"$MM" run -p "$PROJECT/external/environments/$MODEL"   python scripts/run_external_model.py   --model "$MODEL" --manifest "$MANIFEST" --image-root "$ROOT"   --split "$SPLIT" --batch-size 16 --artifact-scope resource_only   --artifact-key map_key   --skip-efficiency-profile   --output "outputs/paper1_matrix_v2/external_artifacts/behavior_full/$DATASET/$MODEL"

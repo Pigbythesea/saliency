@@ -94,7 +94,7 @@ def _behavior_config(
                 f"outputs/paper1_matrix_v2/routing_maps/"
                 f"{dataset['label']}/{model_id}"
             ),
-            "path_template": "{image_id}.npy",
+            "path_template": "{map_key}.npy",
             "object_type": "operational_resource_allocation",
         },
         "metric_controls": {
