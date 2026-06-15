@@ -7,6 +7,136 @@ workspace:
   reports: outputs/paper1_matrix_v2/installations
 artifact_schema: hma.external.artifact.v1
 models:
+  resnet50:
+    track: publication_local_anchors
+    role: general_visual_representation
+    source:
+      repository: https://github.com/huggingface/pytorch-image-models.git
+      commit: PIN_REQUIRED
+      license: Apache-2.0
+    environment: configs/external_models/environments/publication_timm.yaml
+    adapter: hma.external.adapters:TimmFeatureAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: resnet50
+      pretrained: true
+    checkpoint:
+      url:
+      filename: timm_pretrained_cache_snapshot
+      sha256:
+      hash_policy: snapshot_revision_and_hash_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      interpolation: bicubic
+      crop_pct: 0.875
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    feature_layers: [layer1, layer2, layer3, layer4]
+    mechanism_outputs: []
+  convnext_tiny:
+    track: publication_local_anchors
+    role: general_visual_representation
+    source:
+      repository: https://github.com/huggingface/pytorch-image-models.git
+      commit: PIN_REQUIRED
+      license: Apache-2.0
+    environment: configs/external_models/environments/publication_timm.yaml
+    adapter: hma.external.adapters:TimmFeatureAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: convnext_tiny
+      pretrained: true
+    checkpoint:
+      url:
+      filename: timm_pretrained_cache_snapshot
+      sha256:
+      hash_policy: snapshot_revision_and_hash_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      interpolation: bicubic
+      crop_pct: 0.875
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    feature_layers: [stages.0, stages.1, stages.2, stages.3]
+    mechanism_outputs: []
+  vit_base_patch16_224:
+    track: publication_local_anchors
+    role: general_visual_representation
+    source:
+      repository: https://github.com/huggingface/pytorch-image-models.git
+      commit: PIN_REQUIRED
+      license: Apache-2.0
+    environment: configs/external_models/environments/publication_timm.yaml
+    adapter: hma.external.adapters:TimmFeatureAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: vit_base_patch16_224
+      pretrained: true
+    checkpoint:
+      url:
+      filename: timm_pretrained_cache_snapshot
+      sha256:
+      hash_policy: snapshot_revision_and_hash_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      interpolation: bicubic
+      crop_pct: 0.875
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    feature_layers: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    mechanism_outputs: []
+  vit_small_patch14_dinov2:
+    track: publication_local_anchors
+    role: self_supervised_semantic
+    source:
+      repository: https://github.com/huggingface/pytorch-image-models.git
+      commit: PIN_REQUIRED
+      license: Apache-2.0
+    environment: configs/external_models/environments/publication_timm.yaml
+    adapter: hma.external.adapters:TimmFeatureAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: vit_small_patch14_dinov2
+      pretrained: true
+    checkpoint:
+      url:
+      filename: timm_pretrained_cache_snapshot
+      sha256:
+      hash_policy: snapshot_revision_and_hash_before_evidence
+    preprocessing:
+      input_size: [518, 518]
+      interpolation: bicubic
+      crop_pct: 1.0
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    feature_layers: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    mechanism_outputs: []
+  vit_base_patch16_clip_224:
+    track: publication_local_anchors
+    role: vision_language_semantic
+    source:
+      repository: https://github.com/huggingface/pytorch-image-models.git
+      commit: PIN_REQUIRED
+      license: Apache-2.0
+    environment: configs/external_models/environments/publication_timm.yaml
+    adapter: hma.external.adapters:TimmFeatureAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: vit_base_patch16_clip_224
+      pretrained: true
+    checkpoint:
+      url:
+      filename: timm_pretrained_cache_snapshot
+      sha256:
+      hash_policy: snapshot_revision_and_hash_before_evidence
+    preprocessing:
+      input_size: [224, 224]
+      interpolation: bicubic
+      crop_pct: 1.0
+      mean: [0.48145466, 0.4578275, 0.40821073]
+      std: [0.26862954, 0.26130258, 0.27577711]
+    feature_layers: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    mechanism_outputs: []
   deit_small_static:
     track: adaptive_token_computation
     role: paired_control
@@ -198,11 +328,14 @@ models:
       commit: 75230c3b6c7c5de54659a826d54baf526707ef70
       license: CC-BY-NC-4.0
     environment: configs/external_models/environments/frontier_torch.yaml
-    adapter: hma.external.adapters:HieraAdapter
-    adapter_status: checkpoint_api_audit_pending
+    adapter: hma.external.adapters:TimmFeatureAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: hiera_tiny_224
+      pretrained: true
     checkpoint:
       url:
-      filename:
+      filename: timm_pretrained_cache_snapshot
       sha256:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
@@ -219,16 +352,46 @@ models:
       commit: f82860bfb5225915aca09c3227159ee9e1df874d
       license: MIT
     environment: configs/external_models/environments/frontier_torch.yaml
-    adapter: hma.external.adapters:SwinAdapter
-    adapter_status: checkpoint_api_audit_pending
+    adapter: hma.external.adapters:TimmFeatureAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: swin_tiny_patch4_window7_224
+      pretrained: true
     checkpoint:
       url:
-      filename:
+      filename: timm_pretrained_cache_snapshot
       sha256:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
       input_size: [224, 224]
       source: official
+    feature_layers: [layers.0, layers.1, layers.2, layers.3]
+    mechanism_outputs: []
+  swinv2_tiny_window8_256:
+    aliases: [swinv2]
+    track: modern_frontier_backbones
+    role: hierarchical_control
+    source:
+      repository: https://github.com/microsoft/Swin-Transformer.git
+      commit: f82860bfb5225915aca09c3227159ee9e1df874d
+      license: MIT
+    environment: configs/external_models/environments/frontier_torch.yaml
+    adapter: hma.external.adapters:TimmFeatureAdapter
+    adapter_status: implemented
+    adapter_config:
+      model_name: swinv2_tiny_window8_256
+      pretrained: true
+    checkpoint:
+      url:
+      filename: timm_pretrained_cache_snapshot
+      sha256:
+      hash_policy: snapshot_revision_and_hash_before_evidence
+    preprocessing:
+      input_size: [256, 256]
+      interpolation: bicubic
+      crop_pct: 1.0
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
     feature_layers: [layers.0, layers.1, layers.2, layers.3]
     mechanism_outputs: []
   hat:
@@ -278,3 +441,113 @@ models:
       - stochastic_scanpaths
       - task_condition
       - sampling_seed
+  deepgaze_iie:
+    track: sequential_foveated_behavior
+    role: human_gaze_density
+    source:
+      repository: https://github.com/matthias-k/DeepGaze.git
+      commit: PIN_REQUIRED
+      license: MIT
+    environment: configs/external_models/environments/deepgaze.yaml
+    adapter: hma.external.adapters:DeepGazeIIEAdapter
+    adapter_status: setup_scaffold
+    checkpoint:
+      url:
+      filename: deepgaze_iie_release_checkpoint
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      source: official_deepgaze
+    feature_layers: [backbone_features, saliency_readout_state]
+    mechanism_outputs: []
+  deepgaze_iii:
+    track: sequential_foveated_behavior
+    role: gaze_history_conditioned_scanpaths
+    source:
+      repository: https://github.com/matthias-k/DeepGaze.git
+      commit: PIN_REQUIRED
+      license: MIT
+    environment: configs/external_models/environments/deepgaze.yaml
+    adapter: hma.external.adapters:DeepGazeIIIAdapter
+    adapter_status: setup_scaffold
+    checkpoint:
+      url:
+      filename: deepgaze_iii_v1_1_release_checkpoint
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      source: official_deepgaze
+    feature_layers: [backbone_features, history_state, fixation_selection_state]
+    mechanism_outputs:
+      - fixation_count
+      - history_length
+      - stopping_behavior
+  adaptivenn_deit_small:
+    aliases: [adaptivenn]
+    track: sequential_foveated_behavior
+    role: active_foveated_policy
+    source:
+      repository: https://github.com/LeapLabTHU/AdaptiveNN.git
+      commit: PIN_REQUIRED
+      license: license_audit_required
+    environment: configs/external_models/environments/adaptivenn.yaml
+    adapter: hma.external.adapters:AdaptiveNNAdapter
+    adapter_status: setup_scaffold
+    checkpoint:
+      url:
+      filename: adaptivenn_deit_small_checkpoint
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      source: official_adaptivenn
+    feature_layers: [glance_state, integrated_states, final_state]
+    mechanism_outputs:
+      - selected_glimpses
+      - stopping_behavior
+      - high_resolution_sampled_area
+  semba:
+    track: sequential_foveated_behavior
+    role: semantic_bayesian_scanpaths
+    source:
+      repository: UNRESOLVED_OFFICIAL_SOURCE
+      commit: PIN_REQUIRED
+      license: unknown
+    environment: configs/external_models/environments/source_unavailable.yaml
+    adapter: hma.external.adapters:SemBAAdapter
+    adapter_status: setup_scaffold
+    checkpoint:
+      url:
+      filename:
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      source: unresolved_official_api
+    feature_layers: [detector_features, semantic_belief_state]
+    mechanism_outputs:
+      - fixation_count
+      - selected_glimpses
+      - stopping_behavior
+      - high_resolution_sampled_area
+  semba_fast:
+    track: sequential_foveated_behavior
+    role: semantic_bayesian_foveated_scanpaths
+    source:
+      repository: UNRESOLVED_OFFICIAL_SOURCE
+      commit: PIN_REQUIRED
+      license: unknown
+    environment: configs/external_models/environments/source_unavailable.yaml
+    adapter: hma.external.adapters:SemBAFastAdapter
+    adapter_status: setup_scaffold
+    checkpoint:
+      url:
+      filename:
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      source: unresolved_official_api
+    feature_layers: [detector_features, semantic_belief_state]
+    mechanism_outputs:
+      - fixation_count
+      - selected_glimpses
+      - stopping_behavior
+      - high_resolution_sampled_area

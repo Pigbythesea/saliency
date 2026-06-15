@@ -1,0 +1,90 @@
+schema_version: hma.paper1.behavioral_rerun_plan.v0
+contract: configs/paper1_publication_contract.yaml
+execution_enabled: false
+output_root: outputs/paper1_publication_v0/behavioral
+seed: 123
+datasets:
+  salicon:
+    regime: free_viewing
+    manifest: data/manifests/salicon_manifest.csv
+    split: val
+    expected_rows: 5000
+    observer_manifest: data/manifests/salicon_observer_annotations_manifest.csv
+  cat2000:
+    regime: free_viewing
+    manifest: data/manifests/cat2000_manifest.csv
+    split: train
+    expected_rows: 2000
+    limitation: public_test_ground_truth_unavailable
+  coco_search18:
+    regime: task_search
+    manifest: data/manifests/coco_search18_manifest.csv
+    split: val
+    expected_rows: 10534
+    group_by: [target_category, target_present_or_absent, subject_id, image_path]
+map_metrics:
+  point_fixation_primary: [nss, shuffled_auc]
+  point_fixation_secondary: [auc_judd, auc_borji]
+  distribution_primary: [information_gain_vs_matched_prior, log_likelihood]
+  distribution_secondary: [cc, sim, kl_target_to_prediction]
+  constant_map_policy:
+    auc: 0.5
+    nss: 0.0
+    cc: 0.0
+    positive_constant_distribution: uniform
+scanpath_metrics:
+  conditional_primary: [conditional_information_gain, conditional_nss, conditional_auc]
+  sequence_primary: [sequence_score, semantic_sequence_score]
+  task_search_primary: [target_fixation_probability_by_step, probability_mismatch]
+  secondary: [scanpath_length_error, multimatch, scanmatch]
+uncertainty:
+  map_metrics:
+    unit: image_path
+    method: clustered_bootstrap
+    resamples: 2000
+  salicon_observer_sensitivity:
+    unit: worker_within_image
+    method: hierarchical_bootstrap
+    resamples: 2000
+  scanpaths:
+    unit: subject_within_image_and_task
+    method: hierarchical_bootstrap
+    resamples: 2000
+model_groups:
+  gaze_prediction:
+    - deepgaze_iie
+    - deepgaze_iii
+    - hat
+    - scandiff_freeview
+    - scandiff_visual_search
+    - semba
+    - semba_fast
+  adaptive_or_foveated_diagnostic:
+    - adaptivenn_deit_small
+  efficient_routing_diagnostic:
+    - deit_small_static
+    - dynamicvit_deit_small_keep_0_7
+    - tome_deit_small_r13
+  attribution_diagnostic:
+    - resnet50
+    - convnext_tiny
+    - vit_base_patch16_224
+    - deit_small_static
+    - vit_small_patch14_dinov2
+    - dinov3_small_patch16
+    - vit_base_patch16_clip_224
+    - siglip_base_patch16
+    - mambavision_t
+    - hiera_tiny
+    - swin_tiny_patch4_window7_224
+    - swinv2_tiny_window8_256
+  controls:
+    - center_prior
+    - random_baseline
+    - empirical_spatial_prior
+    - coco_search18_task_prior
+admission:
+  require_behavioral_gate: accepted_with_limitations_or_better
+  require_adapter_certified: true
+  keep_regimes_separate: true
+

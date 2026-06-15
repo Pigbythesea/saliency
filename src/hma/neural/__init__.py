@@ -16,8 +16,12 @@ from hma.neural.learned_readout import (
 )
 from hma.neural.rsa import compare_rdms, compute_rdm
 from hma.neural.geometry import (
+    GeometryInterval,
     GeometryResult,
+    bootstrap_geometry_interval,
+    debiased_linear_cka,
     deterministic_subset_indices,
+    geometry_method_agreement,
     linear_cka,
     subset_rsa,
 )
@@ -25,14 +29,18 @@ from hma.neural.geometry import (
 __all__ = [
     "compare_rdms",
     "compute_rdm",
+    "GeometryInterval",
     "GeometryResult",
     "benchmark_encoding_target_scores",
+    "bootstrap_geometry_interval",
+    "debiased_linear_cka",
     "deterministic_subset_indices",
     "evaluate_encoding",
     "extract_activations",
     "fit_ridge_encoding",
     "fit_spatial_readout",
     "fuse_spatial_feature_layers",
+    "geometry_method_agreement",
     "normalize_spatial_features",
     "predict_ridge_encoding",
     "predict_spatial_readout",

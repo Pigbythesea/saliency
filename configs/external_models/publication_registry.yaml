@@ -1,0 +1,291 @@
+schema_version: hma.external.publication_registry.v1
+models:
+  resnet50:
+    family: ResNet
+    model_role: general_visual_representation
+    setup_kind: runtime
+    runtime_model_id: resnet50
+    input_modes: [image_only]
+    deterministic_condition: image_only_center_crop
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [layer1, layer2, layer3, layer4]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  convnext_tiny:
+    family: ConvNeXt
+    model_role: general_visual_representation
+    setup_kind: runtime
+    runtime_model_id: convnext_tiny
+    input_modes: [image_only]
+    deterministic_condition: image_only_center_crop
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [stages.0, stages.1, stages.2, stages.3]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  vit_base_patch16_224:
+    family: ViT
+    model_role: general_visual_representation
+    setup_kind: runtime
+    runtime_model_id: vit_base_patch16_224
+    input_modes: [image_only]
+    deterministic_condition: image_only_center_crop
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  deit_small_static:
+    family: DeiT
+    model_role: general_visual_representation|generic_efficient_computation
+    setup_kind: runtime
+    runtime_model_id: deit_small_static
+    input_modes: [image_only]
+    deterministic_condition: image_only_crop_pct_0_875
+    behavioral_outputs: [full_token_map, posthoc_attribution_map]
+    latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    resource_outputs: [full_token_mask, realized_token_counts]
+    paper_evidence_status: adapter_certified
+  vit_small_patch14_dinov2:
+    family: DINOv2
+    model_role: self_supervised_dense_feature
+    setup_kind: runtime
+    runtime_model_id: vit_small_patch14_dinov2
+    input_modes: [image_only]
+    deterministic_condition: image_only_official_preprocess
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  dinov3_small_patch16:
+    family: DINOv3
+    model_role: self_supervised_dense_feature
+    setup_kind: runtime
+    runtime_model_id: dinov3_small_patch16
+    input_modes: [image_only]
+    deterministic_condition: image_only_official_preprocess
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  vit_base_patch16_clip_224:
+    family: CLIP
+    model_role: VLM_semantic
+    setup_kind: runtime
+    runtime_model_id: vit_base_patch16_clip_224
+    input_modes: [image_only]
+    deterministic_condition: image_only_vision_encoder
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  siglip_base_patch16:
+    family: SigLIP
+    model_role: VLM_semantic
+    setup_kind: runtime
+    runtime_model_id: siglip_base_patch16
+    input_modes: [image_only]
+    deterministic_condition: image_only_official_processor
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [encoder.layers.0, encoder.layers.3, encoder.layers.6, encoder.layers.9, encoder.layers.11]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  mambavision_t:
+    family: MambaVision
+    model_role: hierarchical_hybrid_efficient_architecture
+    setup_kind: runtime
+    runtime_model_id: mambavision_t
+    input_modes: [image_only]
+    deterministic_condition: image_only_official_preprocess
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [levels.0, levels.1, levels.2, levels.3]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  hiera_tiny:
+    family: Hiera
+    model_role: hierarchical_hybrid_efficient_architecture
+    setup_kind: runtime
+    runtime_model_id: hiera_tiny
+    input_modes: [image_only]
+    deterministic_condition: image_only_official_preprocess
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [stages.0, stages.1, stages.2, stages.3]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  swin_tiny_patch4_window7_224:
+    family: Swin
+    model_role: hierarchical_hybrid_efficient_architecture
+    setup_kind: runtime
+    runtime_model_id: swin_tiny
+    input_modes: [image_only]
+    deterministic_condition: image_only_native_224
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [layers.0, layers.1, layers.2, layers.3]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  swinv2_tiny_window8_256:
+    family: SwinV2
+    model_role: hierarchical_hybrid_efficient_architecture
+    setup_kind: runtime
+    runtime_model_id: swinv2_tiny_window8_256
+    input_modes: [image_only]
+    deterministic_condition: image_only_native_256
+    behavioral_outputs: [posthoc_attribution_map]
+    latent_outputs: [layers.0, layers.1, layers.2, layers.3]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  dynamicvit_deit_small_keep_0_7:
+    family: DynamicViT
+    model_role: generic_efficient_computation
+    setup_kind: runtime
+    runtime_model_id: dynamicvit_deit_small_keep_0_7
+    input_modes: [image_only]
+    deterministic_condition: image_only_crop_pct_0_875
+    behavioral_outputs: [token_retention_map]
+    latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    resource_outputs: [retained_original_token_indices, prediction_masks, realized_token_counts]
+    paper_evidence_status: adapter_certified
+  tome_deit_small_r13:
+    family: ToMe
+    model_role: generic_efficient_computation
+    setup_kind: runtime
+    runtime_model_id: tome_deit_small_r13
+    input_modes: [image_only]
+    deterministic_condition: image_only_crop_pct_0_875
+    behavioral_outputs: [token_merge_map]
+    latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    resource_outputs: [token_source_assignments, realized_token_counts]
+    paper_evidence_status: adapter_certified
+  deepgaze_iie:
+    family: DeepGaze
+    model_role: human_gaze_prediction
+    setup_kind: runtime
+    runtime_model_id: deepgaze_iie
+    input_modes: [image_only]
+    deterministic_condition: image_plus_frozen_center_bias
+    behavioral_outputs: [human_gaze_density]
+    latent_outputs: [backbone_features, saliency_readout_state]
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+  deepgaze_iii:
+    family: DeepGaze
+    model_role: human_gaze_prediction
+    setup_kind: runtime
+    runtime_model_id: deepgaze_iii
+    input_modes: [image_only, gaze_history_conditioned, scanpath]
+    deterministic_condition: initial_center_no_additional_history
+    behavioral_outputs: [conditional_next_fixation, generated_scanpath]
+    latent_outputs: [backbone_features, history_state, fixation_selection_state]
+    resource_outputs: [fixation_count, history_length, stopping_behavior]
+    paper_evidence_status: adapter_in_progress
+  hat:
+    family: HAT
+    model_role: human_gaze_prediction|human_gaze_inspired_foveated
+    setup_kind: runtime
+    runtime_model_id: hat
+    input_modes: [image_only, task_conditioned, gaze_history_conditioned, scanpath, foveated, active_vision]
+    deterministic_condition: taskless_initial_center_greedy_for_NSD
+    behavioral_outputs: [conditional_next_fixation, generated_scanpath, termination]
+    latent_outputs: [dorsal_embeddings, high_res_feature_map, working_memory, query_state]
+    resource_outputs: [fixation_count, selected_glimpses, stopping_behavior, high_resolution_sampled_area]
+    paper_evidence_status: adapter_in_progress
+  scandiff_freeview:
+    family: ScanDiff
+    model_role: human_gaze_prediction
+    setup_kind: runtime
+    runtime_model_id: scandiff
+    input_modes: [image_only, scanpath, stochastic]
+    deterministic_condition: empty_text_seed_123_deterministic_sampler
+    behavioral_outputs: [generated_scanpath]
+    latent_outputs: [condition_tokens, dit.blocks.0, dit.blocks.2, dit.blocks.5]
+    resource_outputs: [scanpath_length, diffusion_steps, sampling_seed]
+    paper_evidence_status: adapter_in_progress
+  scandiff_visual_search:
+    family: ScanDiff
+    model_role: human_gaze_prediction
+    setup_kind: runtime
+    runtime_model_id: scandiff
+    input_modes: [image_only, task_conditioned, scanpath, stochastic]
+    deterministic_condition: uniform_target_marginal_seed_123
+    behavioral_outputs: [text_conditioned_generated_scanpath]
+    latent_outputs: [condition_tokens, dit.blocks.0, dit.blocks.2, dit.blocks.5]
+    resource_outputs: [scanpath_length, diffusion_steps, sampling_seed]
+    paper_evidence_status: adapter_in_progress
+  semba:
+    family: SemBA
+    model_role: human_gaze_prediction|human_gaze_inspired_foveated
+    setup_kind: unavailable_source
+    runtime_model_id: semba
+    input_modes: [image_only, task_conditioned, gaze_history_conditioned, scanpath, foveated, active_vision]
+    deterministic_condition: uniform_target_marginal_pending
+    behavioral_outputs: [semantic_belief_map, generated_scanpath]
+    latent_outputs: [detector_features, semantic_belief_state]
+    resource_outputs: [fixation_count, selected_glimpses, stopping_behavior, high_resolution_sampled_area]
+    paper_evidence_status: adapter_in_progress
+    resolution: identify official code checkpoint license and callable API
+  semba_fast:
+    family: SemBA-FAST
+    model_role: human_gaze_prediction|human_gaze_inspired_foveated
+    setup_kind: unavailable_source
+    runtime_model_id: semba_fast
+    input_modes: [image_only, task_conditioned, gaze_history_conditioned, scanpath, foveated, active_vision]
+    deterministic_condition: target_present_uniform_target_marginal_pending
+    behavioral_outputs: [semantic_belief_map, generated_scanpath]
+    latent_outputs: [detector_features, semantic_belief_state]
+    resource_outputs: [fixation_count, selected_glimpses, stopping_behavior, high_resolution_sampled_area]
+    paper_evidence_status: adapter_in_progress
+    resolution: identify official code checkpoint license target-absent support and callable API
+  adaptivenn_deit_small:
+    family: AdaptiveNN
+    model_role: human_gaze_inspired_efficient_foveated
+    setup_kind: runtime
+    runtime_model_id: adaptivenn_deit_small
+    input_modes: [image_only, foveated, active_vision]
+    deterministic_condition: greedy_policy_seed_123_fixed_step_budget
+    behavioral_outputs: [selected_glimpse_map, stopping_trace]
+    latent_outputs: [glance_state, integrated_states, final_state]
+    resource_outputs: [selected_glimpses, stopping_behavior, high_resolution_sampled_area]
+    paper_evidence_status: adapter_in_progress
+  center_prior:
+    family: Control
+    model_role: spatial_prior_and_task_prior_control
+    setup_kind: builtin
+    implementation_status: ready
+    input_modes: [image_only]
+    deterministic_condition: fixed_analytic_map
+    behavioral_outputs: [center_prior]
+    latent_outputs: []
+    resource_outputs: []
+    paper_evidence_status: diagnostic_only
+  random_baseline:
+    family: Control
+    model_role: spatial_prior_and_task_prior_control
+    setup_kind: builtin
+    implementation_status: ready
+    input_modes: [image_only, stochastic]
+    deterministic_condition: seed_123_per_image
+    behavioral_outputs: [random_baseline]
+    latent_outputs: []
+    resource_outputs: [sampling_seed]
+    paper_evidence_status: diagnostic_only
+  empirical_spatial_prior:
+    family: Control
+    model_role: spatial_prior_and_task_prior_control
+    setup_kind: builtin
+    implementation_status: pending
+    resolution: implement leakage-safe training-split prior
+    input_modes: [image_only]
+    deterministic_condition: training_split_only
+    behavioral_outputs: [empirical_spatial_prior]
+    latent_outputs: []
+    resource_outputs: []
+    paper_evidence_status: diagnostic_only
+  coco_search18_task_prior:
+    family: Control
+    model_role: spatial_prior_and_task_prior_control
+    setup_kind: builtin
+    implementation_status: ready
+    input_modes: [image_only, task_conditioned]
+    deterministic_condition: training_split_target_task
+    behavioral_outputs: [task_prior]
+    latent_outputs: []
+    resource_outputs: []
+    paper_evidence_status: diagnostic_only

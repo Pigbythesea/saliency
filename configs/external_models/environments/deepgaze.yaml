@@ -1,0 +1,19 @@
+name: hma-deepgaze
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch>=2.3
+  - torchvision
+  - pytorch-cuda=12.1
+  - numpy
+  - pillow
+  - scipy
+  - pyyaml
+  - pip:
+      - imageio
+      - scikit-image
+      - fvcore

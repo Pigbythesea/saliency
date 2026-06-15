@@ -1,0 +1,17 @@
+name: hma-adaptivenn
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - pytorch=1.13
+  - torchvision=0.14
+  - pytorch-cuda=11.7
+  - numpy<2
+  - pillow
+  - pyyaml
+  - pip:
+      - timm
+      - fvcore

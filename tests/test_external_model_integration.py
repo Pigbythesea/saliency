@@ -1,3 +1,4 @@
+import csv
 import json
 import hashlib
 import subprocess
@@ -14,6 +15,12 @@ from hma.external.artifacts import (
     validate_external_artifact,
 )
 from hma.external.adapters import _install_legacy_torch_six_compatibility
+from hma.external.certification import (
+    SUPPORTED_INPUT_MODES,
+    build_certification_records,
+    load_publication_adapter_registry,
+    write_certification_records,
+)
 from hma.external.registry import load_external_registry
 from hma.experiments.neural_alignment import run_neural_alignment
 from hma.utils.config import load_yaml, save_yaml
@@ -358,6 +365,29 @@ def test_external_artifact_rejects_missing_operational_output(tmp_path):
         writer.finalize()
 
 
+def test_external_artifact_scanpath_and_sequential_resources_satisfy_schema(tmp_path):
+    writer = ExternalArtifactWriter(
+        tmp_path / "artifact",
+        model_id="fake_external",
+        provenance=_provenance(),
+        expected_mechanism_outputs=["stochastic_scanpaths", "diffusion_steps"],
+    )
+    writer.write_batch(
+        image_ids=["a"],
+        features={"blocks.0": np.ones((1, 2, 3), dtype=np.float32)},
+        resource_allocation={"diffusion_steps": np.asarray([25], dtype=np.int32)},
+        scanpaths=[{"image_id": "a", "fixations": [[1, 2], [3, 4]], "seed": 7}],
+    )
+    manifest_path = writer.finalize()
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    efficiency = json.loads(
+        (tmp_path / "artifact" / "efficiency.json").read_text(encoding="utf-8")
+    )
+    assert manifest["scanpaths_file"] == "scanpaths.jsonl"
+    assert efficiency["resource_summary"]["diffusion_steps"]["total"] == 25.0
+
+
 def test_resource_only_artifact_omits_features_but_preserves_routing(tmp_path):
     writer = ExternalArtifactWriter(
         tmp_path / "artifact",
@@ -520,6 +550,12 @@ def test_matrix_v2_registry_and_generated_configs_are_complete(tmp_path):
         "swin_tiny",
         "hat",
         "scandiff",
+        "swinv2_tiny_window8_256",
+        "deepgaze_iie",
+        "deepgaze_iii",
+        "adaptivenn_deit_small",
+        "semba",
+        "semba_fast",
     }
     assert required <= set(registry.models)
 
@@ -547,6 +583,37 @@ def test_matrix_v2_registry_and_generated_configs_are_complete(tmp_path):
 
     behavior = create_behavior_configs(output_root=tmp_path / "behavior")
     assert len(behavior) == 9
+
+
+def test_publication_adapter_registry_covers_model_role_matrix(tmp_path):
+    publication = load_publication_adapter_registry()
+    with Path("outputs/paper1_scope_reset/model_role_matrix.csv").open(
+        "r", encoding="utf-8", newline=""
+    ) as handle:
+        model_ids = {row["model_id"] for row in csv.DictReader(handle)}
+
+    records = build_certification_records()
+    jsonl, summary = write_certification_records(
+        records,
+        jsonl_path=tmp_path / "records.jsonl",
+        csv_path=tmp_path / "summary.csv",
+    )
+
+    assert set(publication.models) == model_ids
+    assert {record["model_id"] for record in records} == model_ids
+    assert {
+        mode
+        for record in records
+        for mode in record["input_contract"]["modes"]
+    } == SUPPORTED_INPUT_MODES
+    assert all(record["setup"]["command"] or record["setup"]["kind"] == "builtin" for record in records)
+    assert all(
+        record["certification_status"] == "adapter_certified"
+        or record["blockers"]
+        for record in records
+    )
+    assert jsonl.is_file()
+    assert summary.is_file()
 
 
 def test_matrix_v2_audit_advances_after_scientific64_acceptance():

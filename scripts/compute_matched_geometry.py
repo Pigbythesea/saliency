@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 
-from hma.neural import linear_cka, subset_rsa
+from hma.neural import debiased_linear_cka, linear_cka, subset_rsa
 from hma.utils.config import load_experiment_config, load_yaml
 from hma.utils.paths import resolve_path
 
@@ -269,27 +269,40 @@ def _compute_output_geometry(
     }
 
     operation_total = sum(
-        1 if method in {"linear_cka", "linear_cka_full9841"} else len(subset_sizes) * len(subset_seeds)
+        1
+        if method
+        in {"debiased_linear_cka", "linear_cka", "linear_cka_full9841"}
+        else len(subset_sizes) * len(subset_seeds)
         for method in methods
     )
     operation_index = 0
     rows: list[dict[str, Any]] = []
     for method in methods:
-        if method in {"linear_cka", "linear_cka_full9841"}:
+        if method in {"debiased_linear_cka", "linear_cka", "linear_cka_full9841"}:
             operation_index += 1
+            method_label = (
+                "debiased_linear_cka"
+                if method == "debiased_linear_cka"
+                else "linear_cka_full9841"
+            )
+            metric = (
+                debiased_linear_cka
+                if method == "debiased_linear_cka"
+                else linear_cka
+            )
             if progress:
                 _print_progress(
-                    f"{progress_label}: method {operation_index}/{operation_total} linear_cka_full9841 start"
+                    f"{progress_label}: method {operation_index}/{operation_total} {method_label} start"
                 )
             row = _profiled_row(
-                lambda: linear_cka(features, responses),
+                lambda: metric(features, responses),
                 estimated_rdm_bytes="0",
             )
-            row["geometry_method"] = "linear_cka_full9841"
+            row["geometry_method"] = method_label
             rows.append({**common, **row})
             if progress:
                 _print_progress(
-                    f"{progress_label}: method {operation_index}/{operation_total} linear_cka_full9841 done "
+                    f"{progress_label}: method {operation_index}/{operation_total} {method_label} done "
                     f"score={row.get('score')} wall={row.get('wall_time_sec')}s"
                 )
         elif method == "subset_rsa":

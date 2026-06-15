@@ -7,13 +7,16 @@ import pytest
 from hma.experiments.neural_alignment import run_neural_alignment
 from hma.neural import (
     benchmark_encoding_target_scores,
+    bootstrap_geometry_interval,
     compare_rdms,
+    debiased_linear_cka,
     deterministic_subset_indices,
     compute_rdm,
     evaluate_encoding,
     fit_spatial_readout,
     fit_ridge_encoding,
     fuse_spatial_feature_layers,
+    geometry_method_agreement,
     normalize_spatial_features,
     predict_spatial_readout,
     predict_ridge_encoding,
@@ -172,6 +175,49 @@ def test_linear_cka_marks_constant_inputs_invalid():
 def test_linear_cka_rejects_mismatched_image_counts():
     with pytest.raises(ValueError, match="same number of rows"):
         linear_cka(np.ones((4, 2)), np.ones((5, 2)))
+
+
+def test_debiased_linear_cka_scores_identical_representations_near_one():
+    rng = np.random.default_rng(12)
+    features = rng.normal(size=(24, 7))
+
+    result = debiased_linear_cka(features, features.copy())
+
+    assert result.valid is True
+    assert result.method == "debiased_linear_cka"
+    assert result.score == pytest.approx(1.0)
+
+
+def test_geometry_bootstrap_and_method_agreement_are_reproducible():
+    rng = np.random.default_rng(4)
+    features = rng.normal(size=(20, 5))
+    responses = features @ rng.normal(size=(5, 4)) + rng.normal(
+        scale=0.1, size=(20, 4)
+    )
+
+    first = bootstrap_geometry_interval(
+        features,
+        responses,
+        method="debiased_linear_cka",
+        resamples=50,
+        seed=9,
+    )
+    second = bootstrap_geometry_interval(
+        features,
+        responses,
+        method="debiased_linear_cka",
+        resamples=50,
+        seed=9,
+    )
+    agreement = geometry_method_agreement(
+        np.asarray([0.1, 0.2, 0.4, 0.8]),
+        np.asarray([0.2, 0.3, 0.5, 0.7]),
+    )
+
+    assert first == second
+    assert first.ci_low <= first.estimate <= first.ci_high
+    assert agreement["status"] == "complete"
+    assert agreement["spearman"] == pytest.approx(1.0)
 
 
 def test_subset_rsa_uses_deterministic_subset_and_scores():

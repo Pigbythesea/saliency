@@ -21,8 +21,11 @@ from hma.models import build_model
 from hma.neural import (
     SpatialReadoutConfig,
     benchmark_encoding_target_scores,
+    bootstrap_geometry_interval,
     compare_rdms,
     compute_rdm,
+    debiased_linear_cka,
+    deterministic_subset_indices,
     evaluate_encoding,
     fit_ridge_encoding,
     fit_spatial_readout,
@@ -307,6 +310,11 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
                     ),
                 )
             ],
+            bootstrap_resamples=int(geometry_config.get("bootstrap_resamples", 0)),
+            bootstrap_seed=int(geometry_config.get("bootstrap_seed", seed)),
+            bootstrap_confidence=float(
+                geometry_config.get("bootstrap_confidence", 0.95)
+            ),
             row_context=_score_row_context(config, item_metadata),
             model_feature_reduction=feature_reduction_metadata.get(
                 "feature_reduction",
@@ -2053,6 +2061,9 @@ def _compute_geometry_rows(
     subset_sizes: list[int],
     subset_seeds: list[int],
     null_control_seeds: list[int],
+    bootstrap_resamples: int,
+    bootstrap_seed: int,
+    bootstrap_confidence: float,
     row_context: dict[str, Any],
     model_feature_reduction: str,
 ) -> list[dict[str, Any]]:
@@ -2060,17 +2071,31 @@ def _compute_geometry_rows(
     for layer in layers:
         features = features_by_layer[layer]
         for method in methods:
-            if method == "linear_cka":
-                result = linear_cka(features, responses)
+            if method in {"debiased_linear_cka", "linear_cka"}:
+                metric = (
+                    debiased_linear_cka
+                    if method == "debiased_linear_cka"
+                    else linear_cka
+                )
+                result = metric(features, responses)
                 observed = _geometry_row(
                     result.as_row(),
                     row_context=row_context,
                     layer=layer,
                     model_feature_reduction=model_feature_reduction,
                 )
+                observed = _add_geometry_interval(
+                    observed,
+                    features,
+                    responses,
+                    method=method,
+                    resamples=bootstrap_resamples,
+                    seed=bootstrap_seed,
+                    confidence=bootstrap_confidence,
+                )
                 rows.append(_observed_geometry_row(observed))
                 for control_seed in null_control_seeds:
-                    null_result = linear_cka(
+                    null_result = metric(
                         features,
                         _permuted_responses(responses, control_seed),
                     )
@@ -2101,6 +2126,20 @@ def _compute_geometry_rows(
                             layer=layer,
                             model_feature_reduction=model_feature_reduction,
                         )
+                        subset_indices = deterministic_subset_indices(
+                            len(features),
+                            subset_size=subset_size,
+                            seed=subset_seed,
+                        )
+                        observed = _add_geometry_interval(
+                            observed,
+                            features[subset_indices],
+                            responses[subset_indices],
+                            method="rsa",
+                            resamples=bootstrap_resamples,
+                            seed=bootstrap_seed + subset_seed,
+                            confidence=bootstrap_confidence,
+                        )
                         rows.append(_observed_geometry_row(observed))
                         null_result = subset_rsa(
                             features,
@@ -2121,8 +2160,44 @@ def _compute_geometry_rows(
                             )
                         )
             else:
-                raise ValueError("neural.geometry.methods must contain 'linear_cka' or 'subset_rsa'")
+                raise ValueError(
+                    "neural.geometry.methods must contain 'debiased_linear_cka', "
+                    "'linear_cka', or 'subset_rsa'"
+                )
     return rows
+
+
+def _add_geometry_interval(
+    row: dict[str, Any],
+    features: np.ndarray,
+    responses: np.ndarray,
+    *,
+    method: str,
+    resamples: int,
+    seed: int,
+    confidence: float,
+) -> dict[str, Any]:
+    if resamples <= 0 or row.get("score", "") == "":
+        return row
+    try:
+        interval = bootstrap_geometry_interval(
+            features,
+            responses,
+            method=method,
+            resamples=resamples,
+            seed=seed,
+            confidence=confidence,
+        )
+    except ValueError as exc:
+        return {
+            **row,
+            "interval_status": f"invalid: {exc}",
+        }
+    return {
+        **row,
+        **interval.as_row(),
+        "interval_status": "ok",
+    }
 
 
 def _permuted_responses(responses: np.ndarray, seed: int) -> np.ndarray:
@@ -2471,6 +2546,15 @@ def _write_geometry_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "response_rdm_metric",
         "rdm_compare_method",
         "subset_index_policy",
+        "interval_method",
+        "ci_low",
+        "ci_high",
+        "confidence",
+        "bootstrap_resamples",
+        "bootstrap_valid_resamples",
+        "bootstrap_seed",
+        "uncertainty_unit",
+        "interval_status",
         "control_type",
         "control_seed",
         "paired_observed_score",

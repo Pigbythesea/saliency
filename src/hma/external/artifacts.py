@@ -257,7 +257,11 @@ def validate_external_artifact(
                 verify_hashes=verify_hashes,
             )
     expected = set(manifest.get("expected_mechanism_outputs", []))
-    actual = set(manifest.get("resource_allocation", {}))
+    actual = set(manifest.get("resource_allocation", {})) | set(
+        manifest.get("outputs", {})
+    )
+    if manifest.get("scanpaths_file"):
+        actual.add("scanpaths")
     if expected and not _mechanism_outputs_satisfied(expected, actual):
         missing_outputs = sorted(
             expected_name
@@ -447,7 +451,15 @@ def _validate_chunks(
 
 def _mechanism_outputs_satisfied(expected: set[str], actual: set[str]) -> bool:
     return all(
-        any(name == required or name.startswith(required + ".") for name in actual)
+        any(
+            name == required
+            or name.startswith(required + ".")
+            or (
+                required in {"stochastic_scanpaths", "generated_scanpaths"}
+                and name == "scanpaths"
+            )
+            for name in actual
+        )
         for required in expected
     )
 
@@ -531,12 +543,23 @@ def _resource_summary(
     resources: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any]:
     summary: dict[str, Any] = {}
+    scalar_resources = {
+        "fixation_count",
+        "scanpath_length",
+        "recurrent_steps",
+        "diffusion_steps",
+        "selected_glimpses",
+        "stopping_behavior",
+        "high_resolution_sampled_area",
+        "total_cost_per_image_task",
+    }
     for key, chunks in resources.items():
         if not (
             key.startswith("realized_token_counts.")
             or key.startswith("prediction_masks.")
             or key == "full_token_mask"
             or key.startswith("token_source_assignments.")
+            or key in scalar_resources
         ):
             continue
         arrays = []
@@ -558,6 +581,13 @@ def _resource_summary(
             summary[key] = {
                 "mean_realized_tokens": float(values.shape[1]),
                 "original_tokens": int(values.shape[2]),
+            }
+        elif key in scalar_resources:
+            summary[key] = {
+                "mean": float(np.mean(values)),
+                "minimum": float(np.min(values)),
+                "maximum": float(np.max(values)),
+                "total": float(np.sum(values)),
             }
     return summary
 

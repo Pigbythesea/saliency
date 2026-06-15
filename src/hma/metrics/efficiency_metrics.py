@@ -6,9 +6,132 @@ import importlib
 import statistics
 import time
 import warnings
+from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
+
 from hma.utils.device import resolve_device
+
+
+@dataclass(frozen=True)
+class SequentialCostRecord:
+    """Total per-image/task resource use for sequential or adaptive models."""
+
+    model_id: str
+    image_id: str
+    task_id: str
+    comparability_group: str
+    fixation_count: int
+    scanpath_length: float
+    recurrent_steps: int
+    diffusion_steps: int
+    selected_glimpses: int
+    stopped: bool
+    stop_step: int | None
+    high_resolution_sampled_area: float
+    image_area: float
+    high_resolution_sampled_fraction: float
+    total_cost: float
+    total_cost_unit: str
+    total_latency_ms: float | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": "hma.efficiency.sequential_cost.v1",
+            "model_id": self.model_id,
+            "image_id": self.image_id,
+            "task_id": self.task_id,
+            "comparability_group": self.comparability_group,
+            "fixation_count": self.fixation_count,
+            "scanpath_length": self.scanpath_length,
+            "recurrent_steps": self.recurrent_steps,
+            "diffusion_steps": self.diffusion_steps,
+            "selected_glimpses": self.selected_glimpses,
+            "stopped": self.stopped,
+            "stop_step": self.stop_step,
+            "high_resolution_sampled_area": self.high_resolution_sampled_area,
+            "image_area": self.image_area,
+            "high_resolution_sampled_fraction": (
+                self.high_resolution_sampled_fraction
+            ),
+            "total_cost_per_image_task": self.total_cost,
+            "total_cost_unit": self.total_cost_unit,
+            "total_latency_ms": self.total_latency_ms,
+        }
+
+
+def build_sequential_cost_record(
+    *,
+    model_id: str,
+    image_id: str,
+    task_id: str = "",
+    comparability_group: str,
+    fixations: list[tuple[float, float]] | None = None,
+    recurrent_steps: int = 0,
+    diffusion_steps: int = 0,
+    selected_glimpses: int = 0,
+    stopped: bool = False,
+    stop_step: int | None = None,
+    high_resolution_sampled_area: float = 0.0,
+    image_area: float,
+    cost_components: dict[str, float],
+    total_cost_unit: str,
+    total_latency_ms: float | None = None,
+) -> SequentialCostRecord:
+    """Validate and combine same-unit cost components for one image/task."""
+    if image_area <= 0.0:
+        raise ValueError("image_area must be positive")
+    if not total_cost_unit:
+        raise ValueError("total_cost_unit must be explicit")
+    counts = {
+        "recurrent_steps": recurrent_steps,
+        "diffusion_steps": diffusion_steps,
+        "selected_glimpses": selected_glimpses,
+    }
+    if any(int(value) < 0 for value in counts.values()):
+        raise ValueError("step and glimpse counts must be nonnegative")
+    if stop_step is not None and int(stop_step) < 0:
+        raise ValueError("stop_step must be nonnegative")
+    high_resolution_sampled_area = float(high_resolution_sampled_area)
+    if high_resolution_sampled_area < 0.0:
+        raise ValueError("high_resolution_sampled_area must be nonnegative")
+    components = {str(key): float(value) for key, value in cost_components.items()}
+    if not components or any(not np.isfinite(value) or value < 0.0 for value in components.values()):
+        raise ValueError("cost_components must contain finite nonnegative values")
+    points = np.asarray(fixations or [], dtype=np.float64)
+    if points.size == 0:
+        points = np.empty((0, 2), dtype=np.float64)
+    if points.ndim != 2 or points.shape[1] != 2 or not np.isfinite(points).all():
+        raise ValueError("fixations must be a finite sequence of x/y pairs")
+    scanpath_length = (
+        float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum())
+        if len(points) > 1
+        else 0.0
+    )
+    latency = None if total_latency_ms is None else float(total_latency_ms)
+    if latency is not None and (not np.isfinite(latency) or latency < 0.0):
+        raise ValueError("total_latency_ms must be finite and nonnegative")
+    return SequentialCostRecord(
+        model_id=str(model_id),
+        image_id=str(image_id),
+        task_id=str(task_id),
+        comparability_group=str(comparability_group),
+        fixation_count=int(len(points)),
+        scanpath_length=scanpath_length,
+        recurrent_steps=int(recurrent_steps),
+        diffusion_steps=int(diffusion_steps),
+        selected_glimpses=int(selected_glimpses),
+        stopped=bool(stopped),
+        stop_step=int(stop_step) if stop_step is not None else None,
+        high_resolution_sampled_area=high_resolution_sampled_area,
+        image_area=float(image_area),
+        high_resolution_sampled_fraction=high_resolution_sampled_area
+        / float(image_area),
+        total_cost=float(sum(components.values())),
+        total_cost_unit=str(total_cost_unit),
+        total_latency_ms=latency,
+    )
 
 
 def count_parameters(model: Any) -> int:

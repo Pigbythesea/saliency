@@ -3,6 +3,7 @@ import sys
 import pytest
 
 from hma.metrics.efficiency_metrics import (
+    build_sequential_cost_record,
     count_parameters,
     estimate_flops,
     estimate_model_size_mb,
@@ -82,3 +83,30 @@ def test_profile_efficiency_input_shape_defaults_to_config_preprocessing():
         518,
     )
     assert _input_shape_from_config({}) == (1, 3, 224, 224)
+
+
+def test_sequential_cost_schema_totals_same_unit_components():
+    record = build_sequential_cost_record(
+        model_id="adaptive",
+        image_id="image-1",
+        task_id="car",
+        comparability_group="active_vision",
+        fixations=[(0.0, 0.0), (3.0, 4.0)],
+        recurrent_steps=2,
+        diffusion_steps=0,
+        selected_glimpses=2,
+        stopped=True,
+        stop_step=2,
+        high_resolution_sampled_area=200.0,
+        image_area=1000.0,
+        cost_components={"encoder_flops": 10.0, "policy_flops": 5.0},
+        total_cost_unit="flops",
+        total_latency_ms=3.5,
+    )
+
+    row = record.as_dict()
+    assert row["fixation_count"] == 2
+    assert row["scanpath_length"] == pytest.approx(5.0)
+    assert row["high_resolution_sampled_fraction"] == pytest.approx(0.2)
+    assert row["total_cost_per_image_task"] == pytest.approx(15.0)
+    assert row["total_cost_unit"] == "flops"

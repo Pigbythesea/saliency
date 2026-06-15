@@ -12,10 +12,12 @@ __all__ = [
     "ARTIFACT_SCHEMA_VERSION",
     "ExternalArtifactWriter",
     "ExternalModelRegistry",
+    "build_certification_records",
     "load_external_arrays",
     "load_external_features",
     "load_external_features_to_memmaps",
     "load_external_registry",
+    "load_publication_adapter_registry",
     "validate_external_artifact",
 ]
 
@@ -36,4 +38,11 @@ def __getattr__(name: str) -> Any:
         from hma.external import registry
 
         return getattr(registry, name)
+    if name in {
+        "build_certification_records",
+        "load_publication_adapter_registry",
+    }:
+        from hma.external import certification
+
+        return getattr(certification, name)
     raise AttributeError(name)

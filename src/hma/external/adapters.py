@@ -116,8 +116,18 @@ class ExternalModelAdapter(ABC):
                 1000.0 * elapsed / (max(1, measured_runs) * len(images))
             )
         parameter_count = sum(int(parameter.numel()) for parameter in self.model.parameters())
+        trainable_parameter_count = sum(
+            int(parameter.numel())
+            for parameter in self.model.parameters()
+            if bool(getattr(parameter, "requires_grad", False))
+        )
         peak_memory = (
             int(torch.cuda.max_memory_allocated())
+            if self.device.startswith("cuda") and torch.cuda.is_available()
+            else 0
+        )
+        peak_reserved_memory = (
+            int(torch.cuda.max_memory_reserved())
             if self.device.startswith("cuda") and torch.cuda.is_available()
             else 0
         )
@@ -131,6 +141,7 @@ class ExternalModelAdapter(ABC):
             theoretical_flops = realized_flops
         return {
             "parameters": parameter_count,
+            "trainable_parameters": trainable_parameter_count,
             "latency_ms_per_image": statistics.mean(repeat_latencies),
             "latency_ms_per_image_std": (
                 statistics.stdev(repeat_latencies)
@@ -154,6 +165,7 @@ class ExternalModelAdapter(ABC):
             "cuda_synchronized": cuda_synchronized,
             "hardware": hardware_metadata(torch),
             "peak_memory_bytes": peak_memory,
+            "peak_reserved_memory_bytes": peak_reserved_memory,
             "theoretical_flops": (
                 int(theoretical_flops) if theoretical_flops is not None else None
             ),
@@ -447,6 +459,47 @@ class MambaVisionAdapter(ExternalModelAdapter):
         return ExternalBatchOutput(features=features, logits=logits)
 
 
+class TimmFeatureAdapter(ExternalModelAdapter):
+    """Generic publication adapter for timm image-only feature backbones."""
+
+    def load_model(self) -> Any:
+        timm = _require_module("timm")
+        model_name = str(self.adapter_config["model_name"])
+        pretrained = bool(
+            self.adapter_config.get("pretrained", self.checkpoint_path is None)
+        )
+        model = timm.create_model(model_name, pretrained=pretrained)
+        if self.checkpoint_path is not None and self.checkpoint_path.exists():
+            _load_checkpoint(model, self.checkpoint_path, self.torch)
+        return model.eval().to(self.device)
+
+    def run_batch(self, images: list[Image.Image], image_ids: list[str]) -> ExternalBatchOutput:
+        tensor = self.preprocess(images)
+        modules = dict(self.model.named_modules())
+        features: dict[str, Any] = {}
+        handles = []
+        for layer in self.layers:
+            if layer not in modules:
+                raise ExternalIntegrationError(f"timm feature layer not found: {layer}")
+            handles.append(
+                modules[layer].register_forward_hook(
+                    lambda _module, _inputs, output, name=layer: features.__setitem__(
+                        name, _first_tensor(output).detach()
+                    )
+                )
+            )
+        try:
+            with self.torch.inference_mode():
+                logits = self.model(tensor)
+        finally:
+            for handle in handles:
+                handle.remove()
+        missing = [layer for layer in self.layers if layer not in features]
+        if missing:
+            raise ExternalIntegrationError(f"timm feature layers not captured: {missing}")
+        return ExternalBatchOutput(features=features, logits=logits)
+
+
 class _AuditPendingAdapter(ExternalModelAdapter):
     audit_message = "Adapter requires an official checkpoint/API audit before execution."
 
@@ -483,6 +536,41 @@ class ScanDiffAdapter(_AuditPendingAdapter):
     audit_message = (
         "ScanDiff requires the official Hydra checkpoint/data snapshot before "
         "scanpath export can execute."
+    )
+
+
+class DeepGazeIIEAdapter(_AuditPendingAdapter):
+    audit_message = (
+        "DeepGaze IIE requires a locked release checkpoint, center-bias asset, "
+        "and official feature-name mapping before execution."
+    )
+
+
+class DeepGazeIIIAdapter(_AuditPendingAdapter):
+    audit_message = (
+        "DeepGaze III requires a locked v1.1 checkpoint, center-bias asset, "
+        "history contract, and scanpath export hooks before execution."
+    )
+
+
+class AdaptiveNNAdapter(_AuditPendingAdapter):
+    audit_message = (
+        "AdaptiveNN requires a pinned source revision, legacy environment, "
+        "checkpoint, and policy/resource hook validation before execution."
+    )
+
+
+class SemBAAdapter(_AuditPendingAdapter):
+    audit_message = (
+        "SemBA execution is blocked until an official source, checkpoint, "
+        "license, and callable inference API are published."
+    )
+
+
+class SemBAFastAdapter(_AuditPendingAdapter):
+    audit_message = (
+        "SemBA-FAST execution is blocked until an official source, checkpoint, "
+        "license, and target-present/absent inference API are published."
     )
 
 

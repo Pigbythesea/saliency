@@ -56,6 +56,11 @@ def recompute_geometry(
             null_control_seeds=[
                 int(value) for value in geometry["null_control_seeds"]
             ],
+            bootstrap_resamples=int(geometry.get("bootstrap_resamples", 0)),
+            bootstrap_seed=int(geometry.get("bootstrap_seed", 123)),
+            bootstrap_confidence=float(
+                geometry.get("bootstrap_confidence", 0.95)
+            ),
             row_context={
                 "dataset": metadata.get("dataset", ""),
                 "model": metadata.get("model_name") or metadata.get("model", ""),

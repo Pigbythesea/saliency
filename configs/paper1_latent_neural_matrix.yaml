@@ -1,0 +1,94 @@
+schema_version: hma.paper1.latent_neural_matrix_plan.v0
+contract: configs/paper1_publication_contract.yaml
+execution_enabled: false
+seed: 123
+output_roots:
+  neural_encoding: outputs/paper1_publication_v0/neural_encoding
+  geometry: outputs/paper1_publication_v0/geometry
+  audit: outputs/paper1_publication_v0/audits/neural_geometry_audit.csv
+subjects:
+  - id: subj01
+    prf_manifest: data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv
+    stream_manifest: data/manifests/nsd_algonauts_subj01_streams_full_manifest.csv
+  - id: subj02
+    prf_manifest: data/manifests/nsd_algonauts_subj02_prf_visualrois_full_manifest.csv
+  - id: subj03
+    prf_manifest: data/manifests/nsd_algonauts_subj03_prf_visualrois_full_manifest.csv
+  - id: subj04
+    prf_manifest: data/manifests/nsd_algonauts_subj04_prf_visualrois_full_manifest.csv
+rois:
+  early_retinotopic: [V1, V2, V3, hV4]
+  dorsal_lateral_parietal: [lateral, midlateral, midparietal, parietal]
+  ventral_semantic: [midventral, ventral]
+models:
+  image_only:
+    resnet50: [layer1, layer2, layer3, layer4]
+    convnext_tiny: [stages.0, stages.1, stages.2, stages.3]
+    vit_base_patch16_224: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    deit_small_static: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    vit_small_patch14_dinov2: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    dinov3_small_patch16: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    vit_base_patch16_clip_224: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    siglip_base_patch16: [encoder.layers.0, encoder.layers.3, encoder.layers.6, encoder.layers.9, encoder.layers.11]
+    mambavision_t: [levels.0, levels.1, levels.2, levels.3]
+    hiera_tiny: [stages.0, stages.1, stages.2, stages.3]
+    swin_tiny_patch4_window7_224: [layers.0, layers.1, layers.2, layers.3]
+    swinv2_tiny_window8_256: [layers.0, layers.1, layers.2, layers.3]
+    dynamicvit_deit_small_keep_0_7: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    tome_deit_small_r13: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
+    deepgaze_iie: [backbone_features, saliency_readout_state]
+  conditioned:
+    deepgaze_iii:
+      condition: initial_center_fixation_no_additional_history
+      layers: [backbone_features, scanpath_history_state, fixation_selection_state]
+    hat:
+      condition: taskless_free_viewing_initial_center_greedy
+      layers: [dorsal_embeddings, high_res_feature_map, working_memory, query_state]
+    scandiff_freeview:
+      condition: empty_text_seed_123_deterministic_sampler
+      layers: [dinov2_condition_tokens, dit.blocks.0, dit.blocks.2, dit.blocks.5]
+    scandiff_visual_search:
+      condition: uniform_average_over_18_frozen_target_embeddings_seed_123
+      layers: [dinov2_condition_tokens, dit.blocks.0, dit.blocks.2, dit.blocks.5]
+    semba:
+      condition: uniform_target_marginalization_pending_source_release
+      layers: [detector_features, semantic_belief_state]
+    semba_fast:
+      condition: uniform_target_marginalization_pending_source_release
+      layers: [detector_features, semantic_belief_state]
+    adaptivenn_deit_small:
+      condition: greedy_policy_seed_123_fixed_step_budget
+      layers: [glance_state, integrated_states, final_state]
+encoding:
+  feature_reduction: flatten_pca
+  pca_components: 512
+  pca_solver: randomized
+  pca_fit_scope: training_only
+  train_fraction: 0.8
+  validation_fraction_of_train: 0.2
+  ridge_alphas: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]
+  layer_and_alpha_selection: inner_validation
+  primary_score: raw_targetwise_pearson_r
+  secondary_score: noise_normalized_r2
+  learned_readout_sensitivity:
+    method: voxel_specific_spatial_readout
+    required_for: [representative_cnn, representative_vit, representative_ssl, representative_gaze_or_adaptive]
+geometry:
+  primary: [debiased_linear_cka, subset_rsa_spearman]
+  secondary: [biased_linear_cka]
+  subset_sizes: [512, 1024, 2048]
+  subset_seeds: [123, 456, 789]
+  image_resampling:
+    method: paired_image_bootstrap
+    resamples: 2000
+    seed: 123
+    confidence: 0.95
+  method_agreement:
+    required: true
+    methods: [debiased_linear_cka, subset_rsa_spearman]
+  controls: [paired_response_permutation, image_cluster_bootstrap]
+admission:
+  require_neural_gate: accepted_with_limitations_or_better
+  require_geometry_gate: accepted_with_limitations_or_better
+  require_adapter_certified: true
+  one_deterministic_tensor_per_image: true

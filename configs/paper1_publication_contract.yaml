@@ -1,0 +1,135 @@
+schema_version: hma.paper1.publication_contract.v0
+contract_version: 0.1.0
+frozen_on: 2026-06-14
+execution_authorized: false
+method_position: controlled_benchmark_method
+claim:
+  primary: >-
+    Test whether behavioral fixation or scanpath alignment, latent-feature neural
+    encoding, latent representational geometry, cortical stream structure, and
+    efficiency or resource allocation converge or dissociate across model roles.
+  prohibited:
+    - sota_fmri_prediction_claim
+    - sota_saliency_claim
+    - causal_attention_claim
+    - fixation_causes_neural_alignment
+    - output_map_replaces_latent_feature_encoding
+evidence:
+  publication_root: outputs/paper1_publication_v0
+  scope_reset_root: outputs/paper1_scope_reset
+  legacy_default: excluded
+  legacy_admission_rule: explicit_equivalence_audit_only
+  output_map_neural_label: output_map_neural_control
+  latent_neural_label: latent_feature_neural_encoding
+behavioral_regimes:
+  free_viewing:
+    datasets: [salicon, cat2000]
+    must_not_merge_with: [task_search, scanpath_sequence]
+  task_search:
+    datasets: [coco_search18]
+    split_conditions: [target_present, target_absent]
+    must_not_merge_with: [free_viewing, scanpath_sequence]
+  scanpath_sequence:
+    report_by_source_regime: true
+    must_not_collapse_to_map_metrics: true
+behavioral_objects:
+  primary:
+    - human_gaze_density
+    - conditional_next_fixation_distribution
+    - generated_scanpath
+  controls:
+    - center_prior
+    - random_baseline
+    - empirical_spatial_prior
+    - task_prior
+  diagnostic_only:
+    - posthoc_attribution_map
+    - token_retention_map
+    - token_merge_map
+    - selected_glimpse_map
+neural_encoding:
+  primary_method: flatten_pca_validation_selected_ridge
+  primary_score: raw_targetwise_pearson_r
+  secondary_score: noise_normalized_r2
+  score_aggregation_rule: never_mix_raw_and_noise_normalized_rows
+  selection:
+    outer_test_held_out: true
+    layer_and_alpha_selected_on_inner_validation: true
+    pca_fit_on_training_only: true
+  sensitivity:
+    required: voxel_specific_learned_spatial_readout
+    status: implemented_smoke_only
+  output_map_to_fmri:
+    allowed: true
+    status: diagnostic_only
+geometry:
+  primary:
+    - debiased_linear_cka
+    - subset_rsa_spearman
+  secondary:
+    - biased_linear_cka
+  controls:
+    - paired_response_permutation
+    - image_resampling_interval
+  rule: geometry_never_sole_neural_alignment_evidence
+roi_streams:
+  primary_nonoverlapping:
+    early_retinotopic: [V1, V2, V3, hV4]
+    dorsal_lateral_parietal: [lateral, midlateral, midparietal, parietal]
+    ventral_semantic: [midventral, ventral]
+  sensitivity_overlapping:
+    ventral_extended: [hV4, midventral, ventral]
+    floc_category_rois: deferred_pending_acceptance
+  subject_scope:
+    prf_visual_rois: [subj01, subj02, subj03, subj04]
+    stream_rois: [subj01]
+efficiency:
+  matched_measurement_required:
+    - image_resolution
+    - batch_size
+    - hardware
+    - precision
+    - preprocessing
+  static_metrics:
+    - parameters
+    - theoretical_flops_or_macs
+    - profiler_realized_flops_or_macs
+    - latency_ms_per_image
+    - peak_memory_bytes
+  allocation_metrics:
+    - token_count
+    - retained_token_fraction
+    - merge_statistics
+    - selected_glimpse_count
+    - fixation_or_scanpath_length
+    - stopping_behavior
+    - foveated_high_resolution_area
+  sequential_cost_rule: total_cost_per_image_or_task_through_termination
+cross_axis:
+  join_key_requirements:
+    - model_id
+    - model_role
+    - behavioral_regime
+    - behavioral_object
+    - roi
+    - stream
+    - subject_id
+    - evidence_status
+  required_sensitivity:
+    - leave_one_model
+    - leave_one_family
+    - family_blocked_bootstrap_or_permutation
+  quadrant_status: descriptive_only
+  causality_language_allowed: false
+method_gates:
+  behavioral_evaluation: method_gap_found
+  latent_feature_neural_encoding: accepted_with_limitations
+  representational_geometry: method_gap_found
+  model_adapter_comparability: method_gap_found
+  efficiency_resource_allocation: method_gap_found
+  cross_axis_inference: method_gap_found
+execution_rule: >-
+  No publication-root full run may start for an axis until its gate is
+  accepted_for_publication_rerun or accepted_with_limitations and all included
+  models are adapter_certified.
+

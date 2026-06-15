@@ -41,7 +41,7 @@ No result outside this root is final Paper 1 evidence unless it is explicitly re
 
 No publication-root full rerun is allowed unless the relevant behavioral, neural, geometry, adapter-comparability, efficiency, and cross-axis method gates are passed or explicitly accepted with limitations.
 
-The next task is publication method-contract freezing, scope freezing, and full model adapter certification. It is not interpretation, adaptive sweep, manuscript writing, full publication rerun, broad model execution, or legacy result consolidation.
+The current active task is **Adapter Installation and Behavioral Distribution Gate Completion V1**. It is not interpretation, manuscript writing, a full publication-root rerun, or model-universe reduction. The task is to implement general map-distribution information gain/log-likelihood and complete bounded source/environment/checkpoint/smoke certification for setup-ready adapters.
 
 The `Current Implementation Progress` section must summarize publication-readiness state only; it must not re-list historical runs, smoke passes, old Matrix V2 outputs, old result numbers, or debugging milestones.
 
@@ -102,25 +102,28 @@ A full publication-root rerun is not allowed until the relevant method acceptanc
 
 Codex should prioritize:
 
+- implementation that removes current method-gate blockers, not more audit prose;
 - full required model-role coverage before convenience-based model reduction;
-- adapter certification before evidence generation;
-- literature-grounded method acceptance before full publication reruns;
-- SOTA-method comparison before treating any pipeline as paper-valid;
-- method-gate decisions over merely executable pipelines;
-- clean publication-root reruns over legacy-result consolidation;
+- adapter certification and setup scaffolding across the full required model universe, not only local anchors;
+- reusable method infrastructure before publication-root evidence generation;
+- behavioral uncertainty and sequence/task metrics before clean behavioral reruns;
+- debiased geometry and geometry resampling before clean geometry reruns;
+- sequential/adaptive total-cost accounting before efficiency comparisons;
+- family-aware cross-axis sensitivity before paper-facing quadrant interpretation;
 - latent-feature neural encoding and latent-feature geometry over output-map neural controls;
 - stream/ROI structure over flat ROI averages;
 - adaptive/foveated/scanpath/selective-computation mechanisms over additional post-hoc heatmap variants;
-- efficiency and resource-allocation metadata as first-class evidence;
 - explicit paper-evidence status for every model, artifact, and result table.
-
 
 Codex should avoid:
 
 - treating scaffold outputs as paper evidence;
+- producing audit-only, planning-only, or Markdown-only sessions;
+- certifying only local anchors and calling the milestone complete;
 - generating interpretation from the three-model adaptive pilot;
-- beginning adaptive sweep or broad model execution before the full model-role matrix and adapter-certification plan exist;
-- shrinking the model universe before availability, checkpoint, feature-hook, and behavioral-output audits are complete.
+- beginning adaptive sweep, manuscript work, or publication-root full reruns before method gates are unblocked;
+- shrinking the model universe before setup, checkpoint, feature-hook, and behavioral-output requirements are made explicit;
+- reporting smoke tests as progress unless they directly certify a model, unblock a method gate, or produce reusable publication-run infrastructure.
 
 ### Required end-of-session report
 
@@ -173,7 +176,7 @@ Current publication-facing status:
 
 - No final Paper 1 publication evidence matrix exists yet.
 - No legacy output is accepted as final paper evidence by default.
-- The next accepted scientific artifact must be a frozen Paper 1 publication contract plus a full model-role and adapter-certification matrix.
+- The next accepted scientific artifact must be a validated general map-distribution metric implementation or a complete nonlocal adapter-certification record with locked source, environment, checkpoint, preprocessing, outputs, and smoke evidence.
 - The repaired static DeiT-S / DynamicViT / ToMe run is a method-validation artifact for the generic efficient-computation role. It must not define the final model scope or paper interpretation.
 - All final behavioral, latent-feature neural, latent-feature geometry, efficiency, and cross-axis evidence must be regenerated under a new publication output root unless explicitly certified by an equivalence audit.
 
@@ -270,7 +273,7 @@ The publication method must not be described as:
 
 ### Gate 1 — Behavioral evaluation acceptance
 
-Status: `audit_required`.
+Status: `method_gap_found`.
 
 Before clean behavioral reruns, Codex must produce:
 
@@ -291,7 +294,7 @@ A behavioral rerun can proceed only after this gate is `accepted_for_publication
 
 ### Gate 2 — Latent-feature neural encoding acceptance
 
-Status: `audit_required`.
+Status: `accepted_with_limitations`.
 
 Before clean neural reruns, Codex must produce:
 
@@ -313,7 +316,7 @@ A neural rerun can proceed only after this gate is `accepted_for_publication_rer
 
 ### Gate 3 — Representational geometry acceptance
 
-Status: `audit_required`.
+Status: `accepted_for_publication_rerun`.
 
 Before clean geometry reruns, Codex must produce:
 
@@ -334,7 +337,7 @@ A geometry rerun can proceed only after this gate is `accepted_for_publication_r
 
 ### Gate 4 — Model adapter comparability acceptance
 
-Status: `audit_required`.
+Status: `accepted_with_limitations`.
 
 Before any model enters publication-root evidence generation, Codex must produce:
 
@@ -358,7 +361,7 @@ This gate applies especially to DeepGaze, HAT, ScanDiff, SemBA/SemBA-FAST, and A
 
 ### Gate 5 — Efficiency/resource-allocation acceptance
 
-Status: `audit_required`.
+Status: `accepted_with_limitations`.
 
 Before efficiency results enter cross-axis analysis, Codex must produce:
 
@@ -374,7 +377,7 @@ The audit must decide:
 
 ### Gate 6 — Cross-axis inference acceptance
 
-Status: `audit_required`.
+Status: `accepted_with_limitations`.
 
 Before paper-facing interpretation, Codex must produce:
 
@@ -482,50 +485,39 @@ Current implementation readiness is:
 
 | component | current classification | publication-facing meaning |
 | --- | --- | --- |
-| behavioral benchmark code | scaffold_ready | usable for clean rerun after publication contract |
-| repaired behavior map routing | scaffold_ready | must be reused in publication rerun |
-| constant-map metric handling | scaffold_ready | must be reused in publication rerun |
-| external artifact schema | scaffold_ready | must be extended/certified for all required models |
-| static DeiT / DynamicViT / ToMe adapters | scaffold_ready_for_generic_efficiency_role | validate the adapter pattern; do not define final paper scope |
-| DINOv3 / SigLIP / MambaVision / Hiera / Swin registry entries | adapter_audit_required | required candidates; must receive certification status |
-| DeepGaze / HAT / ScanDiff / SemBA / SemBA-FAST | adapter_audit_required | required gaze/scanpath candidates; must be inspected for behavioral and latent-feature evidence |
-| AdaptiveNN | adapter_audit_required | required human-gaze-inspired adaptive/foveated candidate |
-| old behavioral aggregates | scaffold_only | excluded from publication evidence unless regenerated or equivalence-certified |
-| old neural/geometry outputs | scaffold_only | excluded from publication evidence unless regenerated or equivalence-certified |
-| old Matrix V2 three-model full run | method_validation_only | validates repaired pipeline; not final Paper 1 evidence |
-| paper inspection packs | scaffold_only | not publication evidence |
-| `docs/project_results_numbers.md` | historical_numeric_context | useful for expected ranges only; not publication evidence |
-| `docs/actual_methodology_trace.md` | provenance_context | useful for avoiding repeated mistakes; not publication evidence |
-| behavioral evaluation method | method_gate_audit_required | standard metrics exist, but scanpath/task-search uncertainty and metric hierarchy must be accepted before publication rerun |
-| latent-feature neural encoding method | method_gate_audit_required | current PCA/ridge method is controlled-baseline grade; SOTA gap and readout-sensitivity policy must be accepted before rerun |
-| representational geometry method | method_gate_audit_required | CKA/RSA exist; debiased/bias-corrected geometry and uncertainty policy must be audited before rerun |
-| model adapter comparability | method_gate_audit_required | required candidates must be certified for deterministic input, latent features, behavioral outputs, and resource metadata |
-| efficiency/resource-allocation method | method_gate_audit_required | static/token/adaptive/foveated/sequential cost metrics must be made comparable before cross-axis use |
-| cross-axis inference method | method_gate_audit_required | no quadrant or convergence claim until model count, uncertainty, and sensitivity rules are accepted |
+| publication contract | frozen_v0 | `configs/paper1_publication_contract.yaml` governs all future evidence |
+| publication output root | created_empty | `outputs/paper1_publication_v0/` contains no empirical evidence yet |
+| evidence reset | complete | every current top-level output root is classified and excluded by default |
+| behavioral evaluation method | method_gap_found | clustered/hierarchical uncertainty and conditional/sequence interfaces are implemented; general map-distribution information gain still blocks the full rerun |
+| latent-feature neural encoding method | accepted_with_limitations | controlled frozen-feature PCA/ridge is accepted; voxel-specific spatial-readout sensitivity is required |
+| representational geometry method | accepted_for_publication_rerun | feature-space debiased linear CKA, image-resampling intervals, paired response permutations, and CKA/RSA agreement reporting are implemented |
+| model adapter comparability | accepted_with_limitations | all 26 candidates have publication registry records; three external models and three built-in controls are certified, and all others have executable setup scaffolds or source-blocker records |
+| efficiency/resource-allocation method | accepted_with_limitations | total per-image/task sequential/adaptive cost schema and artifact summaries are implemented; model-specific emissions remain adapter-dependent |
+| cross-axis inference method | accepted_with_limitations | regime/object and minimum-panel preflight, leave-one-family sensitivity, and family-block bootstrap are implemented; no publication evidence panel exists |
+| full model-role matrix | complete | 26 rows cover every required family and control without convenience-based exclusion |
+| local anchor latent capability | setup_scaffold_ready | ResNet, ConvNeXt, ViT, DINOv2, and CLIP have common timm adapter entries and explicit pin/hash/smoke blockers |
+| gaze/scanpath latent capability | setup_scaffold_ready | DeepGaze, HAT, and ScanDiff have typed conditioning/output contracts, runtime adapter classes, setup commands, and machine-readable blockers |
+| AdaptiveNN latent capability | setup_scaffold_ready | source/environment/checkpoint/resource-hook blockers are represented by an executable runtime entry |
+| SemBA / SemBA-FAST | setup_blocked_not_excluded | records explicitly identify unavailable official source/checkpoint/API as the blocker |
+| legacy outputs | excluded | no existing empirical root is accepted or equivalence-certified |
 
 ### Current blockers to real paper progress
 The project cannot move to publication-facing full runs until these blockers are resolved:
 
-1. no frozen Paper 1 publication contract exists;
-2. no `outputs/paper1_publication_v0/` evidence root exists;
-3. no full required model-role matrix exists;
-4. no `paper_evidence_status` exists for each model and artifact;
-5. no method-gate status exists for behavioral evaluation, neural encoding, geometry, adapter comparability, efficiency, or cross-axis inference;
-6. no literature-grounded method audit compares the project pipeline against relevant SOTA methods;
-7. no adapter-certification matrix exists for all required candidate models;
-8. no evidence reset manifest excludes legacy outputs from paper evidence;
-9. AdaptiveNN has not yet been audited as a required adaptive/foveated candidate;
-10. gaze/scanpath models have not yet been audited for latent-feature extraction;
-11. no clean behavioral rerun can be launched until the behavioral method gate passes;
-12. no clean latent-feature neural/geometry rerun can be launched until the neural and geometry method gates pass.
+1. publication source pins, checkpoint hashes, environment locks, and smoke certification are missing for most local and external candidates;
+2. DINOv3, DeepGaze, HAT, ScanDiff, AdaptiveNN, and related scaffold adapters still require model-specific execution hooks;
+3. general free-viewing map-distribution information gain/log-likelihood remains unimplemented;
+4. sequential/adaptive models must emit the new total-cost fields after their adapters are installed;
+5. stream ROI subject robustness beyond subj01 is unavailable;
+6. SemBA and SemBA-FAST official source/checkpoint APIs remain unresolved.
 
 ### Current implementation priority
 
 Active priority:
 
-> Freeze Paper 1 Publication Matrix V0, certify adapters for the full required model universe, and prepare clean publication-root reruns.
+> Execute Adapter Installation and Behavioral Distribution Gate Completion V1: install and smoke the highest-priority setup-ready adapters in bounded batches, implement general map-distribution information gain/log-likelihood, and upgrade only models with complete provenance and output validation.
 
-The canonical artifact list lives in `Next Concrete Milestone`. Do not duplicate it here.
+This is not a local-anchor-only certification pass. The canonical artifact list lives in `Next Concrete Milestone`. Do not duplicate it here.
 
 ### Required end-of-session report
 
@@ -534,6 +526,15 @@ Use the publication-readiness report format in `Current Implementation Progress`
 Do not report smoke tests, debugging fixes, old-result summaries, or legacy audits as progress unless they directly change one of the publication-contract artifacts above.
 
 Implementation history is archived in `docs/project_status_changelog.md`.
+
+### End-of-session report — Publication Gate-Unblocking Implementation V1
+
+1. **Publication-contract change:** added a typed publication adapter registry and certification schema covering image-only, task-conditioned, gaze-history-conditioned, scanpath, foveated, stochastic, and active-vision models; added reusable behavioral, geometry, efficiency, and family-aware cross-axis methods without changing the frozen paper claim.
+2. **Accepted artifact:** `configs/external_models/publication_registry.yaml`; `outputs/paper1_scope_reset/adapter_certification_records.jsonl`; `outputs/paper1_scope_reset/adapter_certification_summary.csv`; updated model-role, adapter-comparability, and method-gate tables under `outputs/paper1_scope_reset/`.
+3. **Method gate status change:** geometry moved from `method_gap_found` to `accepted_for_publication_rerun`; adapter comparability, efficiency/resource allocation, and cross-axis inference moved to `accepted_with_limitations`; behavioral evaluation remains `method_gap_found`, with uncertainty and sequence blockers removed.
+4. **Paper evidence status change:** static DeiT-S, DynamicViT, and ToMe remain `adapter_certified`; center, random, and COCO-Search18 task-prior controls have certified built-in records; all named nonlocal candidates now have `setup_scaffold_ready` or explicit `setup_blocked` records rather than `not_started`.
+5. **Reviewer risk reduced:** reduced adapter incomparability, weak behavioral uncertainty, biased geometry, per-glimpse-only efficiency accounting, behavioral-regime mixing, and model-family dependence risk.
+6. **Next decisive step:** implement general map-distribution information gain/log-likelihood and complete source/environment/checkpoint/smoke certification for the first bounded adapter batch, starting with SigLIP, MambaVision, Hiera, Swin, and SwinV2.
 
 ## Cluster Workflow Guidance
 
@@ -588,258 +589,132 @@ Cluster-side Slurm policy:
 - Monitor with `squeue -u zzhan330` and `tail -f` on the relevant Slurm log.
 - After cluster completion, verify expected file counts before copying outputs back.
 
+## Completed Milestone — Publication Contract And Full Adapter Audit
+
+Status: completed on 2026-06-14.
+
+This milestone produced the publication contract, evidence-reset plan, method SOTA audits, method acceptance gates, model availability audit, adapter comparability audit, clean rerun plans, stream/ROI grouping spec, efficiency/resource-allocation plan, and publication-root plan.
+
+The milestone does **not** authorize full publication reruns, adaptive sweeps, paper interpretation, or manuscript writing.
+
+Current gate state:
+
+- behavioral evaluation: `method_gap_found`;
+- latent-feature neural encoding: `accepted_with_limitations`;
+- representational geometry: `accepted_for_publication_rerun`;
+- model adapter comparability: `accepted_with_limitations`;
+- efficiency/resource allocation: `accepted_with_limitations`;
+- cross-axis inference: `accepted_with_limitations`.
+
+Current evidence state:
+
+- no empirical artifact is accepted as Paper 1 publication evidence;
+- legacy outputs remain scaffold/provenance only;
+- static DeiT-S, DynamicViT, and ToMe are adapter-certified method artifacts;
+- local anchors have proven latent capability but still require publication certification.
+
+Next milestone:
+
+> Execute Adapter Installation and Behavioral Distribution Gate Completion V1 in bounded batches. Do not start full publication-root runs.
+
+## Completed Milestone — Publication Gate-Unblocking Implementation V1
+
+Status: completed on 2026-06-14.
+
+This milestone implemented the missing reusable infrastructure across all four required lanes. It did not run publication-root experiments or paper interpretation.
+
+The milestone implemented the missing infrastructure that directly unblocks the publication gates.
+
+### Required implementation lanes
+
+Codex must work across all four lanes in one session or one coordinated implementation branch:
+
+1. **Adapter certification and setup lane**
+   - Implement the common publication adapter-certification harness.
+   - Certify local anchors where possible.
+   - Also create executable adapter/setup scaffolds for DINOv3, SigLIP, MambaVision, Hiera, Swin, SwinV2, DeepGaze, HAT, ScanDiff, AdaptiveNN, and SemBA/SemBA-FAST where source is available.
+   - Missing environment/checkpoint/dependency is not exclusion; it must produce a concrete setup command, registry row, and machine-readable blocking reason.
+   - The harness schema must support image-only, task-conditioned, gaze-history-conditioned, scanpath, foveated, stochastic, and active-vision models.
+
+2. **Behavioral gate-unblocking lane**
+   - Implement clustered image bootstrap for map metrics.
+   - Implement SALICON worker-within-image hierarchical uncertainty.
+   - Implement COCO-Search18 subject-within-image/task uncertainty.
+   - Add sequence/task metric interface for conditional maps and generated scanpaths.
+   - Preserve separate free-viewing, task-search, and scanpath outputs.
+
+3. **Geometry gate-unblocking lane**
+   - Implement debiased or corrected linear CKA.
+   - Implement image-resampling intervals for CKA and RSA summaries.
+   - Keep biased CKA as secondary diagnostic only.
+   - Preserve response-permutation controls and CKA/RSA method-agreement reporting.
+
+4. **Efficiency and cross-axis gate-unblocking lane**
+   - Extend efficiency schema to total sequential/adaptive cost: fixation count, scanpath length, diffusion/recurrent steps, selected glimpses, stopping behavior, high-resolution sampled area, and total cost per image/task.
+   - Implement leave-one-family sensitivity and family-aware uncertainty scaffolds for cross-axis analysis.
+   - Do not run cross-axis interpretation; only implement the machinery needed after publication-root evidence exists.
+
+### Required outputs
+
+This milestone must produce executable code, tests, and machine-readable artifacts. Markdown-only updates do not count.
+
+Required outputs include:
+
+- adapter-certification harness code;
+- adapter-certification schema tests;
+- updated publication registry entries for all required model families;
+- certification records or concrete setup-blocker records for all required model families;
+- behavioral uncertainty implementation and tests;
+- sequence/task metric interface implementation and tests;
+- debiased CKA implementation and tests;
+- geometry image-resampling implementation and tests;
+- sequential/adaptive efficiency schema implementation and tests;
+- leave-one-family / family-aware cross-axis sensitivity implementation and tests;
+- updated `outputs/paper1_scope_reset/model_adapter_comparability_table.csv`;
+- updated `outputs/paper1_scope_reset/model_role_matrix.csv`;
+- updated method-gate tables showing which gates moved from `method_gap_found` toward `accepted_with_limitations` or `accepted_for_publication_rerun`.
+
+### Explicit non-goals
+
+Do not run full NSD, behavioral, geometry, efficiency, or cross-axis publication-root experiments.
+
+Do not produce paper-facing interpretation.
+
+Do not reduce the model universe to local anchors.
+
+Do not perform an audit-only or planning-only session.
+
+Do not report tests or smoke runs as progress unless they directly certify a model, unblock a method gate, or produce a reusable publication-run component.
+
+### Acceptance rule
+The milestone is complete only if executable code, tests, and machine-readable artifacts remove at least one concrete blocker from each category:
+
+1. adapter comparability across local and nonlocal required model families;
+2. behavioral uncertainty or sequence/task metrics;
+3. geometry debiasing or geometry uncertainty;
+4. efficiency total-cost or cross-axis family-aware inference.
+
+A session that certifies only local anchors fails this milestone.
+
+A session that only creates docs, audits, placeholder files, or untested schemas fails this milestone.
+
+A session that implements only one lane fails this milestone unless it also leaves runnable, tested scaffolds for the other three lanes.
+
 ## Next Concrete Milestone
 
-Priority: **Paper 1 Publication Method Contract, Scope Reset, And Full Model Adapter Certification**.
+Priority: **Adapter Installation and Behavioral Distribution Gate Completion V1**.
 
-The next task is not paper interpretation, not adaptive strength sweep, not full publication rerun, and not broad model execution. The next task is to freeze both:
+Required work:
 
-1. the publication-facing scientific scope; and
-2. the academic method contract that makes the future full runs paper-valid.
+1. implement general map-distribution log-likelihood and information gain against matched priors, with image-cluster intervals;
+2. execute setup and smoke certification in bounded batches for SigLIP, MambaVision, Hiera, Swin, and SwinV2;
+3. upgrade a model to `adapter_certified` only after source, environment, checkpoint, preprocessing, feature, resource, and smoke records all pass;
+4. wire the sequential-cost schema into the first available scanpath or active-vision adapter;
+5. keep full publication-root experiments and paper interpretation blocked.
 
-### Required outcome
+Acceptance rule:
 
-Create:
-
-* `outputs/paper1_scope_reset/model_role_matrix.csv`
-* `outputs/paper1_scope_reset/model_availability_audit.md`
-* `outputs/paper1_scope_reset/model_adapter_comparability_table.csv`
-* `outputs/paper1_scope_reset/model_adapter_comparability_audit.md`
-* `outputs/paper1_scope_reset/latent_feature_adapter_requirements.csv`
-* `outputs/paper1_scope_reset/behavioral_output_adapter_requirements.csv`
-* `outputs/paper1_scope_reset/evidence_reset_manifest.csv`
-* `outputs/paper1_scope_reset/publication_output_root_plan.md`
-* `outputs/paper1_scope_reset/method_sota_alignment_audit.md`
-* `outputs/paper1_scope_reset/method_acceptance_gates.md`
-* `outputs/paper1_scope_reset/behavioral_metric_acceptance_table.csv`
-* `outputs/paper1_scope_reset/neural_encoding_acceptance_table.csv`
-* `outputs/paper1_scope_reset/geometry_acceptance_table.csv`
-* `outputs/paper1_scope_reset/efficiency_acceptance_table.csv`
-* `outputs/paper1_scope_reset/cross_axis_inference_acceptance_table.csv`
-* `outputs/paper1_scope_reset/clean_behavioral_rerun_plan.md`
-* `outputs/paper1_scope_reset/clean_behavioral_rerun_matrix.csv`
-* `outputs/paper1_scope_reset/latent_feature_neural_matrix_plan.md`
-* `outputs/paper1_scope_reset/stream_roi_grouping_spec.md`
-* `outputs/paper1_scope_reset/efficiency_resource_allocation_plan.md`
-* `configs/paper1_publication_contract.yaml`
-* `configs/paper1_clean_behavioral_rerun.yaml`
-* `configs/paper1_latent_neural_matrix.yaml`
-
-Publication output root:
-
-* `outputs/paper1_publication_v0/`
-
-### Required method SOTA alignment audit
-
-Create `outputs/paper1_scope_reset/method_sota_alignment_audit.md`.
-
-The audit must compare the project method against relevant academic methods for:
-
-1. saliency/fixation-map evaluation;
-2. task-search evaluation;
-3. scanpath/sequential gaze prediction;
-4. latent-feature neural encoding;
-5. Algonauts/NSD-style fMRI prediction;
-6. representational geometry with RSA/CKA/debiased CKA;
-7. model-brain comparison frameworks;
-8. efficiency/resource-allocation evaluation;
-9. active/foveated/adaptive vision models.
-
-For each literature reference or benchmark family, record:
-
-* paper or benchmark name;
-* task/data used;
-* model output evaluated;
-* method used;
-* metric used;
-* uncertainty/statistical control used;
-* reported numbers when available;
-* which part of the project method matches;
-* which part of the project method differs;
-* whether the project difference is acceptable, accepted-with-limitations, or blocking.
-
-The audit must explicitly position the project method as one of:
-
-* `controlled_benchmark_method`;
-* `sota_competitive_method`;
-* `diagnostic_method_only`;
-* `method_gap_blocking_publication_rerun`.
-
-The expected position is `controlled_benchmark_method` unless the audit proves otherwise.
-
-### Required method acceptance gates
-
-Create `outputs/paper1_scope_reset/method_acceptance_gates.md`.
-
-The gates are:
-
-1. behavioral evaluation;
-2. latent-feature neural encoding;
-3. representational geometry;
-4. model adapter comparability;
-5. efficiency/resource allocation;
-6. cross-axis inference.
-
-Each gate must receive one of:
-
-* `not_started`;
-* `audit_required`;
-* `method_gap_found`;
-* `accepted_with_limitations`;
-* `accepted_for_publication_rerun`;
-* `rejected_for_publication_claim`.
-
-A publication-root full run may begin only for axes whose method gates are `accepted_for_publication_rerun` or `accepted_with_limitations`.
-
-### Required model-role matrix
-
-Define model roles as:
-
-1. human gaze-prediction models;
-2. human-gaze-inspired efficient or foveated models;
-3. generic efficient-computation models;
-4. general visual representation models;
-5. self-supervised dense-feature models;
-6. VLM / semantic models;
-7. hierarchical / hybrid / efficient architecture models;
-8. spatial-prior and task-prior controls.
-
-Required candidate families include:
-
-* ResNet + ConvNeXt anchors;
-* ViT + DeiT anchors;
-* DINOv2 and DINOv3 family;
-* CLIP + SigLIP-family candidates;
-* MambaVision;
-* Hiera;
-* Swin + SwinV2;
-* DynamicViT;
-* ToMe;
-* DeepGaze;
-* HAT;
-* ScanDiff;
-* SemBA + SemBA-FAST where applicable;
-* AdaptiveNN;
-* center, random, spatial-prior, and task-prior controls.
-
-For each candidate model, record:
-
-* model name;
-* role;
-* behavioral output available;
-* latent features available;
-* feature extraction path;
-* neural encoding eligibility;
-* representational geometry eligibility;
-* efficiency/resource-allocation eligibility;
-* deterministic input condition required;
-* required environment/checkpoint;
-* current implementation status: `ready_now`, `needs_adapter`, `needs_checkpoint`, `needs_feature_hook`, `needs_behavior_output_adapter`, `behavior_only_after_audit`, `diagnostic_only_after_audit`, or `reject_after_audit`;
-* `paper_evidence_status`: `not_started`, `adapter_in_progress`, `adapter_certified`, `publication_rerun_ready`, `publication_rerun_complete`, `accepted_publication_evidence`, `diagnostic_only`, or `rejected_for_paper_evidence`.
-
-A model can carry the central neural-alignment claim only if latent features can be extracted and passed through the same neural encoding and geometry pipeline as the other central models.
-
-### Required adapter-certification plan
-
-For every required model, certify whether the adapter can produce:
-
-* one deterministic latent feature tensor per NSD image;
-* candidate layer/block features;
-* behavioral fixation/saliency/scanpath/task-search output where applicable;
-* resource-allocation output where applicable;
-* efficiency metadata;
-* preprocessing metadata;
-* checkpoint provenance;
-* environment provenance;
-* deterministic seed and input-condition record.
-
-For gaze-history-conditioned, task-conditioned, text-conditioned, scanpath, foveated, or active-vision models, the plan must define the fixed input condition before feature extraction.
-
-AdaptiveNN must receive a full adapter-certification row because it is a required human-gaze-inspired adaptive/foveated model. Its certification must inspect selected glimpses/fixations, stopping behavior, integrated latent states or backbone features, and compute/resource metadata.
-
-### Required evidence reset manifest
-
-Create `outputs/paper1_scope_reset/evidence_reset_manifest.csv`.
-
-For every existing output root, classify it as one of:
-
-* `scaffold_only`;
-* `method_validation_only`;
-* `legacy_behavior_discard`;
-* `legacy_neural_discard`;
-* `legacy_geometry_discard`;
-* `legacy_efficiency_discard`;
-* `eligible_for_equivalence_audit`;
-* `publication_root_only`.
-
-Legacy outputs must not enter publication-root summaries unless regenerated under the publication contract or certified by equivalence audit.
-
-### Required clean rerun plans
-
-The clean behavioral rerun plan must cover:
-
-* SALICON free-viewing;
-* CAT2000 free-viewing;
-* COCO-Search18 task search;
-* center and random baselines;
-* DeepGaze / fixation references;
-* COCO-Search18 task prior;
-* attribution controls where required;
-* repaired routing maps for efficient-computation models;
-* gaze-prediction and scanpath outputs for HAT, ScanDiff, SemBA/SemBA-FAST, DeepGaze, and AdaptiveNN where applicable.
-
-The clean latent-feature neural and geometry plans must specify:
-
-* which models expose features;
-* which layers or feature blocks will be candidates;
-* whether the model is image-only, gaze-history-conditioned, task-conditioned, text-conditioned, foveated, active, or stochastic;
-* the fixed input condition used to generate one feature tensor per NSD image;
-* whether preprocessing can be matched or must be explicitly modeled;
-* whether the same `flatten_pca` + validation-selected ridge protocol applies;
-* whether learned spatial readout is required as sensitivity analysis;
-* which ROI groups will be run;
-* which models become behavior-only or diagnostic-only after audit.
-
-Required ROI grouping:
-
-* early visual / retinotopic: V1, V2, V3, hV4;
-* dorsal/lateral/parietal spatial-selection: lateral, midlateral, midparietal, parietal;
-* ventral/semantic/object-related: ventral, midventral, hV4, and fLOC category ROIs if accepted later.
-
-The efficiency/resource-allocation plan must include:
-
-* parameters;
-* FLOPs/MACs;
-* measured latency;
-* peak memory;
-* token counts;
-* retained-token fraction;
-* merge statistics;
-* selected-glimpse count;
-* fixation/scanpath length;
-* stopping behavior;
-* foveated high-resolution area or crop count where applicable.
-
-### Acceptance criteria
-
-This milestone is complete only when Codex can answer:
-
-1. What is the full required model-role matrix?
-2. What is each candidate model’s `paper_evidence_status`?
-3. What is each method gate’s status?
-4. What SOTA methods were used to judge the project method?
-5. Which project methods are accepted for publication rerun, accepted with limitations, or blocking?
-6. Which models have certified latent-feature extraction?
-7. Which gaze-prediction, scanpath, foveated, or active-vision models can enter latent-feature neural/geometry analysis?
-8. Which models are behavior-only or diagnostic-only after audit?
-9. Which existing outputs are scaffold/provenance and excluded from publication evidence?
-10. What exact publication-root paths will contain behavioral, neural, geometry, efficiency, and cross-axis outputs?
-11. What exact clean behavioral rerun jobs are required?
-12. What exact latent-feature neural/geometry configs are required?
-13. What exact efficiency/resource-allocation profiles are required?
-14. Which analyses are primary, which are secondary sensitivity analyses, and which are diagnostic/control only?
-
-Do not start adaptive strength sweep, broad evidence reruns, paper-facing interpretation, or manuscript writing until this milestone is complete.
+The behavioral method gate must move to at least `accepted_with_limitations`, and at least one currently setup-ready nonlocal family must receive a complete adapter-certification record without reducing the remaining model universe.
 
 
 ## Data/control readiness update:
@@ -865,7 +740,7 @@ Proceed in phases that map directly to the revised publication question:
 
 ### Phase 0 — Evidence reset and publication root freeze
 
-Status: active.
+Status: complete. Contract and root are frozen; no empirical evidence exists.
 
 Purpose:
 
@@ -886,7 +761,8 @@ No old output can enter publication summaries unless regenerated under the publi
 
 ### Phase 1 — Literature-grounded method acceptance
 
-Status: next decisive methodological gate.
+Status: audit complete; neural encoding is accepted with limitations and the
+other five gates have explicit method gaps.
 
 Purpose:
 
@@ -910,7 +786,9 @@ No publication-root full rerun begins until the relevant method gates are `accep
 
 ### Phase 2 — Full model-role matrix and adapter certification
 
-Status: after or alongside Phase 1.
+Status: model-role and capability audit complete; adapter implementation is
+active. Three models are certified and all remaining candidates have explicit
+setup or feature-hook requirements.
 
 Purpose:
 
@@ -1143,14 +1021,3 @@ Adaptive/foveated/gaze-model adapters:
 - `src/hma/external/` for publication-contract adapters;
 - `configs/external_models/registry.yaml` for required candidate registration;
 - future AdaptiveNN / HAT / ScanDiff / SemBA adapter modules should expose both behavioral outputs and latent-feature hooks where available.
-
-## Methodology provenance audit session (2026-06-13)
-
-Generated `docs/actual_methodology_trace.md` by tracing the current behavioral,
-neural encoding, geometry, adaptive-routing, efficiency, cross-axis, and older
-V1 outputs backward to their scripts, configs, inputs, and scoring functions.
-Supporting provenance tables are under `outputs/methodology_trace/`.
-
-The trace records unresolved repository-visible assumptions with explicit
-`UNKNOWN_FROM_REPO` and `STATUS_CLAIM_NOT_VERIFIED` labels. It does not change
-the scientific interpretation in this status document.

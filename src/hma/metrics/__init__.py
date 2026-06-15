@@ -1,6 +1,8 @@
 """Metric helpers."""
 
 from hma.metrics.efficiency_metrics import (
+    SequentialCostRecord,
+    build_sequential_cost_record,
     count_parameters,
     estimate_flops,
     estimate_model_size_mb,
@@ -24,6 +26,7 @@ __all__ = [
     "auc_borji",
     "auc_judd",
     "cc",
+    "build_sequential_cost_record",
     "count_parameters",
     "emd_2d",
     "estimate_flops",
@@ -37,4 +40,5 @@ __all__ = [
     "shuffled_auc",
     "similarity",
     "simple_center_bias_map",
+    "SequentialCostRecord",
 ]

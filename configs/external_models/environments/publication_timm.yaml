@@ -1,0 +1,17 @@
+name: hma-publication-timm
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch>=2.3
+  - torchvision
+  - pytorch-cuda=12.1
+  - numpy
+  - pillow
+  - pyyaml
+  - pip:
+      - timm>=1.0
+      - fvcore
