@@ -41,7 +41,7 @@ No result outside this root is final Paper 1 evidence unless it is explicitly re
 
 No publication-root full rerun is allowed unless the relevant behavioral, neural, geometry, adapter-comparability, efficiency, and cross-axis method gates are passed or explicitly accepted with limitations.
 
-The current active task is **Adapter Installation and Behavioral Distribution Gate Completion V1**. It is not interpretation, manuscript writing, a full publication-root rerun, or model-universe reduction. The task is to implement general map-distribution information gain/log-likelihood and complete bounded source/environment/checkpoint/smoke certification for setup-ready adapters.
+The current active task is **Gate-Conditioned Publication Admission Panel V1**. It is not interpretation, manuscript writing, a full final publication-root run, adapter-only installation, metric-only implementation, or model-universe reduction. The task is to resolve the minimum remaining behavioral blocker, admit a role-structured model panel under the frozen method gates, and generate the first bounded publication-root admission evidence object across behavioral, neural, geometry, efficiency, and cross-axis-preflight axes.
 
 The `Current Implementation Progress` section must summarize publication-readiness state only; it must not re-list historical runs, smoke passes, old Matrix V2 outputs, old result numbers, or debugging milestones.
 
@@ -136,7 +136,6 @@ At the end of each Codex session, update this file with:
 3. `Method gate status change`: which method gate moved among `not_started`, `audit_required`, `method_gap_found`, `accepted_with_limitations`, or `accepted_for_publication_rerun`.
 4. `Paper evidence status change`: which model/artifact moved among `not_started`, `adapter_in_progress`, `adapter_certified`, `publication_rerun_ready`, `publication_rerun_complete`, `accepted_publication_evidence`, `diagnostic_only`, or `rejected_for_paper_evidence`.
 5. `Reviewer risk reduced`: which concrete risk was reduced, such as SOTA-method mismatch, legacy-output contamination, missing latent features, behavioral-regime mixing, adapter incomparability, stream/ROI ambiguity, or weak uncertainty.
-6. `Next decisive step`: the next task most likely to make publication-root evidence scientifically valid.
 
 Do not report smoke tests, debugging fixes, old-result summaries, legacy audits, or paper-pack generation as progress unless they directly change one of the publication-contract or method-gate artifacts above.
 
@@ -176,7 +175,7 @@ Current publication-facing status:
 
 - No final Paper 1 publication evidence matrix exists yet.
 - No legacy output is accepted as final paper evidence by default.
-- The next accepted scientific artifact must be a validated general map-distribution metric implementation or a complete nonlocal adapter-certification record with locked source, environment, checkpoint, preprocessing, outputs, and smoke evidence.
+- The next accepted scientific artifact must be a gate-conditioned admission panel: behavioral distribution metrics admitted after log-likelihood/information-gain implementation, model rows admitted only after certification, and bounded publication-root evidence rows generated across behavioral, latent neural encoding, corrected geometry, efficiency/resource allocation, and cross-axis preflight.
 - The repaired static DeiT-S / DynamicViT / ToMe run is a method-validation artifact for the generic efficient-computation role. It must not define the final model scope or paper interpretation.
 - All final behavioral, latent-feature neural, latent-feature geometry, efficiency, and cross-axis evidence must be regenerated under a new publication output root unless explicitly certified by an equivalence audit.
 
@@ -515,9 +514,9 @@ The project cannot move to publication-facing full runs until these blockers are
 
 Active priority:
 
-> Execute Adapter Installation and Behavioral Distribution Gate Completion V1: install and smoke the highest-priority setup-ready adapters in bounded batches, implement general map-distribution information gain/log-likelihood, and upgrade only models with complete provenance and output validation.
+> Execute Gate-Conditioned Publication Admission Panel V1: first remove the behavioral distribution-metric blocker, then admit a role-structured model panel under certification rules, then generate bounded publication-root admission evidence across behavioral, latent neural encoding, corrected geometry, efficiency/resource allocation, and cross-axis preflight.
 
-This is not a local-anchor-only certification pass. The canonical artifact list lives in `Next Concrete Milestone`. Do not duplicate it here.
+This is not an adapter-only, metric-only, local-anchor-only, or Markdown-only milestone. The canonical artifact list lives in `Next Concrete Milestone`. Do not duplicate it here.
 
 ### Required end-of-session report
 
@@ -534,7 +533,7 @@ Implementation history is archived in `docs/project_status_changelog.md`.
 3. **Method gate status change:** geometry moved from `method_gap_found` to `accepted_for_publication_rerun`; adapter comparability, efficiency/resource allocation, and cross-axis inference moved to `accepted_with_limitations`; behavioral evaluation remains `method_gap_found`, with uncertainty and sequence blockers removed.
 4. **Paper evidence status change:** static DeiT-S, DynamicViT, and ToMe remain `adapter_certified`; center, random, and COCO-Search18 task-prior controls have certified built-in records; all named nonlocal candidates now have `setup_scaffold_ready` or explicit `setup_blocked` records rather than `not_started`.
 5. **Reviewer risk reduced:** reduced adapter incomparability, weak behavioral uncertainty, biased geometry, per-glimpse-only efficiency accounting, behavioral-regime mixing, and model-family dependence risk.
-6. **Next decisive step:** implement general map-distribution information gain/log-likelihood and complete source/environment/checkpoint/smoke certification for the first bounded adapter batch, starting with SigLIP, MambaVision, Hiera, Swin, and SwinV2.
+6. **Next decisive step:** execute Gate-Conditioned Publication Admission Panel V1 by resolving the behavioral log-likelihood/information-gain blocker, certifying or role-blocking enough models for a role-structured admission panel, and generating bounded `admission_panel` evidence under `outputs/paper1_publication_v0/` across behavioral, latent neural encoding, corrected geometry, efficiency/resource allocation, and cross-axis preflight.
 
 ## Cluster Workflow Guidance
 
@@ -615,7 +614,7 @@ Current evidence state:
 
 Next milestone:
 
-> Execute Adapter Installation and Behavioral Distribution Gate Completion V1 in bounded batches. Do not start full publication-root runs.
+> Execute Gate-Conditioned Publication Admission Panel V1. Do not start the full final publication-root run, but do produce bounded `admission_panel` evidence under the publication root after the relevant method and adapter-admission conditions are satisfied.
 
 ## Completed Milestone — Publication Gate-Unblocking Implementation V1
 
@@ -702,19 +701,150 @@ A session that implements only one lane fails this milestone unless it also leav
 
 ## Next Concrete Milestone
 
-Priority: **Adapter Installation and Behavioral Distribution Gate Completion V1**.
+Priority: **Gate-Conditioned Publication Admission Panel V1**.
 
-Required work:
+The previous run produced reusable method infrastructure and full setup scaffolds, but it did not produce publication evidence. The next milestone must move the project from infrastructure to the first bounded evidence object without bypassing method limitations or model-readiness limitations.
 
-1. implement general map-distribution log-likelihood and information gain against matched priors, with image-cluster intervals;
-2. execute setup and smoke certification in bounded batches for SigLIP, MambaVision, Hiera, Swin, and SwinV2;
-3. upgrade a model to `adapter_certified` only after source, environment, checkpoint, preprocessing, feature, resource, and smoke records all pass;
-4. wire the sequential-cost schema into the first available scanpath or active-vision adapter;
-5. keep full publication-root experiments and paper interpretation blocked.
+This is not the full final Paper 1 run. It is also not an adapter-only, metric-only, local-anchor-only, or Markdown-only session.
 
-Acceptance rule:
+The milestone has two linked stages:
 
-The behavioral method gate must move to at least `accepted_with_limitations`, and at least one currently setup-ready nonlocal family must receive a complete adapter-certification record without reducing the remaining model universe.
+1. **Admission readiness:** remove the minimum blockers that make an admission panel invalid.
+2. **Admission execution:** run a small publication-root admission panel only for admitted axes and admitted models.
+
+### Stage A — Admission readiness
+
+Codex must first complete the remaining behavioral distribution-method blocker:
+
+* implement general probabilistic map log-likelihood;
+* implement information gain against leakage-safe matched priors;
+* add image-cluster intervals for these distributional metrics;
+* update the behavioral method gate from `method_gap_found` to `accepted_with_limitations`, or document a tested partial implementation and explain why the gate remains blocked.
+
+Codex must then certify or role-block enough models to form a role-structured admission panel.
+
+The admission panel must attempt to include at minimum:
+
+1. CNN/local hierarchy anchor:
+
+   * ResNet-50 or ConvNeXt-Tiny;
+
+2. ViT/DeiT anchor:
+
+   * ViT-B/16 or static DeiT-S;
+
+3. SSL dense-feature model:
+
+   * DINOv2 or DINOv3;
+
+4. VLM/semantic model:
+
+   * CLIP or SigLIP;
+
+5. hierarchical/hybrid model:
+
+   * Swin, SwinV2, Hiera, or MambaVision;
+
+6. efficient-computation model:
+
+   * DynamicViT or ToMe;
+
+7. gaze/scanpath/adaptive model:
+
+   * DeepGaze III, HAT, ScanDiff, or AdaptiveNN;
+
+8. controls:
+
+   * center prior;
+   * seeded random baseline;
+   * COCO-Search18 task prior where applicable.
+
+A model may enter the admission panel only if it has:
+
+* source revision, package version, or official source identity;
+* checkpoint or weight identity/hash;
+* preprocessing contract;
+* deterministic input condition;
+* feature tensor export if used for neural or geometry;
+* behavioral output object if used for behavior;
+* efficiency/resource fields if used for efficiency;
+* small deterministic certification record.
+
+If a preferred model is blocked, Codex must substitute another model from the same role. If the entire role is blocked, Codex must emit a machine-readable role-blocker record and continue with the largest feasible role-structured panel. Do not silently shrink the model universe.
+
+### Stage B — Admission execution
+
+After Stage A passes for enough models and axes, Codex must generate admission-panel evidence under:
+
+`outputs/paper1_publication_v0/`
+
+All admission files must be labeled `admission_panel`, not `final_paper_result`.
+
+Required outputs:
+
+* `outputs/paper1_publication_v0/behavioral/aggregate_admission_panel.csv`
+* `outputs/paper1_publication_v0/behavioral/uncertainty_admission_panel.csv`
+* `outputs/paper1_publication_v0/neural_encoding/encoding_scores_admission_panel.csv`
+* `outputs/paper1_publication_v0/geometry/geometry_scores_admission_panel.csv`
+* `outputs/paper1_publication_v0/efficiency/efficiency_profiles_admission_panel.csv`
+* `outputs/paper1_publication_v0/efficiency/resource_allocation_profiles_admission_panel.csv`
+* `outputs/paper1_publication_v0/cross_axis/model_axis_scores_admission_panel.csv`
+* `outputs/paper1_publication_v0/cross_axis/admission_panel_preflight.md`
+* `outputs/paper1_publication_v0/audits/admission_panel_audit.csv`
+
+### Axis admission rules
+
+Behavioral rows may run only after the log-likelihood/information-gain blocker is resolved or explicitly marked unavailable for a specific behavioral object.
+
+Neural rows may run only for models with certified deterministic latent-feature tensors.
+
+Geometry rows may run only for the same admitted latent-feature tensors and must use corrected/debiased CKA plus RSA intervals.
+
+Efficiency rows may run only for models with complete matched static or sequential/adaptive resource fields.
+
+Cross-axis output is preflight only. It may report completeness, missingness, role coverage, family coverage, and axis availability. It must not make paper-facing convergence, dissociation, or causal claims.
+
+### Minimum admission scope
+
+The admission panel should include real rows for at least:
+
+* one free-viewing behavioral dataset: SALICON or CAT2000;
+* one task-search behavioral condition if a task prior or task/gaze model is admitted;
+* early-retinotopic neural encoding where certified features exist;
+* corrected geometry on the admitted latent features;
+* efficiency/resource rows for every admitted model;
+* cross-axis preflight over the admitted model/axis matrix.
+
+If compute or setup limits prevent this minimum, Codex must produce a precise failure report naming which gate, model role, axis, or data path blocked admission execution.
+
+### Non-goals
+
+Do not run the full final matrix.
+
+Do not produce paper interpretation.
+
+Do not run only local anchors.
+
+Do not run only adapter installation.
+
+Do not run only the IG/log-likelihood implementation.
+
+Do not treat `setup_scaffold_ready` as `adapter_certified`.
+
+Do not hide method limitations or role coverage gaps.
+
+### Acceptance rule
+
+The milestone succeeds only if:
+
+1. the behavioral distribution metric blocker is resolved or explicitly remains blocking after tested partial implementation;
+2. at least one nonlocal model is genuinely adapter-certified, not merely setup-scaffolded;
+3. at least one gaze/scanpath/adaptive candidate is either end-to-end certified or receives a concrete machine-readable role-blocker record after attempted installation/execution;
+4. an admission panel produces real publication-root rows for at least behavioral, neural, geometry, and efficiency axes;
+5. cross-axis preflight reports role, family, regime, and axis completeness without making paper claims.
+
+The milestone fails if Codex only certifies a bounded image-only batch, only edits Markdown, only implements metrics, only runs local anchors, only runs one axis, or treats setup scaffolds as working models.
+
 
 
 ## Data/control readiness update:
@@ -820,6 +950,30 @@ Required outputs:
 Acceptance rule:
 
 Every required candidate has a status. A model may be behavior-only, diagnostic-only, or rejected after audit, but it must not disappear before audit.
+
+### Phase 2.5 — Gate-conditioned admission panel
+
+Status: active next milestone.
+
+Purpose:
+
+Produce the first bounded publication-root evidence object without treating it as the final paper result.
+
+Required outputs:
+
+- `outputs/paper1_publication_v0/behavioral/aggregate_admission_panel.csv`
+- `outputs/paper1_publication_v0/behavioral/uncertainty_admission_panel.csv`
+- `outputs/paper1_publication_v0/neural_encoding/encoding_scores_admission_panel.csv`
+- `outputs/paper1_publication_v0/geometry/geometry_scores_admission_panel.csv`
+- `outputs/paper1_publication_v0/efficiency/efficiency_profiles_admission_panel.csv`
+- `outputs/paper1_publication_v0/efficiency/resource_allocation_profiles_admission_panel.csv`
+- `outputs/paper1_publication_v0/cross_axis/model_axis_scores_admission_panel.csv`
+- `outputs/paper1_publication_v0/cross_axis/admission_panel_preflight.md`
+- `outputs/paper1_publication_v0/audits/admission_panel_audit.csv`
+
+Acceptance rule:
+
+Admission-panel outputs may diagnose readiness, coverage, missingness, and role/family completeness. They must not be interpreted as final paper evidence or used for manuscript claims.
 
 ### Phase 3 — Clean behavioral rerun
 
