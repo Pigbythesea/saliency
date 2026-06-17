@@ -12,7 +12,7 @@ models:
     role: general_visual_representation
     source:
       repository: https://github.com/huggingface/pytorch-image-models.git
-      commit: PIN_REQUIRED
+      commit: package:timm==1.0.27
       license: Apache-2.0
     environment: configs/external_models/environments/publication_timm.yaml
     adapter: hma.external.adapters:TimmFeatureAdapter
@@ -38,7 +38,7 @@ models:
     role: general_visual_representation
     source:
       repository: https://github.com/huggingface/pytorch-image-models.git
-      commit: PIN_REQUIRED
+      commit: package:timm==1.0.27
       license: Apache-2.0
     environment: configs/external_models/environments/publication_timm.yaml
     adapter: hma.external.adapters:TimmFeatureAdapter
@@ -64,7 +64,7 @@ models:
     role: general_visual_representation
     source:
       repository: https://github.com/huggingface/pytorch-image-models.git
-      commit: PIN_REQUIRED
+      commit: package:timm==1.0.27
       license: Apache-2.0
     environment: configs/external_models/environments/publication_timm.yaml
     adapter: hma.external.adapters:TimmFeatureAdapter
@@ -90,7 +90,7 @@ models:
     role: self_supervised_semantic
     source:
       repository: https://github.com/huggingface/pytorch-image-models.git
-      commit: PIN_REQUIRED
+      commit: package:timm==1.0.27
       license: Apache-2.0
     environment: configs/external_models/environments/publication_timm.yaml
     adapter: hma.external.adapters:TimmFeatureAdapter
@@ -116,7 +116,7 @@ models:
     role: vision_language_semantic
     source:
       repository: https://github.com/huggingface/pytorch-image-models.git
-      commit: PIN_REQUIRED
+      commit: package:timm==1.0.27
       license: Apache-2.0
     environment: configs/external_models/environments/publication_timm.yaml
     adapter: hma.external.adapters:TimmFeatureAdapter
@@ -256,15 +256,18 @@ models:
       license: DINOv3-LICENSE
     environment: configs/external_models/environments/dinov3.yaml
     adapter: hma.external.adapters:DINOv3Adapter
-    adapter_status: checkpoint_api_audit_pending
+    adapter_status: implemented
     adapter_config:
       architecture: vit_small_patch16
+      checkpoint_id: facebook/dinov3-vits16-pretrain-lvd1689m
     checkpoint:
-      url:
-      filename:
+      url: https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m
+      filename: huggingface_snapshot
       sha256:
-      access: official_gated_download
-      hash_policy: compute_and_lock_before_evidence
+      access: manual_gated_huggingface_contact_sharing
+      expected_revision: 114c1379950215c8b35dfcd4e90a5c251dde0d32
+      expected_files: [.gitattributes, LICENSE.md, README.md, config.json, model.safetensors, preprocessor_config.json]
+      hash_policy: snapshot_revision_and_hash_before_evidence
     preprocessing:
       input_size: [224, 224]
       source: official
@@ -287,6 +290,8 @@ models:
       url: https://huggingface.co/google/siglip-base-patch16-224
       filename: huggingface_snapshot
       sha256:
+      expected_revision: 7fd15f0689c79d79e38b1c2e2e2370a7bf2761ed
+      expected_files: [.gitattributes, README.md, config.json, model.safetensors, preprocessor_config.json]
       hash_policy: snapshot_revision_and_hash_before_evidence
     preprocessing:
       input_size: [224, 224]
@@ -307,10 +312,13 @@ models:
     adapter_config:
       checkpoint_id: nvidia/MambaVision-T-1K
     checkpoint:
-      url: https://huggingface.co/nvidia/MambaVision-T-1K/resolve/main/mambavision_tiny_1k.pth.tar
-      filename: mambavision_tiny_1k.pth.tar
+      url: https://huggingface.co/nvidia/MambaVision-T-1K
+      filename: huggingface_snapshot
       sha256:
-      hash_policy: compute_and_lock_before_evidence
+      expected_revision: b1de77e17599566d98efb701c0231b1095dc3a67
+      expected_files: [.gitattributes, LICENSE, README.md, config.json, configuration_mambavision.py, mambavision_tiny_1k.pth.tar, model.safetensors, modeling_mambavision.py]
+      weights_license: CC-BY-NC-SA-4.0
+      hash_policy: snapshot_revision_and_hash_before_evidence
     preprocessing:
       input_size: [224, 224]
       interpolation: bicubic
@@ -341,7 +349,7 @@ models:
     preprocessing:
       input_size: [224, 224]
       source: official
-    feature_layers: [stages.0, stages.1, stages.2, stages.3]
+    feature_layers: [blocks.0, blocks.2, blocks.7, blocks.11]
     mechanism_outputs: []
   swin_tiny:
     aliases: [swin]
@@ -401,19 +409,36 @@ models:
     source:
       repository: https://github.com/cvlab-stonybrook/HAT.git
       commit: 557205d3136a63120041c700ee717196a429e89b
-      license: research_only_audit_required
+      license: MIT
     environment: configs/external_models/environments/hat.yaml
     adapter: hma.external.adapters:HATAdapter
-    adapter_status: cluster_build_and_checkpoint_audit_pending
+    adapter_status: implemented
     checkpoint:
-      url:
-      filename:
+      url: http://vision.cs.stonybrook.edu/~cvlab_download/HAT/pretrained_models/M2F_R50_MSDeformAttnPixelDecoder.pkl
+      filename: pretrained_models
+      additional_urls:
+        - http://vision.cs.stonybrook.edu/~cvlab_download/HAT/pretrained_models/M2F_R50.pkl
+        - http://vision.cs.stonybrook.edu/~cvlab_download/HAT/HAT_FV.pt
       sha256:
       access: official_release_assets
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
-      source: official
-    feature_layers: []
+      source: official_demo
+      input_size: [320, 512]
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+      deterministic_condition: freeview_initial_center_greedy
+    adapter_config:
+      config_path: configs/coco_freeview_dense_SSL.json
+      hat_checkpoint: HAT_FV.pt
+      task_id: 0
+      max_fixations: 6
+      terminate_threshold: 0.75
+    feature_layers:
+      - dorsal_embeddings
+      - high_res_feature_map
+      - working_memory
+      - query_state
     mechanism_outputs:
       - scanpaths
       - foveation_maps
@@ -425,13 +450,15 @@ models:
     source:
       repository: https://github.com/aimagelab/ScanDiff.git
       commit: 9eff26cf2df140c09b868e7351f02d3797a37d1f
-      license: license_audit_required
+      license: unverified_no_root_license_file_found_2026-06-16
     environment: configs/external_models/environments/scandiff.yaml
     adapter: hma.external.adapters:ScanDiffAdapter
     adapter_status: checkpoint_api_audit_pending
     checkpoint:
-      url: https://huggingface.co/aimagelab/ScanDiff
-      filename: huggingface_snapshot
+      url: https://ailb-web.ing.unimore.it/publicfiles/ScanDiff_ICCV2025/checkpoints.zip
+      filename: checkpoints
+      additional_urls:
+        - https://github.com/aimagelab/ScanDiff/releases/download/v0.0.1/task_embeddings.npy
       sha256:
       hash_policy: snapshot_revision_and_hash_before_evidence
     preprocessing:
@@ -446,11 +473,13 @@ models:
     role: human_gaze_density
     source:
       repository: https://github.com/matthias-k/DeepGaze.git
-      commit: PIN_REQUIRED
+      commit: package:deepgaze-pytorch==1.2.1
       license: MIT
     environment: configs/external_models/environments/deepgaze.yaml
     adapter: hma.external.adapters:DeepGazeIIEAdapter
-    adapter_status: setup_scaffold
+    adapter_status: implemented
+    adapter_config:
+      centerbias_path: data/precomputed/deepgaze/centerbias_mit1003.npy
     checkpoint:
       url:
       filename: deepgaze_iie_release_checkpoint
@@ -458,48 +487,117 @@ models:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
       source: official_deepgaze
-    feature_layers: [backbone_features, saliency_readout_state]
-    mechanism_outputs: []
+    feature_layers:
+      - models.0.features
+      - models.0.saliency_networks.0.conv2
+      - models.0.finalizers.0
+    mechanism_outputs: [human_gaze_density]
   deepgaze_iii:
     track: sequential_foveated_behavior
     role: gaze_history_conditioned_scanpaths
     source:
       repository: https://github.com/matthias-k/DeepGaze.git
-      commit: PIN_REQUIRED
+      commit: package:deepgaze-pytorch==1.2.1
       license: MIT
     environment: configs/external_models/environments/deepgaze.yaml
     adapter: hma.external.adapters:DeepGazeIIIAdapter
-    adapter_status: setup_scaffold
+    adapter_status: implemented
+    adapter_config:
+      centerbias_path: data/precomputed/deepgaze/centerbias_mit1003.npy
+      history_length: 4
+      max_fixations: 6
     checkpoint:
-      url:
-      filename: deepgaze_iii_v1_1_release_checkpoint
+      url: https://github.com/matthias-k/DeepGaze/releases/download/v1.1.0/deepgaze3.pth
+      filename: deepgaze3.pth
       sha256:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
       source: official_deepgaze
-    feature_layers: [backbone_features, history_state, fixation_selection_state]
+    feature_layers:
+      - features
+      - saliency_networks.0.conv2
+      - scanpath_networks.0.conv1
+      - fixation_selection_networks.0.conv2
     mechanism_outputs:
+      - conditional_next_fixation
+      - scanpaths
       - fixation_count
       - history_length
       - stopping_behavior
+      - scanpath_length
+  deepgaze_msdb:
+    track: sequential_foveated_behavior
+    role: human_gaze_density
+    source:
+      repository: https://github.com/matthias-k/DeepGaze.git
+      commit: package:deepgaze-pytorch==1.2.1
+      license: MIT
+    environment: configs/external_models/environments/deepgaze.yaml
+    adapter: hma.external.adapters:DeepGazeMSDBAdapter
+    adapter_status: implemented
+    adapter_config:
+      centerbias_path: data/precomputed/deepgaze/centerbias_mit1003.npy
+      pixel_per_dva: 21.7
+      dataset:
+    checkpoint:
+      url: https://github.com/matthias-k/DeepGaze/releases/download/v1.2.0/deepgazemsdb.pth
+      filename: deepgazemsdb.pth
+      sha256:
+      hash_policy: compute_and_lock_before_evidence
+    preprocessing:
+      source: official_deepgaze_msdb
+      pixel_range: [0, 255]
+      centerbias: data/precomputed/deepgaze/centerbias_mit1003.npy
+      pixel_per_dva: 21.7
+      dataset: averaged_unknown_dataset
+    feature_layers:
+      - features
+      - features.backbone.feature_extractors.CLIP
+      - features.backbone.feature_extractors.DINOv2
+      - saliency_network.conv4
+    mechanism_outputs: [human_gaze_density]
   adaptivenn_deit_small:
     aliases: [adaptivenn]
     track: sequential_foveated_behavior
     role: active_foveated_policy
     source:
       repository: https://github.com/LeapLabTHU/AdaptiveNN.git
-      commit: PIN_REQUIRED
-      license: license_audit_required
+      commit: 020bf8d33271d7b02e2e63829e4b13d987868b89
+      license: MIT
     environment: configs/external_models/environments/adaptivenn.yaml
     adapter: hma.external.adapters:AdaptiveNNAdapter
-    adapter_status: setup_scaffold
+    adapter_status: implemented
+    adapter_config:
+      input_size: 288
+      seq_l: 4
+      feature_in_chans: 384
+      policy_net_hidden_chans: 128
+      policy_net_kernel_size: 3
+      recover_n: 5
+      remaining_blocks: 4
+      glance_input_size: 112
+      glance_net_depth: 12
+      glance_net_mlp_ratio: 4
+      glance_net_drop_path: 0.1
+      focus_patch_size: 112
+      focus_net_reg_size: 160
+      focus_net_depth: 12
+      focus_net_mlp_ratio: 4
+      focus_net_drop_path: 0.1
+      multi_cls_drop_path: 0.1
+      num_classes: 1000
+      stop_confidence_threshold: 0.0
     checkpoint:
-      url:
+      url: https://drive.google.com/file/d/1OIPZyTozJatdd40VZKaJHsw0ShaujQ0Y/view?usp=sharing
       filename: adaptivenn_deit_small_checkpoint
       sha256:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
       source: official_adaptivenn
+      input_size: [288, 288]
+      interpolation: bicubic
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
     feature_layers: [glance_state, integrated_states, final_state]
     mechanism_outputs:
       - selected_glimpses
@@ -516,8 +614,8 @@ models:
     adapter: hma.external.adapters:SemBAAdapter
     adapter_status: setup_scaffold
     checkpoint:
-      url:
-      filename:
+      url: UNRESOLVED_OFFICIAL_CHECKPOINT_API
+      filename: official_checkpoint_api_unresolved
       sha256:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
@@ -539,8 +637,8 @@ models:
     adapter: hma.external.adapters:SemBAFastAdapter
     adapter_status: setup_scaffold
     checkpoint:
-      url:
-      filename:
+      url: UNRESOLVED_OFFICIAL_CHECKPOINT_API
+      filename: official_checkpoint_api_unresolved
       sha256:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:

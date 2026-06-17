@@ -6,18 +6,36 @@ channels:
   - conda-forge
 dependencies:
   - python=3.9
-  - pip
+  - pip=22.3.1
+  - setuptools=65.5.0
+  - wheel=0.37.1
   - pytorch::pytorch=1.13.1
   - pytorch::torchvision=0.14.1
   - pytorch::pytorch-cuda=11.7
+  - nvidia::cuda-nvcc=11.7.99
+  - nvidia::cuda-cudart-dev=11.7.99
+  - "nvidia::cuda-libraries-dev=11.7.*"
   - "defaults::mkl<2024.1"
-  - gcc_linux-64
-  - gxx_linux-64
+  - "gcc_linux-64=11.*"
+  - "gxx_linux-64=11.*"
   - ninja
-  - numpy<2
-  - pillow
+  - numpy=1.23.5
+  - "pillow<10"
   - pyyaml
   - pip:
-      - opencv-python
-      - scipy
-      - cython
+      - numpy<2
+      - opencv-python==4.7.0.68
+      - scipy==1.10.0
+      - cython==0.29.32
+      - tqdm==4.64.1
+      - yacs==0.1.8
+      - fvcore==0.1.5.post20221221
+      - iopath==0.1.10
+      - pycocotools==2.0.6
+      - timm==0.6.12
+      - scikit-image==0.19.3
+      - tensorboard==2.11.0
+      - submitit==1.4.5
+      - tabulate==0.9.0
+      - protobuf==3.20.3
+      - fairscale==0.4.13

@@ -9,6 +9,7 @@ dependencies:
   - pytorch=1.13
   - torchvision=0.14
   - pytorch-cuda=11.7
+  - mkl<2024.1
   - numpy<2
   - pillow
   - pyyaml

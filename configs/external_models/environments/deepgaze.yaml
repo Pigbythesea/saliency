@@ -14,6 +14,9 @@ dependencies:
   - scipy
   - pyyaml
   - pip:
+      - deepgaze-pytorch==1.2.1
+      - clip@git+https://github.com/openai/CLIP.git
+      - einops
       - imageio
       - scikit-image
       - fvcore

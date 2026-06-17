@@ -287,6 +287,59 @@ def kl_divergence(
     return float(np.sum(target_prob * np.log(target_prob / predicted_prob)))
 
 
+def probabilistic_log_likelihood(
+    predicted_map: np.ndarray,
+    target_map: np.ndarray,
+    *,
+    positive_fixations: np.ndarray | None = None,
+    epsilon: float = 1e-12,
+) -> float:
+    """Return mean base-2 log likelihood under a probabilistic saliency map."""
+    predicted, target = _check_same_shape(predicted_map, target_map)
+    probability = _probability_distribution(predicted, epsilon=epsilon)
+    if positive_fixations is not None:
+        coords = _as_yx_coords_preserve_repeats(
+            positive_fixations,
+            probability.shape,
+        )
+        if coords.size == 0:
+            return 0.0
+        values = probability[coords[:, 0], coords[:, 1]]
+        return float(np.mean(np.log2(np.maximum(values, epsilon))))
+
+    target_probability = _probability_distribution(target, epsilon=epsilon)
+    return float(
+        np.sum(
+            target_probability
+            * np.log2(np.maximum(probability, epsilon))
+        )
+    )
+
+
+def information_gain(
+    predicted_map: np.ndarray,
+    baseline_map: np.ndarray,
+    target_map: np.ndarray,
+    *,
+    positive_fixations: np.ndarray | None = None,
+    epsilon: float = 1e-12,
+) -> float:
+    """Return mean information gain in bits against a matched prior."""
+    predicted, target = _check_same_shape(predicted_map, target_map)
+    baseline, _ = _check_same_shape(baseline_map, target)
+    return probabilistic_log_likelihood(
+        predicted,
+        target,
+        positive_fixations=positive_fixations,
+        epsilon=epsilon,
+    ) - probabilistic_log_likelihood(
+        baseline,
+        target,
+        positive_fixations=positive_fixations,
+        epsilon=epsilon,
+    )
+
+
 def simple_center_bias_map(
     height: int,
     width: int,
@@ -345,6 +398,46 @@ def _as_yx_coords(values: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
     if not np.any(valid):
         return np.zeros((0, 2), dtype=np.int64)
     return np.unique(rounded[valid], axis=0)
+
+
+def _as_yx_coords_preserve_repeats(
+    values: np.ndarray,
+    shape: tuple[int, int],
+) -> np.ndarray:
+    array = np.asarray(values)
+    if array.size == 0:
+        return np.zeros((0, 2), dtype=np.int64)
+    if array.ndim == 2 and array.shape == shape:
+        return np.argwhere(_fixation_mask(array)).astype(np.int64)
+    coords = np.asarray(array, dtype=np.float32).reshape(-1, 2)
+    rounded = np.rint(coords).astype(np.int64)
+    height, width = shape
+    valid = (
+        (rounded[:, 0] >= 0)
+        & (rounded[:, 1] >= 0)
+        & (rounded[:, 0] < height)
+        & (rounded[:, 1] < width)
+    )
+    return rounded[valid] if np.any(valid) else np.zeros((0, 2), dtype=np.int64)
+
+
+def _probability_distribution(
+    values: np.ndarray,
+    *,
+    epsilon: float,
+) -> np.ndarray:
+    if epsilon <= 0.0:
+        raise ValueError("epsilon must be positive")
+    array = np.asarray(values, dtype=np.float64)
+    if array.ndim != 2 or not np.all(np.isfinite(array)):
+        raise ValueError("probabilistic saliency maps must be finite 2D arrays")
+    array = np.maximum(array, 0.0)
+    total = float(np.sum(array))
+    if total <= epsilon:
+        return np.full(array.shape, 1.0 / array.size, dtype=np.float64)
+    probability = array / total
+    probability = np.maximum(probability, epsilon)
+    return probability / float(np.sum(probability))
 
 
 def _scores_at_coords(saliency: np.ndarray, coords: np.ndarray) -> np.ndarray:

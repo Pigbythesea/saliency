@@ -1,0 +1,35 @@
+{
+  "files": [
+    {
+      "name": "deepgazemsdb.pth",
+      "path": "torch_hub/checkpoints/deepgazemsdb.pth",
+      "sha256": "52b47112035744ed0da95593fc82564676e3da536310face074ed25de6eee6c7",
+      "size_bytes": 114331
+    },
+    {
+      "name": "dinov2_vitb14_pretrain.pth",
+      "path": "torch_hub/checkpoints/dinov2_vitb14_pretrain.pth",
+      "sha256": "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73",
+      "size_bytes": 346378731
+    },
+    {
+      "name": "RN50x64.pt",
+      "path": "clip_cache/RN50x64.pt",
+      "sha256": "be1cfb55d75a9666199fb2206c106743da0f6468c9d327f3e0d0a543a9919d9c",
+      "size_bytes": 1353500174
+    },
+    {
+      "name": "centerbias_mit1003.npy",
+      "path": "data/precomputed/deepgaze/centerbias_mit1003.npy",
+      "sha256": "051645b7da47884c138e81f28a4afbadd99b6c3262eaf086434a9626e3578be9",
+      "size_bytes": 8388688
+    }
+  ],
+  "hash_policy": "package_release_component_file_hashes",
+  "identity": "pypi:deepgaze-pytorch==1.2.1/deepgaze_msdb",
+  "model_id": "deepgaze_msdb",
+  "repository": "deepgaze-pytorch",
+  "revision": "1.2.1",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "7d9bc0e4b65a0e0032f38ed156b6e1644ce19ca366bb136f6cb379ca4ee46268"
+}

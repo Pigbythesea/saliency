@@ -1,0 +1,7 @@
+{
+  "model_id": "adaptivenn_deit_small",
+  "path_kind": "file",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "b7413f83fb5b99aeba76ff60c66c3049c6c4f4232c6f530e5e414ee214b2a316",
+  "source": "https://drive.google.com/file/d/1OIPZyTozJatdd40VZKaJHsw0ShaujQ0Y/view?usp=sharing"
+}

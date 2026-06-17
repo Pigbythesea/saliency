@@ -1,0 +1,68 @@
+schema_version: hma.paper1.latent_neural_stream_admission.v0
+publication_contract: configs/paper1_publication_contract.yaml
+publication_root: outputs/paper1_publication_v0
+model_eligibility_table: outputs/paper1_publication_v0/preflight/model_rerun_eligibility_table.csv
+roi_stream_grouping: outputs/paper1_publication_v0/roi_stream/stream_roi_grouping_spec.csv
+subject_roi_availability: outputs/paper1_publication_v0/roi_stream/subject_roi_availability.csv
+forbid_v1_only_summary: true
+bounded_stream_admission:
+  split: train
+  max_images_per_subject_roi: 64
+  required_model_status: adapter_certified
+  feature_source: external_artifact_manifest
+  analysis:
+  - latent_feature_neural_encoding
+  - latent_feature_geometry
+roi_streams:
+  early_retinotopic:
+  - V1
+  - V2
+  - V3
+  - hV4
+  ventral_category:
+  - midventral
+  - ventral
+  lateral_object:
+  - midlateral
+  - lateral
+  dorsal_parietal_spatial_selection:
+  - midparietal
+  - parietal
+  floc_category:
+  - EBA
+  - FBA
+  - OFA
+  - FFA
+  - OWFA
+  - VWFA
+  - OPA
+  - PPA
+  - RSC
+subjects:
+  subj01:
+  - V1
+  - V2
+  - V3
+  - hV4
+  - lateral
+  - midlateral
+  - midparietal
+  - midventral
+  - parietal
+  - ventral
+  subj02:
+  - V1
+  - V2
+  - V3
+  - hV4
+  subj03:
+  - V1
+  - V2
+  - V3
+  - hV4
+  subj04:
+  - V1
+  - V2
+  - V3
+  - hV4
+missing_regions_record: outputs/paper1_publication_v0/roi_stream/subject_roi_availability.csv

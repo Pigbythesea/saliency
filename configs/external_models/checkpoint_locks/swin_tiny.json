@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "name": "model.safetensors",
+      "path": "hf_snapshot/model.safetensors",
+      "sha256": "fb01861f793143135fa0d6cd97b1631e4b33eaa3ee162bbea9e62de1c76ebac1",
+      "size_bytes": 114286722
+    }
+  ],
+  "hash_policy": "cached_snapshot_revision_and_file_hashes",
+  "identity": "hf://timm/swin_tiny_patch4_window7_224.ms_in1k@4cc3a7275b50b53a7bec45f32c236ebe64227cff",
+  "model_id": "swin_tiny",
+  "repository": "timm/swin_tiny_patch4_window7_224.ms_in1k",
+  "revision": "4cc3a7275b50b53a7bec45f32c236ebe64227cff",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "412509692dc4653b0f2c4f7318d26da03310bca093631726d0ec65533c9b2690"
+}

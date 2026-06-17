@@ -8,8 +8,10 @@ from typing import Any, Callable
 from hma.saliency.attention_rollout import attention_rollout_saliency
 from hma.saliency.baselines import (
     COCOSearch18TaskPrior,
+    EmpiricalSpatialPrior,
     center_bias_saliency,
     coco_search18_task_prior_saliency,
+    empirical_spatial_prior_saliency,
     random_saliency,
 )
 from hma.saliency.gradcam import gradcam_saliency
@@ -49,6 +51,16 @@ def build_saliency_method(config: dict[str, Any]) -> Callable[..., Any]:
             fixation_sigma=float(saliency_config.get("fixation_sigma", 10.0)),
         )
         return partial(coco_search18_task_prior_saliency, prior=prior)
+    if method in {"empirical_spatial_prior", "dataset_spatial_prior"}:
+        excluded_ids = saliency_config.get("exclude_image_ids") or []
+        prior = EmpiricalSpatialPrior.from_manifest(
+            saliency_config.get("prior_manifest_path"),
+            split=str(saliency_config.get("prior_split", "train")),
+            image_size=_parse_image_size(saliency_config.get("image_size", [224, 224])),
+            fixation_sigma=float(saliency_config.get("fixation_sigma", 10.0)),
+            exclude_image_ids=excluded_ids,
+        )
+        return partial(empirical_spatial_prior_saliency, prior=prior)
     if method == "dummy_gradient_free":
         return _dummy_gradient_free_saliency
     if method == "integrated_gradients":

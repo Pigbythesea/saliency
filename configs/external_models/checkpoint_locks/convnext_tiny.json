@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "name": "model.safetensors",
+      "path": "hf_snapshot/model.safetensors",
+      "sha256": "a1aefa409b513cf209b085424eb3efffe4e4a9f511491bc2c12ea35209e6bb95",
+      "size_bytes": 114374272
+    }
+  ],
+  "hash_policy": "cached_snapshot_revision_and_file_hashes",
+  "identity": "hf://timm/convnext_tiny.in12k_ft_in1k@aa096f03029c7f0ec052013f64c819b34f8ad790",
+  "model_id": "convnext_tiny",
+  "repository": "timm/convnext_tiny.in12k_ft_in1k",
+  "revision": "aa096f03029c7f0ec052013f64c819b34f8ad790",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "3d7d06fa782c742ae57e644947740b2a70ac3d454ca24236d3fdfb200875578d"
+}

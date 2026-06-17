@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "name": "deepgaze3.pth",
+      "path": "torch_hub/checkpoints/deepgaze3.pth",
+      "sha256": "20b6dead18ce18f0117aff7e48c68737d5226935455e3844ae7f22216fd1a422",
+      "size_bytes": 82775846
+    },
+    {
+      "name": "densenet201-c1103571.pth",
+      "path": "torch_hub/checkpoints/densenet201-c1103571.pth",
+      "sha256": "c1103571aad4f45d0b5b15556d92944db94c33bee68cd58babba3d76225a6401",
+      "size_bytes": 81131730
+    },
+    {
+      "name": "centerbias_mit1003.npy",
+      "path": "data/precomputed/deepgaze/centerbias_mit1003.npy",
+      "sha256": "051645b7da47884c138e81f28a4afbadd99b6c3262eaf086434a9626e3578be9",
+      "size_bytes": 8388688
+    }
+  ],
+  "hash_policy": "package_release_component_file_hashes",
+  "identity": "pypi:deepgaze-pytorch==1.2.1/deepgaze_iii",
+  "model_id": "deepgaze_iii",
+  "repository": "deepgaze-pytorch",
+  "revision": "1.2.1",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "1a805f7f434db8aedfa711b1980b73ec931a5090a63d89eb4360ba9c118aec34"
+}

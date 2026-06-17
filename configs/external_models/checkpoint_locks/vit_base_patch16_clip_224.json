@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "name": "model.safetensors",
+      "path": "hf_snapshot/model.safetensors",
+      "sha256": "d8f306a3637368d98d911bc895b90cf840bce0b01ea842f3432dc1788db56057",
+      "size_bytes": 346287868
+    }
+  ],
+  "hash_policy": "cached_snapshot_revision_and_file_hashes",
+  "identity": "hf://timm/vit_base_patch16_clip_224.laion2b_ft_in12k_in1k@06346c6e9051d137049cc36c5a25fc382887d6dc",
+  "model_id": "vit_base_patch16_clip_224",
+  "repository": "timm/vit_base_patch16_clip_224.laion2b_ft_in12k_in1k",
+  "revision": "06346c6e9051d137049cc36c5a25fc382887d6dc",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "6c8ca2107060d671992ca5bdb58e094b91326d8630391fa9e89fdcad0a5896a1"
+}

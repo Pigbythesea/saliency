@@ -1,0 +1,65 @@
+{
+  "files": [
+    {
+      "name": ".gitignore",
+      "path": ".cache/huggingface/.gitignore",
+      "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+      "size_bytes": 1
+    },
+    {
+      "name": "LICENSE.md.metadata",
+      "path": ".cache/huggingface/download/LICENSE.md.metadata",
+      "sha256": "27b2f5af31e81727f62d599234b5ccc06864cd350efac68f2e87c74f5c4b4fc3",
+      "size_bytes": 104
+    },
+    {
+      "name": "README.md.metadata",
+      "path": ".cache/huggingface/download/README.md.metadata",
+      "sha256": "0db2b6c152b13e9c28da8ec38e66f6e4e0466c0a3ae3cca0ea4d9d6969c5e794",
+      "size_bytes": 104
+    },
+    {
+      "name": ".gitattributes",
+      "path": ".gitattributes",
+      "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361",
+      "size_bytes": 1519
+    },
+    {
+      "name": "LICENSE.md",
+      "path": "LICENSE.md",
+      "sha256": "25d122eb8f5b880fd23c736fb6ea8018ee45c12237e00b8a86d14c653904999e",
+      "size_bytes": 7503
+    },
+    {
+      "name": "README.md",
+      "path": "README.md",
+      "sha256": "e15ec258bf2fe83dd9473cb483ad0c7f49bc3ee6195e3c177f17d995fced3478",
+      "size_bytes": 14519
+    },
+    {
+      "name": "config.json",
+      "path": "config.json",
+      "sha256": "9481247be9f95a134a5599402b4bfc838eecdf9a7fffbf4debd1c70ec213898b",
+      "size_bytes": 743
+    },
+    {
+      "name": "model.safetensors",
+      "path": "model.safetensors",
+      "sha256": "4610ad75edef83e75afdebf162d148dc628045ea6cbb83d67d4708c709c4f91d",
+      "size_bytes": 86406384
+    },
+    {
+      "name": "preprocessor_config.json",
+      "path": "preprocessor_config.json",
+      "sha256": "960c41d1f3a7778b936365769a2d90550b318a6c0a53a0296957adacfe5e0dd7",
+      "size_bytes": 585
+    }
+  ],
+  "hash_policy": "local_snapshot_revision_and_file_hashes",
+  "identity": "hf://facebook/dinov3-vits16-pretrain-lvd1689m@114c1379950215c8b35dfcd4e90a5c251dde0d32",
+  "model_id": "dinov3_small_patch16",
+  "repository": "facebook/dinov3-vits16-pretrain-lvd1689m",
+  "revision": "114c1379950215c8b35dfcd4e90a5c251dde0d32",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "5c01fcdc89e0e4a294742fdcc782412170977d55443717102272f2f39154f4f1"
+}

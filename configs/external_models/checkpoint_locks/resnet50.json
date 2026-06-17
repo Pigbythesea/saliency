@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "name": "model.safetensors",
+      "path": "hf_snapshot/model.safetensors",
+      "sha256": "773525d5821de224f8f30c33377b7a795d7863e08522698200d3217d3f2a41bb",
+      "size_bytes": 102469840
+    }
+  ],
+  "hash_policy": "cached_snapshot_revision_and_file_hashes",
+  "identity": "hf://timm/resnet50.a1_in1k@767268603ca0cb0bfe326fa87277f19c419566ef",
+  "model_id": "resnet50",
+  "repository": "timm/resnet50.a1_in1k",
+  "revision": "767268603ca0cb0bfe326fa87277f19c419566ef",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "151204668fb01f3d7d759e42a66daa80d2b2a6af12ea4506fb1c556266bebc99"
+}

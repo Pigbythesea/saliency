@@ -30,7 +30,17 @@ def test_saliency_benchmark_writes_csv_json_and_visualizations(tmp_path):
                 "seed": 7,
             },
             "saliency": {"method": "dummy_gradient_free"},
-            "metrics": ["nss", "cc", "similarity", "kl"],
+            "metric_controls": {
+                "matched_prior": {"type": "center_bias"},
+            },
+            "metrics": [
+                "log_likelihood_bits",
+                "information_gain_vs_matched_prior",
+                "nss",
+                "cc",
+                "similarity",
+                "kl",
+            ],
             "output": {
                 "dir": str(output_dir),
                 "save_visualizations": True,
@@ -50,7 +60,14 @@ def test_saliency_benchmark_writes_csv_json_and_visualizations(tmp_path):
     assert aggregate_json.is_file()
     assert visualization.is_file()
     assert aggregate["num_items"] == 2
-    assert set(aggregate["metrics"]) == {"nss", "cc", "similarity", "kl"}
+    assert set(aggregate["metrics"]) == {
+        "log_likelihood_bits",
+        "information_gain_vs_matched_prior",
+        "nss",
+        "cc",
+        "similarity",
+        "kl",
+    }
 
     with per_image_csv.open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
@@ -62,8 +79,13 @@ def test_saliency_benchmark_writes_csv_json_and_visualizations(tmp_path):
         "image_id",
         "image_path",
         "fixation_protocol",
+        "matched_prior_id",
         "prediction_range",
         "prediction_is_constant",
+        "log_likelihood_bits",
+        "raw_log_likelihood_bits",
+        "information_gain_vs_matched_prior",
+        "raw_information_gain_vs_matched_prior",
         "nss",
         "raw_nss",
         "cc",
@@ -73,6 +95,7 @@ def test_saliency_benchmark_writes_csv_json_and_visualizations(tmp_path):
         "kl",
         "raw_kl",
     } <= set(rows[0])
+    assert rows[0]["matched_prior_id"] == "analytic_center_bias"
 
     saved = json.loads(aggregate_json.read_text(encoding="utf-8"))
     assert saved["num_items"] == 2
@@ -477,6 +500,79 @@ def test_coco_search18_task_prior_runs_without_model(tmp_path, monkeypatch):
     assert aggregate["saliency_method"] == "coco_search18_task_prior"
     assert aggregate["saliency_family"] == "task_search_baseline"
     assert aggregate["fixation_protocol"] == "task_points"
+    assert aggregate["metrics"]["nss"] > 0.0
+
+
+def test_empirical_spatial_prior_runs_without_model(tmp_path, monkeypatch):
+    prior_manifest = tmp_path / "empirical_prior.csv"
+    with prior_manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["image_id", "split", "width", "height", "fixation_points"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "image_id": "train_0",
+                "split": "train",
+                "width": "8",
+                "height": "8",
+                "fixation_points": json.dumps([[4, 4], [5, 4]]),
+            }
+        )
+        writer.writerow(
+            {
+                "image_id": "val_0",
+                "split": "val",
+                "width": "8",
+                "height": "8",
+                "fixation_points": json.dumps([[7, 7]]),
+            }
+        )
+
+    class TinyDataset:
+        def __iter__(self):
+            fixation_map = np.zeros((8, 8), dtype=np.float32)
+            fixation_map[4, 4] = 1.0
+            yield {
+                "image": Image.fromarray(np.zeros((8, 8, 3), dtype=np.uint8), mode="RGB"),
+                "image_id": "tiny_0",
+                "image_path": "tiny_0.jpg",
+                "fixation_map": fixation_map,
+                "fixation_points": np.asarray([[4, 4]], dtype=np.float32),
+                "metadata": {"dataset": "salicon"},
+            }
+
+    def fail_build_model(_config):
+        raise AssertionError("empirical spatial prior should not build a model")
+
+    monkeypatch.setattr(benchmark_module, "build_dataset", lambda _config: TinyDataset())
+    monkeypatch.setattr(benchmark_module, "build_model", fail_build_model)
+
+    config_path = tmp_path / "empirical_prior.yaml"
+    output_dir = tmp_path / "outputs"
+    save_yaml(
+        {
+            "device": "cpu",
+            "dataset": {"name": "salicon", "label": "salicon_static"},
+            "model": {"name": "empirical_spatial_prior_baseline"},
+            "saliency": {
+                "method": "empirical_spatial_prior",
+                "prior_manifest_path": str(prior_manifest),
+                "image_size": [8, 8],
+                "fixation_sigma": 1.0,
+            },
+            "metrics": ["nss", "cc"],
+            "output": {"dir": str(output_dir)},
+        },
+        config_path,
+    )
+
+    aggregate = run_saliency_benchmark(config_path)
+
+    assert aggregate["model"] == "empirical_spatial_prior_baseline"
+    assert aggregate["saliency_method"] == "empirical_spatial_prior"
+    assert aggregate["saliency_family"] == "spatial_prior_control"
     assert aggregate["metrics"]["nss"] > 0.0
 
 

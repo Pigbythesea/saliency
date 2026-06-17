@@ -20,11 +20,14 @@ from hma.metrics.saliency_metrics import (
     auc_judd,
     cc,
     emd_2d,
+    information_gain,
     kl_divergence,
     nss,
+    probabilistic_log_likelihood,
     shuffled_auc,
     similarity,
     is_constant_map,
+    simple_center_bias_map,
 )
 from hma.models import build_model
 from hma.preprocessing import preprocess_image_for_model
@@ -62,6 +65,11 @@ def run_saliency_benchmark(
         else None
     )
     metric_context_settings = _build_metric_context_settings(config)
+    matched_prior = (
+        _build_matched_prior(config)
+        if _requires_matched_prior(metric_names)
+        else None
+    )
     dataset = build_dataset(config)
     total_items = _safe_len(dataset)
     model = None if _saliency_is_model_independent(saliency_method_name) else build_model(config)
@@ -125,6 +133,7 @@ def run_saliency_benchmark(
             target_shape=target.shape,
             shuffled_pool=shuffled_pool,
             settings=metric_context_settings,
+            matched_prior=matched_prior,
         )
         row: dict[str, Any] = {
             "image_id": item.get("image_id", f"item_{item_index:04d}"),
@@ -132,6 +141,7 @@ def run_saliency_benchmark(
             "map_key": item.get("map_key", ""),
             "row_key": item.get("row_key", f"item_{item_index:04d}"),
             "fixation_protocol": metric_context.get("fixation_protocol", ""),
+            "matched_prior_id": metric_context.get("matched_prior_id", ""),
             "prediction_min": float(np.min(prediction_map)),
             "prediction_max": float(np.max(prediction_map)),
             "prediction_range": float(np.ptp(prediction_map)),
@@ -238,6 +248,34 @@ def _build_metric_functions(
             prediction,
             constant_policy=constant_policy,
         ),
+        "log_likelihood": lambda prediction, target, context: (
+            probabilistic_log_likelihood(
+                prediction,
+                target,
+                positive_fixations=context.get("positive_fixations"),
+            )
+        ),
+        "log_likelihood_bits": lambda prediction, target, context: (
+            probabilistic_log_likelihood(
+                prediction,
+                target,
+                positive_fixations=context.get("positive_fixations"),
+            )
+        ),
+        "information_gain": lambda prediction, target, context: information_gain(
+            prediction,
+            _required_baseline_map(context),
+            target,
+            positive_fixations=context.get("positive_fixations"),
+        ),
+        "information_gain_vs_matched_prior": (
+            lambda prediction, target, context: information_gain(
+                prediction,
+                _required_baseline_map(context),
+                target,
+                positive_fixations=context.get("positive_fixations"),
+            )
+        ),
         "emd": lambda prediction, target, _context: emd_2d(
             target,
             prediction,
@@ -263,6 +301,8 @@ def _build_metric_context(
     target_shape: tuple[int, int],
     shuffled_pool: dict[str, Any] | None,
     settings: dict[str, Any],
+    matched_prior: Callable[[dict[str, Any], tuple[int, int]], tuple[str, np.ndarray]]
+    | None,
 ) -> MetricContext:
     image_id = str(item.get("image_id", f"item_{item_index:04d}"))
     map_key = str(item.get("map_key") or image_id)
@@ -289,6 +329,10 @@ def _build_metric_context(
             shuffled_pool,
             map_key,
         )
+    if matched_prior is not None:
+        prior_id, prior_map = matched_prior(item, target_shape)
+        context["matched_prior_id"] = prior_id
+        context["baseline_map"] = prior_map
     return context
 
 
@@ -300,6 +344,63 @@ def _build_metric_context_settings(config: dict[str, Any]) -> dict[str, Any]:
             controls.get("max_positive_fixations_per_image", 256)
         ),
     }
+
+
+def _requires_matched_prior(metric_names: list[str]) -> bool:
+    return any(
+        name in {"information_gain", "information_gain_vs_matched_prior"}
+        for name in metric_names
+    )
+
+
+def _build_matched_prior(
+    config: dict[str, Any],
+) -> Callable[[dict[str, Any], tuple[int, int]], tuple[str, np.ndarray]]:
+    controls = dict(config.get("metric_controls", {}))
+    prior_config = controls.get("matched_prior", {"type": "center_bias"})
+    if isinstance(prior_config, str):
+        prior_config = {"type": prior_config}
+    if not isinstance(prior_config, dict):
+        raise TypeError("metric_controls.matched_prior must be a string or mapping")
+    prior_type = str(prior_config.get("type", "center_bias"))
+    if prior_type == "center_bias":
+        sigma = prior_config.get("sigma")
+
+        def center_prior(
+            _item: dict[str, Any],
+            shape: tuple[int, int],
+        ) -> tuple[str, np.ndarray]:
+            return (
+                "analytic_center_bias",
+                simple_center_bias_map(
+                    shape[0],
+                    shape[1],
+                    sigma=None if sigma is None else float(sigma),
+                ),
+            )
+
+        return center_prior
+    if prior_type == "uniform":
+
+        def uniform_prior(
+            _item: dict[str, Any],
+            shape: tuple[int, int],
+        ) -> tuple[str, np.ndarray]:
+            return "uniform", np.ones(shape, dtype=np.float32)
+
+        return uniform_prior
+    raise ValueError(
+        "metric_controls.matched_prior.type must be 'center_bias' or 'uniform'"
+    )
+
+
+def _required_baseline_map(context: MetricContext) -> np.ndarray:
+    baseline = context.get("baseline_map")
+    if baseline is None:
+        raise ValueError(
+            "information gain requires metric_controls.matched_prior"
+        )
+    return np.asarray(baseline, dtype=np.float32)
 
 
 def _build_shuffled_fixation_pool(
@@ -436,6 +537,7 @@ def _saliency_requires_torch(method_name: str | None) -> bool:
 def _saliency_is_model_independent(method_name: str | None) -> bool:
     return str(method_name) in {
         "center_bias",
+        "empirical_spatial_prior",
         "coco_search18_task_prior",
         "random_saliency",
         "precomputed_map",
@@ -550,6 +652,8 @@ def _saliency_family(method_name: Any) -> str:
         return "transformer_relevance"
     if method_name in {"center_bias", "random_saliency"}:
         return "baseline"
+    if method_name == "empirical_spatial_prior":
+        return "spatial_prior_control"
     if method_name in {"coco_search18_task_prior", "task_conditioned_spatial_prior"}:
         return "task_search_baseline"
     if method_name in {"precomputed_map", "deepgaze_precomputed"}:
@@ -598,6 +702,7 @@ def _write_per_image_csv(
         "image_id",
         "image_path",
         "fixation_protocol",
+        "matched_prior_id",
         "prediction_min",
         "prediction_max",
         "prediction_range",

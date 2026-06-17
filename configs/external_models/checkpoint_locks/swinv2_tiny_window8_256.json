@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "name": "model.safetensors",
+      "path": "hf_snapshot/model.safetensors",
+      "sha256": "c47f52b4556ff4436aa9502f5efbc93aac77fdab42d9d70dd845931757ff5d65",
+      "size_bytes": 114918618
+    }
+  ],
+  "hash_policy": "cached_snapshot_revision_and_file_hashes",
+  "identity": "hf://timm/swinv2_tiny_window8_256.ms_in1k@9fc48f948b7a735e67e0a06a9fd5a57d9f5b26e2",
+  "model_id": "swinv2_tiny_window8_256",
+  "repository": "timm/swinv2_tiny_window8_256.ms_in1k",
+  "revision": "9fc48f948b7a735e67e0a06a9fd5a57d9f5b26e2",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "be68d3a2a2c494c4086d8a0d4c9e7241b60e159569592ecba821016439796f19"
+}

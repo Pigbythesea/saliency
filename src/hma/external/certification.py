@@ -131,12 +131,22 @@ def update_scope_reset_adapter_tables(
     """Synchronize certification status into the two publication scope tables."""
     by_model = {str(record["model_id"]): record for record in records}
     _update_csv_rows(
-        resolve_path(comparability_path),
+        comparability := resolve_path(comparability_path),
         lambda row: _updated_comparability_row(row, by_model),
     )
+    _append_missing_rows(
+        comparability,
+        by_model,
+        _new_comparability_row,
+    )
     _update_csv_rows(
-        resolve_path(role_matrix_path),
+        role_matrix := resolve_path(role_matrix_path),
         lambda row: _updated_role_row(row, by_model),
+    )
+    _append_missing_rows(
+        role_matrix,
+        by_model,
+        _new_role_row,
     )
 
 
@@ -442,6 +452,30 @@ def _update_csv_rows(path: Path, update: Any) -> None:
         writer.writerows(rows)
 
 
+def _append_missing_rows(
+    path: Path,
+    records: dict[str, dict[str, Any]],
+    build_row: Any,
+) -> None:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
+    existing = {str(row.get("model_id", "")) for row in rows}
+    missing = [
+        build_row(record, fieldnames)
+        for model_id, record in sorted(records.items())
+        if model_id not in existing
+    ]
+    if not missing:
+        return
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+        writer.writerows(missing)
+
+
 def _updated_comparability_row(
     row: dict[str, str],
     records: dict[str, dict[str, Any]],
@@ -457,6 +491,48 @@ def _updated_comparability_row(
         "certification_status": str(record["certification_status"]),
         "blocking_setup": "|".join(blocker_codes) or "publication_preflight",
     }
+
+
+def _new_comparability_row(
+    record: dict[str, Any],
+    fieldnames: list[str],
+) -> dict[str, str]:
+    blocker_codes = [blocker["code"] for blocker in record["blockers"]]
+    latent = record["outputs"]["latent"]
+    resource = record["outputs"]["resource"]
+    row = {
+        "model_id": str(record["model_id"]),
+        "adapter_implementation": record.get("adapter_class")
+        or str(record["setup"]["kind"]),
+        "deterministic_input_condition": str(
+            record["input_contract"]["deterministic_condition"]
+        ),
+        "preprocessing_path": "publication_registry_preprocessing",
+        "checkpoint_provenance": (
+            "certified_checkpoint_lock"
+            if record["certification_status"] == "adapter_certified"
+            else "pending_checkpoint_lock"
+        ),
+        "environment_provenance": (
+            "certified_environment_lock"
+            if record["certification_status"] == "adapter_certified"
+            else "pending_environment_lock"
+        ),
+        "behavioral_output_type": "|".join(record["outputs"]["behavioral"]) or "none",
+        "latent_tensor": "spatial_feature_maps" if latent else "none",
+        "layer_candidates": "|".join(latent) or "none",
+        "conditioning": "|".join(record["input_contract"]["modes"]),
+        "resource_output": "|".join(resource) or "none",
+        "efficiency_metadata": (
+            "certified_environment_and_checkpoint"
+            if record["certification_status"] == "adapter_certified"
+            else "pending_setup"
+        ),
+        "certification_status": str(record["certification_status"]),
+        "paper_classification": str(record["model_role"]),
+        "blocking_setup": "|".join(blocker_codes) or "publication_preflight",
+    }
+    return {field: row.get(field, "") for field in fieldnames}
 
 
 def _updated_role_row(
@@ -484,3 +560,48 @@ def _updated_role_row(
         ),
         "blocking_requirement": "|".join(blocker_codes) or "publication_preflight",
     }
+
+
+def _new_role_row(
+    record: dict[str, Any],
+    fieldnames: list[str],
+) -> dict[str, str]:
+    status = str(record["certification_status"])
+    current = {
+        "adapter_certified": "ready_now",
+        "setup_scaffold_ready": "setup_scaffold_ready",
+        "setup_blocked": "availability_or_setup_blocked",
+    }[status]
+    blocker_codes = [blocker["code"] for blocker in record["blockers"]]
+    latent = record["outputs"]["latent"]
+    resource = record["outputs"]["resource"]
+    behavior = record["outputs"]["behavioral"]
+    row = {
+        "model_id": str(record["model_id"]),
+        "family": str(record["family"]),
+        "model_name": str(record["model_id"]).replace("_", " "),
+        "role": str(record["model_role"]),
+        "publication_position": str(record["model_role"]),
+        "behavioral_output_available": "yes" if behavior else "no",
+        "behavioral_object": "|".join(behavior) or "none",
+        "latent_features_available": "yes" if latent else "no",
+        "feature_extraction_path": "|".join(latent) or "none",
+        "neural_encoding_eligibility": "yes" if latent and status == "adapter_certified" else "no",
+        "representational_geometry_eligibility": "yes" if latent and status == "adapter_certified" else "no",
+        "efficiency_resource_allocation_eligibility": (
+            "yes" if resource or status == "adapter_certified" else "no"
+        ),
+        "deterministic_input_condition_required": str(
+            record["input_contract"]["deterministic_condition"]
+        ),
+        "required_environment_checkpoint": "publication_registry_runtime_setup",
+        "current_implementation_status": current,
+        "paper_evidence_status": str(record["paper_evidence_status"]),
+        "certification_basis": (
+            "publication_adapter_certification_record"
+            if status == "adapter_certified"
+            else "executable_setup_scaffold_and_machine_readable_blockers"
+        ),
+        "blocking_requirement": "|".join(blocker_codes) or "publication_preflight",
+    }
+    return {field: row.get(field, "") for field in fieldnames}

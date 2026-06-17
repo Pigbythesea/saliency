@@ -11,6 +11,8 @@ models:
     latent_outputs: [layer1, layer2, layer3, layer4]
     resource_outputs: []
     paper_evidence_status: adapter_in_progress
+    setup_command: python scripts/certify_local_publication_models.py --models resnet50
+    report_command: python scripts/certify_local_publication_models.py --models resnet50 --report-only
   convnext_tiny:
     family: ConvNeXt
     model_role: general_visual_representation
@@ -33,6 +35,8 @@ models:
     latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
     resource_outputs: []
     paper_evidence_status: adapter_in_progress
+    setup_command: python scripts/certify_local_publication_models.py --models vit_base_patch16_224
+    report_command: python scripts/certify_local_publication_models.py --models vit_base_patch16_224 --report-only
   deit_small_static:
     family: DeiT
     model_role: general_visual_representation|generic_efficient_computation
@@ -55,6 +59,8 @@ models:
     latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
     resource_outputs: []
     paper_evidence_status: adapter_in_progress
+    setup_command: python scripts/certify_local_publication_models.py --models vit_small_patch14_dinov2
+    report_command: python scripts/certify_local_publication_models.py --models vit_small_patch14_dinov2 --report-only
   dinov3_small_patch16:
     family: DINOv3
     model_role: self_supervised_dense_feature
@@ -77,6 +83,8 @@ models:
     latent_outputs: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
     resource_outputs: []
     paper_evidence_status: adapter_in_progress
+    setup_command: python scripts/certify_local_publication_models.py --models vit_base_patch16_clip_224
+    report_command: python scripts/certify_local_publication_models.py --models vit_base_patch16_clip_224 --report-only
   siglip_base_patch16:
     family: SigLIP
     model_role: VLM_semantic
@@ -107,7 +115,7 @@ models:
     input_modes: [image_only]
     deterministic_condition: image_only_official_preprocess
     behavioral_outputs: [posthoc_attribution_map]
-    latent_outputs: [stages.0, stages.1, stages.2, stages.3]
+    latent_outputs: [blocks.0, blocks.2, blocks.7, blocks.11]
     resource_outputs: []
     paper_evidence_status: adapter_in_progress
   swin_tiny_patch4_window7_224:
@@ -121,6 +129,8 @@ models:
     latent_outputs: [layers.0, layers.1, layers.2, layers.3]
     resource_outputs: []
     paper_evidence_status: adapter_in_progress
+    setup_command: python scripts/certify_local_publication_models.py --models swin_tiny
+    report_command: python scripts/certify_local_publication_models.py --models swin_tiny --report-only
   swinv2_tiny_window8_256:
     family: SwinV2
     model_role: hierarchical_hybrid_efficient_architecture
@@ -162,9 +172,14 @@ models:
     input_modes: [image_only]
     deterministic_condition: image_plus_frozen_center_bias
     behavioral_outputs: [human_gaze_density]
-    latent_outputs: [backbone_features, saliency_readout_state]
+    latent_outputs:
+      - models.0.features
+      - models.0.saliency_networks.0.conv2
+      - models.0.finalizers.0
     resource_outputs: []
     paper_evidence_status: adapter_in_progress
+    setup_command: python scripts/certify_local_publication_models.py --models deepgaze_iie
+    report_command: python scripts/certify_local_publication_models.py --models deepgaze_iie --report-only
   deepgaze_iii:
     family: DeepGaze
     model_role: human_gaze_prediction
@@ -173,9 +188,32 @@ models:
     input_modes: [image_only, gaze_history_conditioned, scanpath]
     deterministic_condition: initial_center_no_additional_history
     behavioral_outputs: [conditional_next_fixation, generated_scanpath]
-    latent_outputs: [backbone_features, history_state, fixation_selection_state]
-    resource_outputs: [fixation_count, history_length, stopping_behavior]
+    latent_outputs:
+      - features
+      - saliency_networks.0.conv2
+      - scanpath_networks.0.conv1
+      - fixation_selection_networks.0.conv2
+    resource_outputs: [fixation_count, history_length, stopping_behavior, scanpath_length]
     paper_evidence_status: adapter_in_progress
+    setup_command: python scripts/certify_local_publication_models.py --models deepgaze_iii
+    report_command: python scripts/certify_local_publication_models.py --models deepgaze_iii --report-only
+  deepgaze_msdb:
+    family: DeepGaze-MSDB
+    model_role: human_gaze_prediction
+    setup_kind: runtime
+    runtime_model_id: deepgaze_msdb
+    input_modes: [image_only]
+    deterministic_condition: image_plus_frozen_center_bias_pixel_per_dva_21_7_dataset_averaged
+    behavioral_outputs: [human_gaze_density]
+    latent_outputs:
+      - features
+      - features.backbone.feature_extractors.CLIP
+      - features.backbone.feature_extractors.DINOv2
+      - saliency_network.conv4
+    resource_outputs: []
+    paper_evidence_status: adapter_in_progress
+    setup_command: python scripts/certify_local_publication_models.py --models deepgaze_msdb
+    report_command: python scripts/certify_local_publication_models.py --models deepgaze_msdb --report-only
   hat:
     family: HAT
     model_role: human_gaze_prediction|human_gaze_inspired_foveated
@@ -270,8 +308,8 @@ models:
     family: Control
     model_role: spatial_prior_and_task_prior_control
     setup_kind: builtin
-    implementation_status: pending
-    resolution: implement leakage-safe training-split prior
+    implementation_status: ready
+    resolution: leakage-safe training-split prior implemented
     input_modes: [image_only]
     deterministic_condition: training_split_only
     behavioral_outputs: [empirical_spatial_prior]

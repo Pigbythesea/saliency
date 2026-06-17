@@ -66,6 +66,93 @@ def coco_search18_task_prior_saliency(
     return prediction
 
 
+def empirical_spatial_prior_saliency(
+    _model_wrapper: Any,
+    images: Any,
+    target_map: Any | None = None,
+    prior: "EmpiricalSpatialPrior | None" = None,
+    **_kwargs: Any,
+) -> np.ndarray:
+    """Return a train-split empirical fixation prior."""
+    if prior is None:
+        raise ValueError("empirical_spatial_prior requires a prebuilt prior")
+    height, width = _infer_map_shape(images, target_map)
+    prediction = prior.map
+    if prediction.shape != (height, width):
+        prediction = postprocess_saliency_map(prediction, target_shape=(height, width))
+    return prediction
+
+
+@dataclass(frozen=True)
+class EmpiricalSpatialPrior:
+    """Dataset-level spatial prior built only from allowed training rows."""
+
+    map: np.ndarray
+    image_size: tuple[int, int]
+    source_split: str
+    excluded_image_ids: tuple[str, ...] = ()
+
+    @classmethod
+    def from_manifest(
+        cls,
+        manifest_path: str | Path,
+        *,
+        split: str = "train",
+        image_size: tuple[int, int] = (224, 224),
+        fixation_sigma: float = 10.0,
+        exclude_image_ids: set[str] | frozenset[str] | tuple[str, ...] | list[str] | None = None,
+    ) -> "EmpiricalSpatialPrior":
+        excluded = {str(value) for value in (exclude_image_ids or [])}
+        point_sets: list[np.ndarray] = []
+        path = Path(manifest_path)
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            missing = {"split", "width", "height", "fixation_points"} - set(
+                reader.fieldnames or []
+            )
+            if missing:
+                raise ValueError(
+                    f"Empirical spatial prior manifest missing columns: {sorted(missing)}"
+                )
+            has_image_id = "image_id" in set(reader.fieldnames or [])
+            for row in reader:
+                if row.get("split") != split:
+                    continue
+                if has_image_id and str(row.get("image_id", "")) in excluded:
+                    continue
+                points = _parse_manifest_points(row.get("fixation_points", ""))
+                if points.size == 0:
+                    continue
+                point_sets.append(
+                    _scale_points(
+                        points,
+                        width=_optional_float(row.get("width")),
+                        height=_optional_float(row.get("height")),
+                        image_size=image_size,
+                    )
+                )
+
+        if point_sets:
+            prior_map = points_to_fixation_map(
+                np.concatenate(point_sets, axis=0),
+                height=image_size[0],
+                width=image_size[1],
+                sigma=fixation_sigma,
+            )
+        else:
+            prior_map = simple_center_bias_map(
+                image_size[0],
+                image_size[1],
+                sigma=fixation_sigma,
+            )
+        return cls(
+            map=prior_map,
+            image_size=image_size,
+            source_split=str(split),
+            excluded_image_ids=tuple(sorted(excluded)),
+        )
+
+
 @dataclass(frozen=True)
 class COCOSearch18TaskPrior:
     """Target/task-conditioned spatial prior built from COCO-Search18 training rows."""

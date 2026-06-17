@@ -8,9 +8,11 @@ torch = pytest.importorskip("torch")
 
 from hma.saliency import (  # noqa: E402
     COCOSearch18TaskPrior,
+    EmpiricalSpatialPrior,
     center_bias_saliency,
     build_saliency_method,
     coco_search18_task_prior_saliency,
+    empirical_spatial_prior_saliency,
     gradcam_saliency,
     integrated_gradients_saliency,
     occlusion_saliency,
@@ -210,5 +212,63 @@ def test_coco_search18_task_prior_uses_target_and_task_conditioning(tmp_path):
         prior=prior,
     )
 
+    assert prediction.shape == (16, 16)
+    assert np.isfinite(prediction).all()
+
+
+def test_empirical_spatial_prior_uses_train_split_and_excludes_eval_ids(tmp_path):
+    manifest = tmp_path / "fixations.csv"
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["image_id", "split", "width", "height", "fixation_points"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "image_id": "train_allowed",
+                "split": "train",
+                "width": "16",
+                "height": "16",
+                "fixation_points": json.dumps([[2, 2], [3, 2]]),
+            }
+        )
+        writer.writerow(
+            {
+                "image_id": "train_excluded",
+                "split": "train",
+                "width": "16",
+                "height": "16",
+                "fixation_points": json.dumps([[14, 14], [15, 14]]),
+            }
+        )
+        writer.writerow(
+            {
+                "image_id": "val_leak",
+                "split": "val",
+                "width": "16",
+                "height": "16",
+                "fixation_points": json.dumps([[15, 15]]),
+            }
+        )
+
+    prior = EmpiricalSpatialPrior.from_manifest(
+        manifest,
+        image_size=(16, 16),
+        fixation_sigma=1.0,
+        exclude_image_ids={"train_excluded"},
+    )
+    y, x = np.unravel_index(np.argmax(prior.map), prior.map.shape)
+
+    assert x <= 3
+    assert y <= 3
+    assert "train_excluded" in prior.excluded_image_ids
+
+    prediction = empirical_spatial_prior_saliency(
+        None,
+        torch.zeros(1, 3, 16, 16),
+        target_map=np.zeros((16, 16), dtype=np.float32),
+        prior=prior,
+    )
     assert prediction.shape == (16, 16)
     assert np.isfinite(prediction).all()

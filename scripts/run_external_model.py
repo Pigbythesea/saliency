@@ -11,6 +11,27 @@ from typing import Any
 
 from PIL import Image
 
+
+def _install_pillow_legacy_resampling_compatibility() -> None:
+    """Provide Pillow aliases expected by Detectron2 0.6."""
+    resampling = getattr(Image, "Resampling", None)
+    aliases = {
+        "LINEAR": "BILINEAR",
+        "CUBIC": "BICUBIC",
+        "ANTIALIAS": "LANCZOS",
+    }
+    for legacy_name, modern_name in aliases.items():
+        if legacy_name in vars(Image):
+            continue
+        value = getattr(resampling, modern_name, None) if resampling is not None else None
+        if value is None:
+            value = getattr(Image, modern_name, None)
+        if value is not None:
+            setattr(Image, legacy_name, value)
+
+
+_install_pillow_legacy_resampling_compatibility()
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
@@ -66,7 +87,7 @@ def run_external_model(
         device=device,
         seed=seed,
     )
-    checkpoint_hash = sha256_tree(checkpoint_path) if checkpoint_path else None
+    checkpoint_hash = _checkpoint_hash(canonical_id, checkpoint_path)
     environment_lock = resolve_path(
         f"configs/external_models/environment_locks/{canonical_id}.txt"
     )
@@ -203,6 +224,19 @@ def _checkpoint_path(registry: Any, model: dict[str, Any]) -> Path | None:
     if not filename:
         return None
     return registry.workspace_path("checkpoints") / str(model["id"]) / str(filename)
+
+
+def _checkpoint_hash(model_id: str, checkpoint_path: Path | None) -> str | None:
+    if checkpoint_path is not None and checkpoint_path.exists():
+        return sha256_tree(checkpoint_path)
+    lock_path = resolve_path(
+        f"configs/external_models/checkpoint_locks/{model_id}.json"
+    )
+    if not lock_path.is_file():
+        return None
+    payload = json.loads(lock_path.read_text(encoding="utf-8"))
+    value = payload.get("sha256")
+    return str(value) if value else None
 
 
 def parse_args() -> argparse.Namespace:

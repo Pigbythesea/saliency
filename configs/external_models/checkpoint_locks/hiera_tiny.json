@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "name": "model.safetensors",
+      "path": "hf_snapshot/model.safetensors",
+      "sha256": "d86bd0495a3ac4c4d3017ed85d974237e8155c5e418dcd5fd2643b40e6b5c1d5",
+      "size_bytes": 111655128
+    }
+  ],
+  "hash_policy": "cached_snapshot_revision_and_file_hashes",
+  "identity": "hf://timm/hiera_tiny_224.mae_in1k_ft_in1k@fc9ede1b26f3f35d11b269f12656dded630a6c96",
+  "model_id": "hiera_tiny",
+  "repository": "timm/hiera_tiny_224.mae_in1k_ft_in1k",
+  "revision": "fc9ede1b26f3f35d11b269f12656dded630a6c96",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "dd4072f76d5c255919e27aaee7dd338d54225579d951f1e7e5f5ab98d697296c"
+}

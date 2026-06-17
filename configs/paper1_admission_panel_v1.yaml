@@ -1,0 +1,122 @@
+schema_version: hma.paper1.admission_panel.v1
+contract: configs/paper1_publication_contract.yaml
+evidence_label: admission_panel
+seed: 123
+output_root: outputs/paper1_publication_v0
+behavioral:
+  dataset: salicon
+  root: data/raw/SALICON
+  manifest: data/manifests/v2/salicon_static2000_manifest.csv
+  split: val
+  image_size: [224, 224]
+  max_items: 128
+  bootstrap_resamples: 2000
+  bootstrap_confidence: 0.95
+  models: [deepgaze_iie, center_prior, random_baseline]
+neural:
+  root: data/raw/nsd_algonauts
+  manifest: data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv
+  split: train
+  subject_id: subj01
+  roi: V1
+  max_items: 96
+  pca_components: 24
+  train_fraction: 0.8
+  validation_fraction: 0.2
+  ridge_alphas: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+  geometry_bootstrap_resamples: 200
+  geometry_bootstrap_confidence: 0.95
+  geometry_subset_size: 64
+efficiency:
+  device: cuda
+  warmup_runs: 2
+  measured_runs: 8
+  repeats: 3
+models:
+  - model_id: resnet50
+    runtime_model_id: resnet50
+    family: ResNet
+    role: general_visual_representation
+    layer: layer4
+    input_size: [224, 224]
+    mean: imagenet
+    std: imagenet
+  - model_id: vit_base_patch16_224
+    runtime_model_id: vit_base_patch16_224
+    family: ViT
+    role: general_visual_representation
+    layer: blocks.11
+    input_size: [224, 224]
+    mean: imagenet
+    std: imagenet
+  - model_id: vit_small_patch14_dinov2
+    runtime_model_id: vit_small_patch14_dinov2
+    family: DINOv2
+    role: self_supervised_dense_feature
+    layer: blocks.11
+    input_size: [518, 518]
+    mean: imagenet
+    std: imagenet
+  - model_id: vit_base_patch16_clip_224
+    runtime_model_id: vit_base_patch16_clip_224
+    family: CLIP
+    role: VLM_semantic
+    layer: blocks.11
+    input_size: [224, 224]
+    mean: [0.48145466, 0.4578275, 0.40821073]
+    std: [0.26862954, 0.26130258, 0.27577711]
+  - model_id: swin_tiny_patch4_window7_224
+    runtime_model_id: swin_tiny
+    timm_model_name: swin_tiny_patch4_window7_224
+    family: Swin
+    role: hierarchical_hybrid_efficient_architecture
+    layer: layers.3
+    input_size: [224, 224]
+    mean: imagenet
+    std: imagenet
+  - model_id: deepgaze_iie
+    runtime_model_id: deepgaze_iie
+    family: DeepGaze
+    role: human_gaze_prediction
+    behavioral_only: true
+  - model_id: center_prior
+    family: Control
+    role: spatial_prior_and_task_prior_control
+    control: true
+  - model_id: random_baseline
+    family: Control
+    role: spatial_prior_and_task_prior_control
+    control: true
+  - model_id: dynamicvit_deit_small_keep_0_7
+    runtime_model_id: dynamicvit_deit_small_keep_0_7
+    family: DynamicViT
+    role: generic_efficient_computation
+    layer: blocks.11
+    cluster_only: true
+  - model_id: tome_deit_small_r13
+    runtime_model_id: tome_deit_small_r13
+    family: ToMe
+    role: generic_efficient_computation
+    layer: blocks.11
+    cluster_only: true
+  - model_id: hat
+    runtime_model_id: hat
+    family: HAT
+    role: human_gaze_prediction_and_foveated_active_vision
+    cluster_only: true
+  - model_id: scandiff_freeview
+    runtime_model_id: scandiff
+    family: ScanDiff
+    role: human_gaze_prediction
+    cluster_only: true
+  - model_id: adaptivenn_deit_small
+    runtime_model_id: adaptivenn_deit_small
+    family: AdaptiveNN
+    role: human_gaze_inspired_efficient_foveated
+    cluster_only: true
+cluster_pending_models:
+  - dynamicvit_deit_small_keep_0_7
+  - tome_deit_small_r13
+  - hat
+  - scandiff
+  - adaptivenn_deit_small

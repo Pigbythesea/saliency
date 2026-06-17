@@ -12,3 +12,7 @@ dependencies:
   - numpy
   - pillow
   - pyyaml
+  - pip:
+      - transformers==4.56.0
+      - huggingface-hub
+      - safetensors

@@ -31,16 +31,17 @@ models:
     vit_base_patch16_clip_224: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
     siglip_base_patch16: [encoder.layers.0, encoder.layers.3, encoder.layers.6, encoder.layers.9, encoder.layers.11]
     mambavision_t: [levels.0, levels.1, levels.2, levels.3]
-    hiera_tiny: [stages.0, stages.1, stages.2, stages.3]
+    hiera_tiny: [blocks.0, blocks.2, blocks.7, blocks.11]
     swin_tiny_patch4_window7_224: [layers.0, layers.1, layers.2, layers.3]
     swinv2_tiny_window8_256: [layers.0, layers.1, layers.2, layers.3]
     dynamicvit_deit_small_keep_0_7: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
     tome_deit_small_r13: [blocks.0, blocks.3, blocks.6, blocks.9, blocks.11]
-    deepgaze_iie: [backbone_features, saliency_readout_state]
+    deepgaze_iie: [models.0.features, models.0.saliency_networks.0.conv2, models.0.finalizers.0]
+    deepgaze_msdb: [features, features.backbone.feature_extractors.CLIP, features.backbone.feature_extractors.DINOv2, saliency_network.conv4]
   conditioned:
     deepgaze_iii:
       condition: initial_center_fixation_no_additional_history
-      layers: [backbone_features, scanpath_history_state, fixation_selection_state]
+      layers: [features, saliency_networks.0.conv2, scanpath_networks.0.conv1, fixation_selection_networks.0.conv2]
     hat:
       condition: taskless_free_viewing_initial_center_greedy
       layers: [dorsal_embeddings, high_res_feature_map, working_memory, query_state]

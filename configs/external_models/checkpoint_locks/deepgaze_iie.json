@@ -1,0 +1,41 @@
+{
+  "files": [
+    {
+      "name": "deepgaze2e.pth",
+      "path": "torch_hub/checkpoints/deepgaze2e.pth",
+      "sha256": "49b65724184f43a2b60426c29c12fd2b743b47ad9eb3435d3dd28e50ea4e2585",
+      "size_bytes": 419676716
+    },
+    {
+      "name": "resnet50_finetune_60_epochs_lr_decay_after_30_start_resnet50_train_45_epochs_combined_IN_SF-ca06340c.pth.tar",
+      "path": "torch_hub/checkpoints/resnet50_finetune_60_epochs_lr_decay_after_30_start_resnet50_train_45_epochs_combined_IN_SF-ca06340c.pth.tar",
+      "sha256": "ca06340ccc07e0410dbe24c24166f6ac61fea3c5066571f604b5d31f76ad8842",
+      "size_bytes": 204733024
+    },
+    {
+      "name": "densenet201-c1103571.pth",
+      "path": "torch_hub/checkpoints/densenet201-c1103571.pth",
+      "sha256": "c1103571aad4f45d0b5b15556d92944db94c33bee68cd58babba3d76225a6401",
+      "size_bytes": 81131730
+    },
+    {
+      "name": "resnext50_32x4d-7cdf4587.pth",
+      "path": "torch_hub/checkpoints/resnext50_32x4d-7cdf4587.pth",
+      "sha256": "7cdf458735e4f17e63e904909f785cffa00b8789e74d320eac9f122247aaf754",
+      "size_bytes": 100441675
+    },
+    {
+      "name": "centerbias_mit1003.npy",
+      "path": "data/precomputed/deepgaze/centerbias_mit1003.npy",
+      "sha256": "051645b7da47884c138e81f28a4afbadd99b6c3262eaf086434a9626e3578be9",
+      "size_bytes": 8388688
+    }
+  ],
+  "hash_policy": "package_release_component_file_hashes",
+  "identity": "pypi:deepgaze-pytorch==1.2.1/deepgaze_iie",
+  "model_id": "deepgaze_iie",
+  "repository": "deepgaze-pytorch",
+  "revision": "1.2.1",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "4e2cb706a71847eeedee1946343b8cc2f0a459aa97e130f1f82352f5caebeafc"
+}

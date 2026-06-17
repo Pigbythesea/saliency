@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "name": "model.safetensors",
+      "path": "hf_snapshot/model.safetensors",
+      "sha256": "04d27f3400d059fc0cfd7d17dd1909a75bf3ea8fb3eeb48b97cb99e57ee20081",
+      "size_bytes": 88240510
+    }
+  ],
+  "hash_policy": "cached_snapshot_revision_and_file_hashes",
+  "identity": "hf://timm/vit_small_patch14_dinov2.lvd142m@4610ca143709d58a633b6397a74412c2c3842454",
+  "model_id": "vit_small_patch14_dinov2",
+  "repository": "timm/vit_small_patch14_dinov2.lvd142m",
+  "revision": "4610ca143709d58a633b6397a74412c2c3842454",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "1169455ddbcdd5d71dbc68795e9dc4bec0e3ffc21ba866fbc229ac4bd10ebc12"
+}

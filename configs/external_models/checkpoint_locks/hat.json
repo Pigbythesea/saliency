@@ -1,0 +1,7 @@
+{
+  "model_id": "hat",
+  "path_kind": "directory",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "ee97698bdf4dbb6724f673bcb42bfa5600e2c9fae10716cead6a5b8d9782c8f7",
+  "source": "http://vision.cs.stonybrook.edu/~cvlab_download/HAT/pretrained_models/M2F_R50_MSDeformAttnPixelDecoder.pkl"
+}

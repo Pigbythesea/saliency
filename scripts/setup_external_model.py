@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -12,7 +13,10 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.request
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -40,12 +44,23 @@ MICROMAMBA_ASSETS = {
     },
 }
 
+SYMLINK_SENSITIVE_ENV_MODELS = {"hat", "scandiff"}
+
 from hma.external.hashing import sha256_file, sha256_tree
+
+
+def _project_is_on_wsl_windows_mount() -> bool:
+    parts = PROJECT_ROOT.resolve().parts
+    return platform.system() == "Linux" and len(parts) >= 3 and parts[1] == "mnt"
+
+
+def _workspace_key() -> str:
+    return hashlib.sha256(str(PROJECT_ROOT).encode("utf-8")).hexdigest()[:12]
 
 
 def _scratch_runtime_environment() -> dict[str, str]:
     """Keep all setup subprocess state out of the cluster home directory."""
-    external_root = PROJECT_ROOT / "external"
+    external_root = _runtime_state_root()
     paths = {
         "HOME": external_root / "runtime_home",
         "MAMBA_ROOT_PREFIX": external_root / "cache" / "micromamba",
@@ -75,7 +90,23 @@ def _scratch_runtime_environment() -> dict[str, str]:
         environment[name] = str(path)
     environment["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     environment["PYTHONNOUSERSITE"] = "1"
+    environment.setdefault("CONDA_REMOTE_CONNECT_TIMEOUT_SECS", "60")
+    environment.setdefault("CONDA_REMOTE_READ_TIMEOUT_SECS", "600")
+    environment.setdefault("CONDA_REMOTE_MAX_RETRIES", "6")
+    environment.setdefault("CONDA_REMOTE_BACKOFF_FACTOR", "2")
+    environment.setdefault("MAMBA_REMOTE_CONNECT_TIMEOUT_SECS", "60")
+    environment.setdefault("MAMBA_REMOTE_READ_TIMEOUT_SECS", "600")
+    environment.setdefault("MAMBA_REMOTE_MAX_RETRIES", "6")
+    environment.setdefault("MAMBA_REMOTE_BACKOFF_FACTOR", "2")
+    environment.setdefault("MAMBA_NO_LOW_SPEED_LIMIT", "1")
+    environment.setdefault("MAMBA_DOWNLOAD_TIMEOUT_SECONDS", "900")
     return environment
+
+
+def _runtime_state_root() -> Path:
+    if _project_is_on_wsl_windows_mount():
+        return Path.home() / ".cache" / "hma_external" / "runtime" / _workspace_key()
+    return PROJECT_ROOT / "external"
 
 
 def _resolve_micromamba(value: str) -> str:
@@ -171,7 +202,7 @@ def _ensure_setup_runtime() -> None:
         if index + 1 < len(sys.argv):
             micromamba_name = sys.argv[index + 1]
     executable = _resolve_micromamba(micromamba_name)
-    bootstrap_dir = PROJECT_ROOT / "external" / "environments" / "hma_setup_bootstrap"
+    bootstrap_dir = _runtime_state_root() / "environments" / "hma_setup_bootstrap"
     history = bootstrap_dir / "conda-meta" / "history"
     if not history.is_file():
         bootstrap_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -222,7 +253,7 @@ def build_installation_report(
     model = registry.model(model_id)
     canonical_id = str(model["id"])
     source_dir = registry.workspace_path("sources") / canonical_id
-    environment_dir = registry.workspace_path("environments") / canonical_id
+    environment_dir = _model_environment_dir(registry, canonical_id)
     environment_lock = _environment_lock_path(canonical_id)
     checkpoint_path = _checkpoint_path(registry, model)
     checkpoint_lock = _checkpoint_lock_path(canonical_id)
@@ -341,7 +372,7 @@ def install_model(
     model = registry.model(model_id)
     canonical_id = str(model["id"])
     source_dir = registry.workspace_path("sources") / canonical_id
-    environment_dir = registry.workspace_path("environments") / canonical_id
+    environment_dir = _model_environment_dir(registry, canonical_id)
     _prepare_source(model, source_dir)
     _prepare_environment(
         model=model,
@@ -379,8 +410,32 @@ def install_model(
                 "smoke_passed",
             )
         ) and bool(report["source"]["license_audit_passed"])
+        report["diagnostics"] = _diagnostics(
+            model=model,
+            source_ready=report["stages"]["source_ready"],
+            environment_ready=report["stages"]["environment_ready"],
+            checkpoint_ready=report["stages"]["checkpoint_ready"],
+            adapter_ready=report["stages"]["adapter_ready"],
+            smoke_passed=report["stages"]["smoke_passed"],
+            license_audit_passed=report["source"]["license_audit_passed"],
+        )
     _write_report(registry, canonical_id, report)
     return report
+
+
+def _model_environment_dir(registry: Any, model_id: str) -> Path:
+    default = registry.workspace_path("environments") / model_id
+    if (
+        model_id not in SYMLINK_SENSITIVE_ENV_MODELS
+        or not _project_is_on_wsl_windows_mount()
+    ):
+        return default
+    root_override = os.environ.get("HMA_EXTERNAL_ENV_ROOT")
+    if root_override:
+        root = Path(root_override).expanduser()
+    else:
+        root = Path.home() / ".cache" / "hma_external" / "environments" / _workspace_key()
+    return root / model_id
 
 
 def _prepare_source(model: dict[str, Any], source_dir: Path) -> None:
@@ -395,6 +450,9 @@ def _prepare_source(model: dict[str, Any], source_dir: Path) -> None:
         _run(["git", "clone", repository, str(source_dir)])
     if not (source_dir / ".git").is_dir():
         raise RuntimeError(f"External source path is not a git checkout: {source_dir}")
+    actual = _git_commit(source_dir)
+    if actual == commit:
+        return
     _run(["git", "-C", str(source_dir), "fetch", "origin", commit])
     _run(["git", "-C", str(source_dir), "checkout", "--detach", commit])
     _run(["git", "-C", str(source_dir), "reset", "--hard", commit])
@@ -414,11 +472,58 @@ def _prepare_environment(
 ) -> None:
     executable = _resolve_micromamba(micromamba)
     environment_dir.parent.mkdir(parents=True, exist_ok=True)
-    _remove_stale_environment(environment_dir)
     environment_lock = _environment_lock_path(str(model["id"]))
+    if (environment_dir / "conda-meta" / "history").is_file():
+        try:
+            _repair_existing_environment(
+                model_id=str(model["id"]),
+                environment_dir=environment_dir,
+                micromamba=executable,
+            )
+        except subprocess.CalledProcessError as exc:
+            print(
+                "Existing environment repair failed; keeping "
+                f"{environment_dir}: {exc}",
+                file=sys.stderr,
+            )
+            raise
+        try:
+            _validate_model_environment(
+                model_id=str(model["id"]),
+                environment_dir=environment_dir,
+                micromamba=executable,
+            )
+            for command in _post_install_commands(str(model["id"])):
+                _run(
+                    [
+                        executable,
+                        "run",
+                        "--prefix",
+                        str(environment_dir),
+                        "bash",
+                        "-lc",
+                        command.format(source=str(source_dir)),
+                    ]
+                )
+            _write_environment_lock(
+                model_id=str(model["id"]),
+                environment_dir=environment_dir,
+                micromamba=executable,
+            )
+            return
+        except subprocess.CalledProcessError as exc:
+            print(
+                "Existing environment failed validation; rebuilding "
+                f"{environment_dir}: {exc}",
+                file=sys.stderr,
+            )
+            _remove_stale_environment(environment_dir)
+            if environment_lock.exists():
+                environment_lock.unlink()
+    _remove_stale_environment(environment_dir)
     if environment_lock.exists():
         environment_lock.unlink()
-    _run(
+    _run_environment_create(
         [
             executable,
             "create",
@@ -429,9 +534,11 @@ def _prepare_environment(
             str(environment_dir),
             "--file",
             str(environment_manifest),
-        ]
+        ],
+        environment_dir=environment_dir,
     )
-    _validate_torch_environment(
+    _validate_model_environment(
+        model_id=str(model["id"]),
         environment_dir=environment_dir,
         micromamba=executable,
     )
@@ -455,14 +562,183 @@ def _prepare_environment(
 
 
 def _remove_stale_environment(environment_dir: Path) -> None:
-    root = (PROJECT_ROOT / "external" / "environments").resolve()
     target = environment_dir.resolve()
-    if target.parent != root:
+    allowed_roots = {
+        (PROJECT_ROOT / "external" / "environments").resolve(),
+        _native_environment_root().resolve(),
+    }
+    if target.parent not in allowed_roots:
         raise RuntimeError(
-            f"Refusing to remove external environment outside {root}: {target}"
+            "Refusing to remove external environment outside approved roots "
+            f"{sorted(str(path) for path in allowed_roots)}: {target}"
         )
     if target.exists():
         shutil.rmtree(target)
+
+
+def _native_environment_root() -> Path:
+    root_override = os.environ.get("HMA_EXTERNAL_ENV_ROOT")
+    if root_override:
+        return Path(root_override).expanduser()
+    return Path.home() / ".cache" / "hma_external" / "environments" / _workspace_key()
+
+
+def _repair_existing_environment(
+    *,
+    model_id: str,
+    environment_dir: Path,
+    micromamba: str,
+) -> None:
+    if model_id == "mambavision_t":
+        if not _mambavision_build_toolchain_available(environment_dir):
+            _run(
+                [
+                    micromamba,
+                    "install",
+                    "--yes",
+                    "--prefix",
+                    str(environment_dir),
+                    "conda-forge::gcc_linux-64=13",
+                    "conda-forge::gxx_linux-64=13",
+                    "conda-forge::ninja",
+                    "conda-forge::packaging",
+                    "nvidia::cuda-nvcc=12.4",
+                    "nvidia::cuda-cudart-dev=12.4",
+                ]
+            )
+        return
+    if model_id != "hat":
+        return
+    if not _hat_cuda_dev_headers_available(environment_dir):
+        _run(
+            [
+                micromamba,
+                "install",
+                "--yes",
+                "--prefix",
+                str(environment_dir),
+                "nvidia::cuda-cudart-dev=11.7.99",
+                "nvidia::cuda-libraries-dev=11.7.*",
+            ]
+        )
+    if not _hat_pillow_legacy_constants_available(
+        environment_dir=environment_dir,
+        micromamba=micromamba,
+    ):
+        _run(
+            [
+                micromamba,
+                "install",
+                "--yes",
+                "--prefix",
+                str(environment_dir),
+                "pillow<10",
+            ]
+        )
+
+
+def _hat_cuda_dev_headers_available(environment_dir: Path) -> bool:
+    include_roots = [
+        environment_dir / "include",
+        environment_dir / "targets" / "x86_64-linux" / "include",
+    ]
+    required = (
+        "cuda_runtime.h",
+        "cublas_v2.h",
+        "cublasLt.h",
+        "cufft.h",
+        "curand.h",
+        "cusolverDn.h",
+        "cusparse.h",
+    )
+    return all(
+        any((root / header).is_file() for root in include_roots)
+        for header in required
+    )
+
+
+def _hat_pillow_legacy_constants_available(
+    *,
+    environment_dir: Path,
+    micromamba: str,
+) -> bool:
+    completed = subprocess.run(
+        [
+            micromamba,
+            "run",
+            "--prefix",
+            str(environment_dir),
+            "python",
+            "-c",
+            "from PIL import Image; raise SystemExit(0 if hasattr(Image, 'LINEAR') else 1)",
+        ],
+        check=False,
+        env=_scratch_runtime_environment(),
+    )
+    return completed.returncode == 0
+
+
+def _mambavision_build_toolchain_available(environment_dir: Path) -> bool:
+    return all(
+        (environment_dir / relative).exists()
+        for relative in (
+            "bin/nvcc",
+            "include/cuda_runtime.h",
+            "bin/x86_64-conda-linux-gnu-gcc",
+            "bin/x86_64-conda-linux-gnu-c++",
+        )
+    )
+
+
+def _validate_model_environment(
+    *,
+    model_id: str,
+    environment_dir: Path,
+    micromamba: str,
+) -> None:
+    _validate_torch_environment(
+        environment_dir=environment_dir,
+        micromamba=micromamba,
+    )
+    if model_id == "hat":
+        for command in (
+            'test -x "${CONDA_PREFIX}/bin/nvcc"',
+            (
+                'for header in cuda_runtime.h cublas_v2.h cublasLt.h cufft.h '
+                'curand.h cusolverDn.h cusparse.h; do '
+                'test -f "${CONDA_PREFIX}/include/${header}" || '
+                'test -f "${CONDA_PREFIX}/targets/x86_64-linux/include/${header}" || '
+                '(echo "${header} missing; install nvidia::cuda-libraries-dev=11.7.*" >&2; exit 1); '
+                'done'
+            ),
+            (
+                'compiler="${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-c++"; '
+                'test -x "$compiler"; '
+                'version="$("$compiler" -dumpfullversion -dumpversion)"; '
+                'major="${version%%.*}"; '
+                'test -n "$major"; '
+                'test "$major" -le 11'
+            ),
+            (
+                'python -c "import importlib.metadata as md; '
+                "mm=lambda name: tuple(map(int, md.version(name).split('.')[:2])); "
+                "assert mm('pip') <= (22, 3), md.version('pip'); "
+                "assert mm('setuptools') <= (65, 5), md.version('setuptools'); "
+                "assert mm('wheel') <= (0, 37), md.version('wheel')"
+                '"'
+            ),
+        ):
+            _run(
+                [
+                    micromamba,
+                    "run",
+                    "--prefix",
+                    str(environment_dir),
+                    "bash",
+                    "-lc",
+                    command,
+                ]
+            )
 
 
 def _validate_torch_environment(
@@ -500,15 +776,86 @@ def _post_install_commands(model_id: str) -> list[str]:
             'python scripts/apply_external_patches.py --model '
             f'{model_id} --source "{{source}}"'
         ]
-    if model_id in {"mambavision_t", "dinov3_small_patch16"}:
+    if model_id == "mambavision_t":
+        return [
+            (
+                'CUDA_HOME="${CONDA_PREFIX}" '
+                'CC="${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-gcc" '
+                'CXX="${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-c++" '
+                'CUDAHOSTCXX="${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-c++" '
+                'MAMBA_FORCE_BUILD=TRUE '
+                'MAX_JOBS="${MAX_JOBS:-2}" '
+                'TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.9}" '
+                'python -m pip install --no-build-isolation --no-cache-dir '
+                '"mamba-ssm==2.2.4"'
+            ),
+            'python -m pip install -e "{source}"',
+        ]
+    if model_id == "dinov3_small_patch16":
         return ['python -m pip install -e "{source}"']
     if model_id == "siglip_base_patch16":
         return []
     if model_id == "hat":
         return [
-            'python -m pip install -r "{source}/requirements.txt"',
-            'python -m pip install "git+https://github.com/facebookresearch/detectron2.git"',
-            'cd "{source}/hat/pixel_decoder/ops" && sh make.sh',
+            "python -m pip install "
+            '"numpy<2" '
+            '"opencv-python==4.7.0.68" '
+            '"scipy==1.10.0" '
+            '"cython==0.29.32" '
+            '"tqdm==4.64.1" '
+            '"yacs==0.1.8" '
+            '"fvcore==0.1.5.post20221221" '
+            '"iopath==0.1.10" '
+            '"pycocotools==2.0.6" '
+            '"timm==0.6.12" '
+            '"scikit-image==0.19.3" '
+            '"tensorboard==2.11.0" '
+            '"submitit==1.4.5" '
+            '"tabulate==0.9.0" '
+            '"protobuf==3.20.3" '
+            '"fairscale==0.4.13"',
+            (
+                'python -c "import detectron2" || '
+                '(set -o pipefail; mkdir -p outputs/paper1_publication_v0/preflight/setup_logs; '
+                'log="outputs/paper1_publication_v0/preflight/setup_logs/hat_detectron2_build_latest.log"; '
+                'cuda_includes="${{CONDA_PREFIX}}/include"; '
+                'if [ -d "${{CONDA_PREFIX}}/targets/x86_64-linux/include" ]; then '
+                'cuda_includes="${{CONDA_PREFIX}}/targets/x86_64-linux/include:${{cuda_includes}}"; '
+                'fi; '
+                'CC="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-gcc" '
+                'CXX="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-c++" '
+                'CUDAHOSTCXX="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-c++" '
+                'CUDA_HOME="${{CONDA_PREFIX}}" FORCE_CUDA=1 '
+                'SETUPTOOLS_USE_DISTUTILS=stdlib '
+                'CPATH="${{cuda_includes}}:${{CPATH:-}}" '
+                'C_INCLUDE_PATH="${{cuda_includes}}:${{C_INCLUDE_PATH:-}}" '
+                'CPLUS_INCLUDE_PATH="${{cuda_includes}}:${{CPLUS_INCLUDE_PATH:-}}" '
+                'TORCH_CUDA_ARCH_LIST="${{TORCH_CUDA_ARCH_LIST:-7.5;8.0;8.6}}" '
+                'MAX_JOBS="${{MAX_JOBS:-2}}" '
+                'python -m pip install -vv --no-build-isolation '
+                '"git+https://github.com/facebookresearch/detectron2.git@v0.6" '
+                '2>&1 | tee "$log")'
+            ),
+            (
+                'python -c "import MultiScaleDeformableAttention" || '
+                '(set -o pipefail; mkdir -p outputs/paper1_publication_v0/preflight/setup_logs; '
+                'log="outputs/paper1_publication_v0/preflight/setup_logs/hat_msdeformattn_build_latest.log"; '
+                'cd "{source}/hat/pixel_decoder/ops" && '
+                'cuda_includes="${{CONDA_PREFIX}}/include"; '
+                'if [ -d "${{CONDA_PREFIX}}/targets/x86_64-linux/include" ]; then '
+                'cuda_includes="${{CONDA_PREFIX}}/targets/x86_64-linux/include:${{cuda_includes}}"; '
+                'fi; '
+                'CC="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-gcc" '
+                'CXX="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-c++" '
+                'CUDAHOSTCXX="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-c++" '
+                'CUDA_HOME="${{CONDA_PREFIX}}" FORCE_CUDA=1 '
+                'SETUPTOOLS_USE_DISTUTILS=stdlib '
+                'CPATH="${{cuda_includes}}:${{CPATH:-}}" '
+                'C_INCLUDE_PATH="${{cuda_includes}}:${{C_INCLUDE_PATH:-}}" '
+                'CPLUS_INCLUDE_PATH="${{cuda_includes}}:${{CPLUS_INCLUDE_PATH:-}}" '
+                'TORCH_CUDA_ARCH_LIST="${{TORCH_CUDA_ARCH_LIST:-7.5;8.0;8.6}}" '
+                'MAX_JOBS="${{MAX_JOBS:-2}}" sh make.sh 2>&1 | tee "$OLDPWD/$log")'
+            ),
         ]
     if model_id == "scandiff":
         return ['python -m pip install -r "{source}/requirements.txt"']
@@ -560,9 +907,16 @@ def _download_checkpoint(
         url = checkpoint.get("url")
         if not url:
             raise RuntimeError(f"Model '{canonical_id}' has no checkpoint download URL")
-        temporary = target.with_suffix(target.suffix + ".partial")
-        urllib.request.urlretrieve(str(url), temporary)
-        os.replace(temporary, target)
+        additional_urls = [str(value) for value in checkpoint.get("additional_urls", [])]
+        if additional_urls:
+            target.mkdir(parents=True, exist_ok=True)
+            for asset_url in [str(url), *additional_urls]:
+                _download_checkpoint_asset(asset_url, target)
+        elif str(url).lower().endswith(".zip") and target.suffix.lower() != ".zip":
+            target.mkdir(parents=True, exist_ok=True)
+            _download_checkpoint_asset(str(url), target)
+        else:
+            _download_single_file(str(url), target)
     digest = sha256_tree(target)
     lock = {
         "schema_version": "hma.external.checkpoint_lock.v1",
@@ -575,6 +929,152 @@ def _download_checkpoint(
     lock_path.write_text(json.dumps(lock, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _download_checkpoint_asset(url: str, target_dir: Path) -> None:
+    filename = _download_filename(url)
+    downloaded = target_dir / filename
+    _download_single_file(url, downloaded)
+    if downloaded.suffix.lower() == ".zip":
+        extract_dir = target_dir / downloaded.stem
+        extract_dir.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(downloaded) as archive:
+            archive.extractall(extract_dir)
+
+
+def _download_single_file(url: str, target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    resolved = _google_drive_download_url(url)
+    temporary = target.with_name(f"{target.name}.partial")
+    if target.is_file() and target.stat().st_size > 0:
+        print(
+            f"Checkpoint asset already present: {target} "
+            f"({target.stat().st_size:,} bytes)",
+            file=sys.stderr,
+        )
+        return
+    attempts = int(os.environ.get("HMA_DOWNLOAD_ATTEMPTS", "6"))
+    attempts = max(1, attempts)
+    last_error: BaseException | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            _download_single_file_attempt(
+                url=url,
+                resolved=resolved,
+                target=target,
+                temporary=temporary,
+                attempt=attempt,
+                attempts=attempts,
+            )
+            return
+        except KeyboardInterrupt:
+            print(
+                f"Interrupted checkpoint download; kept partial file at {temporary}",
+                file=sys.stderr,
+            )
+            raise
+        except (TimeoutError, OSError, urllib.error.URLError) as exc:
+            last_error = exc
+            print(
+                f"Checkpoint download attempt {attempt}/{attempts} failed for "
+                f"{target.name}: {type(exc).__name__}: {exc}",
+                file=sys.stderr,
+            )
+            if attempt == attempts:
+                break
+            time.sleep(min(30, 2**attempt))
+    raise RuntimeError(
+        f"checkpoint download failed after {attempts} attempts; "
+        f"partial file kept at {temporary}"
+    ) from last_error
+
+
+def _download_single_file_attempt(
+    *,
+    url: str,
+    resolved: str,
+    target: Path,
+    temporary: Path,
+    attempt: int,
+    attempts: int,
+) -> None:
+    read_timeout = float(os.environ.get("HMA_DOWNLOAD_READ_TIMEOUT_SECS", "90"))
+    progress_interval = float(os.environ.get("HMA_DOWNLOAD_PROGRESS_SECS", "15"))
+    chunk_size = int(os.environ.get("HMA_DOWNLOAD_CHUNK_BYTES", str(1024 * 1024)))
+    resume_from = temporary.stat().st_size if temporary.is_file() else 0
+    request = urllib.request.Request(resolved)
+    if resume_from:
+        request.add_header("Range", f"bytes={resume_from}-")
+    print(
+        f"Downloading checkpoint asset {target.name} "
+        f"(attempt {attempt}/{attempts}, resume={resume_from:,} bytes)",
+        file=sys.stderr,
+    )
+    with urllib.request.urlopen(request, timeout=read_timeout) as response:
+        status = getattr(response, "status", None)
+        if resume_from and status != 206:
+            print(
+                f"Server did not honor resume for {target.name}; restarting file",
+                file=sys.stderr,
+            )
+            resume_from = 0
+        content_length = response.headers.get("Content-Length")
+        total = int(content_length) + resume_from if content_length else None
+        mode = "ab" if resume_from else "wb"
+        downloaded = resume_from
+        last_progress = time.monotonic()
+        with temporary.open(mode) as handle:
+            if not resume_from:
+                first = response.read(512)
+                content_type = response.headers.get("Content-Type", "")
+                if (
+                    "text/html" in content_type.lower()
+                    or first.lstrip().lower().startswith(b"<!doctype html")
+                    or first.lstrip().lower().startswith(b"<html")
+                ):
+                    raise RuntimeError(
+                        "download returned an HTML page instead of checkpoint bytes; "
+                        f"url={url}"
+                    )
+                handle.write(first)
+                downloaded += len(first)
+            while True:
+                chunk = response.read(chunk_size)
+                if not chunk:
+                    break
+                handle.write(chunk)
+                downloaded += len(chunk)
+                now = time.monotonic()
+                if now - last_progress >= progress_interval:
+                    total_text = f"{total:,}" if total else "unknown"
+                    print(
+                        f"Downloading {target.name}: {downloaded:,}/{total_text} bytes",
+                        file=sys.stderr,
+                    )
+                    last_progress = now
+    os.replace(temporary, target)
+    print(
+        f"Finished checkpoint asset {target.name}: {target.stat().st_size:,} bytes",
+        file=sys.stderr,
+    )
+
+
+def _google_drive_download_url(url: str) -> str:
+    marker = "drive.google.com/file/d/"
+    if marker not in url:
+        return url
+    file_id = url.split(marker, 1)[1].split("/", 1)[0]
+    return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+
+def _download_filename(url: str) -> str:
+    if "drive.google.com/file/d/" in url:
+        return "google_drive_checkpoint"
+    parsed = url.split("?", 1)[0].rstrip("/")
+    name = Path(parsed).name
+    if not name:
+        raise RuntimeError(f"Cannot infer checkpoint filename from URL: {url}")
+    return name
+
+
 def _run_adapter_smoke(
     *,
     canonical_id: str,
@@ -582,21 +1082,50 @@ def _run_adapter_smoke(
     micromamba: str,
 ) -> None:
     executable = _resolve_micromamba(micromamba)
-    _run(
-        [
-            str(executable),
-            "run",
-            "--prefix",
-            str(environment_dir),
-            "python",
-            "scripts/run_external_model.py",
-            "--model",
-            canonical_id,
-            "--smoke-only",
-            "--device",
-            "cpu",
-        ]
+    command = [
+        str(executable),
+        "run",
+        "--prefix",
+        str(environment_dir),
+        "python",
+        "scripts/run_external_model.py",
+        "--model",
+        canonical_id,
+        "--smoke-only",
+        "--device",
+        "cpu",
+    ]
+    log_path = (
+        PROJECT_ROOT
+        / "outputs"
+        / "paper1_publication_v0"
+        / "preflight"
+        / "setup_logs"
+        / f"{canonical_id}_smoke_latest.log"
     )
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    completed = subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=PROJECT_ROOT,
+        env=_scratch_runtime_environment(),
+    )
+    log_path.write_text(
+        "$ "
+        + " ".join(command)
+        + f"\nEXIT_CODE={completed.returncode}\n\n"
+        + "# stdout\n"
+        + completed.stdout
+        + "\n# stderr\n"
+        + completed.stderr,
+        encoding="utf-8",
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"{canonical_id} smoke failed; see {log_path.relative_to(PROJECT_ROOT)}"
+        )
 
 
 def _checkpoint_path(registry: Any, model: dict[str, Any]) -> Path | None:
@@ -722,6 +1251,29 @@ def _run(command: list[str]) -> None:
         check=True,
         env=_scratch_runtime_environment(),
     )
+
+
+def _run_environment_create(command: list[str], *, environment_dir: Path) -> None:
+    attempts = int(os.environ.get("HMA_CONDA_CREATE_ATTEMPTS", "4"))
+    attempts = max(1, attempts)
+    last_error: subprocess.CalledProcessError | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            _run(command)
+            return
+        except subprocess.CalledProcessError as exc:
+            last_error = exc
+            if attempt >= attempts:
+                break
+            print(
+                "External environment create failed; removing partial prefix "
+                f"and retrying {attempt + 1}/{attempts}: {environment_dir}",
+                file=sys.stderr,
+            )
+            _remove_stale_environment(environment_dir)
+            time.sleep(min(30, 5 * attempt))
+    if last_error is not None:
+        raise last_error
 
 
 def parse_args() -> argparse.Namespace:

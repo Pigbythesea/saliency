@@ -1,0 +1,58 @@
+seed: 123
+device: cpu
+experiment:
+  name: admission_tome_deit_small_r13_subj01_V1
+dataset:
+  name: nsd_algonauts
+  label: nsd_algonauts_admission
+  root: data/raw/nsd_algonauts
+  manifest_path: data/manifests/nsd_algonauts_prf_visualrois_500_manifest.csv
+  split: train
+  subject_id: subj01
+  roi: V1
+  max_items: 96
+  validate_files: true
+model:
+  name: tome_deit_small_r13
+  backend: external_artifact
+  pretrained: true
+  eval_mode: true
+external_artifact:
+  path: outputs/paper1_admission_v1/cluster/external/neural/tome_deit_small_r13
+  verify_hashes: true
+  feature_cache_dir: outputs/paper1_admission_v1/cluster/cache/tome_deit_small_r13/raw_features
+preprocessing:
+  input_size: [224, 224]
+  interpolation: bicubic
+  crop_pct: 0.875
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+neural:
+  layers: [blocks.11]
+  response_key: roi_responses
+  noise_ceiling_key: noise_ceiling
+  feature_reduction: flatten_pca
+  pca_components: 24
+  pca_solver: randomized
+  pca_whiten: false
+  feature_reduction_seed: 123
+  pca_cache_dir: outputs/paper1_admission_v1/cluster/cache/tome_deit_small_r13/pca
+  train_fraction: 0.8
+  validation_fraction: 0.2
+  ridge_alphas: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+  metric: correlation
+  selection:
+    enabled: false
+  rsa:
+    enabled: false
+  geometry:
+    enabled: true
+    methods: [debiased_linear_cka, linear_cka, subset_rsa]
+    subset_sizes: [64]
+    subset_seeds: [123]
+    null_control_seeds: [123]
+    bootstrap_resamples: 200
+    bootstrap_seed: 123
+    bootstrap_confidence: 0.95
+output:
+  dir: outputs/paper1_admission_v1/cluster/neural/tome_deit_small_r13
