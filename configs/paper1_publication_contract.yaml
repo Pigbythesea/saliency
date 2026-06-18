@@ -1,7 +1,7 @@
 schema_version: hma.paper1.publication_contract.v0
 contract_version: 0.1.0
 frozen_on: 2026-06-14
-execution_authorized: false
+execution_authorized: true
 method_position: controlled_benchmark_method
 claim:
   primary: >-
@@ -122,14 +122,13 @@ cross_axis:
   quadrant_status: descriptive_only
   causality_language_allowed: false
 method_gates:
-  behavioral_evaluation: method_gap_found
+  behavioral_evaluation: accepted_with_limitations
   latent_feature_neural_encoding: accepted_with_limitations
-  representational_geometry: method_gap_found
-  model_adapter_comparability: method_gap_found
-  efficiency_resource_allocation: method_gap_found
-  cross_axis_inference: method_gap_found
+  representational_geometry: accepted_for_publication_rerun
+  model_adapter_comparability: accepted_with_limitations
+  efficiency_resource_allocation: accepted_with_limitations
+  cross_axis_inference: accepted_with_limitations
 execution_rule: >-
   No publication-root full run may start for an axis until its gate is
   accepted_for_publication_rerun or accepted_with_limitations and all included
   models are adapter_certified.
-

@@ -1,0 +1,48 @@
+schema_version: hma.paper1.efficiency_resource_rerun_plan.v0
+lane: efficiency_resource
+contract: configs/paper1_publication_contract.yaml
+execution_enabled: true
+model_eligibility_table: outputs/paper1_publication_v0/preflight/model_rerun_eligibility_table.csv
+model_certification_summary: outputs/paper1_publication_v0/preflight/model_certification_summary.csv
+outputs:
+  efficiency_profiles: outputs/paper1_publication_v0/efficiency/efficiency_profiles.csv
+  resource_allocation_profiles: outputs/paper1_publication_v0/efficiency/resource_allocation_profiles.csv
+  audit: outputs/paper1_publication_v0/audits/efficiency_resource_audit.csv
+  failure_log: outputs/paper1_publication_v0/logs/efficiency_clean_rerun_failure.log
+measurement:
+  hardware: cluster_l40s_or_recorded_local_gpu
+  precision: fp32_or_adapter_native_recorded
+  batch_size: 1
+  image_resolution: model_native_or_configured_input_resolution
+  preprocessing: registry_preprocessing_contract
+cost_schema:
+  matched_cost_fields:
+    - hardware
+    - precision
+    - batch_size
+    - image_resolution
+    - preprocessing
+  static_metric_fields:
+    - parameter_count
+    - theoretical_flops_or_macs
+    - profiler_realized_flops_or_macs
+    - latency_ms_per_image
+    - peak_memory_bytes
+  resource_allocation_fields:
+    - token_count
+    - retained_token_fraction
+    - merge_statistics
+    - selected_glimpse_count
+    - fixation_or_scanpath_length
+    - stopping_behavior
+    - foveated_high_resolution_area
+  total_cost_fields:
+    - total_cost_per_image
+    - total_cost_per_task
+    - sequential_step_count
+    - stopping_behavior
+admission:
+  require_efficiency_gate: accepted_with_limitations_or_better
+  require_adapter_certified: true
+  preserve_matched_cost_fields: true
+  preserve_total_cost_for_sequential_models: true

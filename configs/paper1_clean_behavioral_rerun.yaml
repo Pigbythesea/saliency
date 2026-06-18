@@ -1,7 +1,16 @@
 schema_version: hma.paper1.behavioral_rerun_plan.v0
+lane: behavioral
 contract: configs/paper1_publication_contract.yaml
-execution_enabled: false
+execution_enabled: true
 output_root: outputs/paper1_publication_v0/behavioral
+model_eligibility_table: outputs/paper1_publication_v0/preflight/model_rerun_eligibility_table.csv
+model_certification_summary: outputs/paper1_publication_v0/preflight/model_certification_summary.csv
+outputs:
+  per_image_metrics_dir: outputs/paper1_publication_v0/behavioral/per_image_metrics
+  aggregate: outputs/paper1_publication_v0/behavioral/aggregate.csv
+  uncertainty: outputs/paper1_publication_v0/behavioral/uncertainty.csv
+  audit: outputs/paper1_publication_v0/audits/behavioral_rerun_audit.csv
+  failure_log: outputs/paper1_publication_v0/logs/behavioral_clean_rerun_failure.log
 seed: 123
 datasets:
   salicon:

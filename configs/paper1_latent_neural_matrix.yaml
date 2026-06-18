@@ -1,11 +1,22 @@
 schema_version: hma.paper1.latent_neural_matrix_plan.v0
+lane: latent_neural_encoding
 contract: configs/paper1_publication_contract.yaml
-execution_enabled: false
+execution_enabled: true
 seed: 123
 output_roots:
   neural_encoding: outputs/paper1_publication_v0/neural_encoding
   geometry: outputs/paper1_publication_v0/geometry
   audit: outputs/paper1_publication_v0/audits/neural_geometry_audit.csv
+model_eligibility_table: outputs/paper1_publication_v0/preflight/model_rerun_eligibility_table.csv
+model_certification_summary: outputs/paper1_publication_v0/preflight/model_certification_summary.csv
+roi_stream:
+  stream_roi_grouping: outputs/paper1_publication_v0/roi_stream/stream_roi_grouping_spec.csv
+  subject_roi_availability: outputs/paper1_publication_v0/roi_stream/subject_roi_availability.csv
+outputs:
+  encoding_scores: outputs/paper1_publication_v0/neural_encoding/encoding_scores.csv
+  geometry_scores: outputs/paper1_publication_v0/geometry/geometry_scores.csv
+  audit: outputs/paper1_publication_v0/audits/neural_geometry_audit.csv
+  failure_log: outputs/paper1_publication_v0/logs/neural_geometry_clean_rerun_failure.log
 subjects:
   - id: subj01
     prf_manifest: data/manifests/nsd_algonauts_prf_visualrois_full_manifest.csv

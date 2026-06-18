@@ -1,6 +1,6 @@
 # HMA Project Status And Next Steps
 
-Updated: 2026-06-16
+Updated: 2026-06-18
 
 ## Purpose And Codex Operating Contract
 
@@ -41,7 +41,7 @@ No result outside this root is final Paper 1 evidence unless it is explicitly re
 
 No publication-root full rerun is allowed unless the relevant behavioral, neural, geometry, adapter-comparability, efficiency, and cross-axis method gates are passed or explicitly accepted with limitations.
 
-The current active task is **Blocked-Model Preparation And Rerun Authorization Repair**. It is not interpretation, manuscript writing, first-clean-rerun execution, unrestricted cluster execution, adapter-only installation, metric-only implementation, or model-universe reduction. The previous preflight authorized a narrowed rerun subset too early. The immediate task is to resolve every Codex-resolvable blocked model, implement remaining method/control leftovers, run actual DeepGaze tensor-export validation, and regenerate rerun-readiness artifacts before any first clean rerun is allowed.
+The current active task is **Authorized Rerun Verification And Bounded Clean Rerun Execution**. It is not interpretation, manuscript writing, unrestricted cluster execution, adapter-only installation, metric-only implementation, model-universe reduction, or another blocked-model repair loop. The blocked-model repair pass is complete, but artifact-level authorization verification superseded the earlier regenerated preflight claim. The clean rerun is blocked until the frozen contract execution flag, clean lane config flags, and dedicated clean runner scripts are made consistent with the publication contract. Do not execute clean lanes until `outputs/paper1_publication_v0/preflight/authorization_verification_table.csv` and `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv` pass.
 
 
 The `Current Implementation Progress` section must summarize publication-readiness state only; it must not re-list historical runs, smoke passes, old Matrix V2 outputs, old result numbers, or debugging milestones.
@@ -176,11 +176,13 @@ Current publication-facing status:
 
 - No final Paper 1 publication evidence matrix exists yet.
 - No legacy output is accepted as final paper evidence by default.
-- The previous first-clean-rerun authorization is suspended because it excludes multiple suitable, still-preparable model families and allows a narrowed evidence subset to define the next project step.
-- The next accepted scientific artifact must be a blocked-model preparation and rerun-authorization repair pass, not a clean rerun.
-- Admission-panel and preflight artifacts remain provenance until they are regenerated after blocked-model repair.
-- Static DeiT-S, DynamicViT, and ToMe remain useful efficient-computation candidates, but they must not define the final model scope or paper interpretation.
-- All final behavioral, latent-feature neural, latent-feature geometry, efficiency, and cross-axis evidence must be regenerated under the publication output root only after model, method, control, ROI/stream, data, environment, and expected-output readiness are revalidated.
+- The blocked-model repair pass is complete according to the regenerated preflight artifacts.
+- Artifact-level verification passed model/data/method/cache/DeepGaze tensor checks, but clean execution remains blocked by the frozen contract flag, disabled/missing clean configs, and missing dedicated clean runner scripts.
+- The next accepted scientific artifact remains the bounded first clean rerun under `outputs/paper1_publication_v0/`, but only after authorization and execution-path verification pass.
+- Admission-panel artifacts remain provenance only. Regenerated preflight artifacts are authorization evidence, not final scientific evidence.
+- Static DeiT-S, DynamicViT, ToMe, DINOv3, SigLIP, MambaVision, DeepGaze, HAT, ScanDiff, AdaptiveNN, certified anchors, and controls must enter only through the repaired eligibility/config tables.
+- SemBA/SemBA-FAST are excluded from the active plan only as audited unavailable rows; their exclusion must remain explicit in audit/config artifacts.
+- All final behavioral, latent-feature neural, latent-feature geometry, efficiency, and cross-axis evidence must be regenerated under the publication output root and audited to exclude legacy/admission contamination.
 
 Publication output root:
 
@@ -479,7 +481,7 @@ If observational cross-axis results remain weak after the full contract, shift m
 
 ## Current Implementation Progress
 
-Updated: 2026-06-16
+Updated: 2026-06-18
 
 Current implementation state is classified by **publication readiness**, not by smoke tests, local convenience runs, or legacy Matrix V2 progress.
 
@@ -492,59 +494,46 @@ Current implementation readiness is:
 | publication contract | frozen_v0 | `configs/paper1_publication_contract.yaml` remains the governing contract |
 | publication output root | preflight_artifacts_only_no_final_evidence | `outputs/paper1_publication_v0/` contains admission/preflight artifacts; no clean rerun evidence is final |
 | evidence reset | complete | legacy roots remain scaffold/provenance unless regenerated or equivalence-certified |
-| first clean rerun authorization | authorized_after_repair_preflight | regenerated preflight reports all gates ready and authorizes only the bounded clean rerun scope; no clean rerun was run |
+| first clean rerun authorization | authorized_after_strict_infrastructure_verification | regenerated preflight and strict verification authorize the bounded clean rerun execution path; no full clean rerun has been launched |
 | behavioral evaluation method | accepted_with_limitations_method_leftovers_ready | map metrics, uncertainty, conditional-scanpath interfaces, and leakage-safe empirical spatial prior are implemented; non-DeepGaze scanpath/foveated breadth remains model-setup-limited |
-| latent-feature neural encoding method | accepted_with_limitations_export_validated | controlled frozen-feature PCA/ridge is allowed for certified tensors; DeepGaze IIE, DeepGaze III, and DeepGaze MSDB tensor exports are deterministic after local CUDA validation |
+| latent-feature neural encoding method | accepted_with_limitations_export_validated_for_deepgaze | controlled frozen-feature PCA/ridge is allowed for certified tensors; DeepGaze IIE/III/MSDB bounded tensor exports validate deterministically |
 | representational geometry method | accepted_for_publication_rerun_after_tensor_validation | debiased CKA/RSA machinery is ready for certified tensors; geometry execution must wait until model tensor exports are actually validated |
-| efficiency/resource-allocation method | accepted_with_limitations_repaired_preflight | static/token-pruning/token-merging schemas plus AdaptiveNN/HAT/ScanDiff resource hooks are certified; SemBA-family candidates were audited and excluded from the active plan because the inspected public GitHub repo provides code but no released model/checkpoint artifact |
-| cross-axis inference method | accepted_with_limitations_no_interpretation | readiness/missingness reporting is allowed; convergence/dissociation interpretation remains blocked |
-| model adapter comparability | repaired_preflight_ready | adapters/setup metadata were extended; active publication rows are certified or admitted with explicit limitations; SemBA-family rows are excluded as unavailable rather than carried as blockers |
-| easy public image encoders | adapter_certified | DINOv3, MambaVision, and SigLIP are now source/environment/checkpoint/adapter/smoke certified from local Hugging Face snapshots |
-| DINOv3 | adapter_certified | `dinov3_small_patch16` is certified against the manually supplied gated Hugging Face snapshot with source, environment, checkpoint, adapter, smoke, and evidence stages ready |
+| efficiency/resource-allocation method | accepted_with_limitations_clean_runner_ready | static/token-pruning/token-merging schemas and total-cost/resource hooks are preflight-certified where available; clean efficiency/resource config and dry-run runner exist |
+| cross-axis inference method | accepted_with_limitations_no_interpretation | cross-axis assembly/audit may run after clean evidence exists; convergence/dissociation interpretation remains blocked until publication-root outputs are validated |
+| model adapter comparability | repaired_preflight_certified | current regenerated preflight has no non-diagnostic uncertified model rows |
+| easy public image encoders | preflight_certified | SigLIP and MambaVision have adapter-certification rows and checkpoint locks in the regenerated preflight |
+| DINOv3 | preflight_certified | DINOv3 has an adapter-certification row and checkpoint lock in the regenerated preflight |
 | empirical spatial prior | implemented_ready | leakage-safe train-split empirical spatial prior is registered, tested, and included in method readiness |
-| DeepGaze IIE/III/MSDB | validated | IIE latent, III conditional/scanpath, and MSDB latent exports are deterministic; MSDB was repaired locally on CUDA after the earlier CPU timeout |
-| scanpath/foveated/adaptive candidates | ready_with_unavailable_semba_exclusion | DeepGaze III, HAT, AdaptiveNN, and ScanDiff are certified scanpath/foveated candidates; SemBA/SemBA-FAST are audited unavailable and removed from the active research plan |
+| DeepGaze IIE/III/MSDB | deterministic_tensor_exports_validated | IIE latent, III conditional/scanpath, and MSDB latent bounded exports validate deterministically |
+| scanpath/foveated/adaptive candidates | preflight_certified | DeepGaze III, AdaptiveNN, HAT, ScanDiff free-view, and ScanDiff visual-search are certified scanpath/foveated candidates |
 | efficient-computation models | keep_in_scope_not_main_bottleneck | DynamicViT and ToMe stay in scope, but they are not the central next-session target |
 | neural ROI/stream scope | partial_ready | early retinotopic and subj01 stream manifests exist; stream/category coverage limits must remain explicit |
-| cluster execution | authorized_bounded_scope_not_launched | first clean rerun preflight is authorized, but Codex did not launch a cluster job; use the generated bounded plan only |
+| cluster execution | user_run_commands_ready_full_run_pending | cluster command plan exists for sync, dry-run verification, full lane commands, log monitoring, copy-back, and import validation; Codex has not run cluster jobs |
 | legacy outputs | excluded | no existing empirical root is accepted or equivalence-certified as final Paper 1 evidence |
 
-### Current blockers to real paper progress
+### Current checks before real paper progress
 
-The regenerated preflight object authorizes the bounded first clean rerun scope. Remaining setup blockers are:
+The regenerated preflight and strict artifact-level verification now authorize the bounded first clean rerun execution path. Model/data/method/cache/DeepGaze checks pass, clean configs are enabled, dedicated clean runners exist, and runner dry-runs pass. Before execution, Codex or the user must still verify:
 
-1. none; `outputs/paper1_publication_v0/preflight/user_action_checklist.csv` is empty and `blocked_model_repair=ready`;
-2. DINOv3 `dinov3_small_patch16`, MambaVision `mambavision_t`, and SigLIP `siglip_base_patch16` are now source/checkpoint/environment/adapter/smoke certified from local Hugging Face snapshots and have been removed from `user_action_checklist.csv`;
-3. HAT, AdaptiveNN, MambaVision, SigLIP, and ScanDiff are now source/checkpoint/environment/smoke certified and have been removed from `user_action_checklist.csv`; they are not remaining rerun blockers;
-4. SemBA and SemBA-FAST were audited against `https://github.com/vislab-tecnico-lisboa/SemBA.git` and removed from the active publication plan because the public repo has code and a CC0 license but no released SemBA model/checkpoint artifact or GitHub release/package to certify;
-5. DeepGaze IIE, DeepGaze III, and DeepGaze MSDB tensor exports are deterministic; MSDB-specific tensor validation is no longer a blocker after local CUDA repair;
-6. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` reports `first_clean_rerun_authorization=authorized`;
-7. no clean behavioral, latent neural encoding, geometry, efficiency, or cross-axis artifact is accepted as Paper 1 publication evidence.
+1. `outputs/paper1_publication_v0/preflight/user_action_checklist.csv` contains no blocked execution-gate rows;
+2. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` reports `first_clean_rerun_authorization=authorized`;
+3. `model_certification_summary.csv`, `model_setup_attempts.csv`, and `model_rerun_eligibility_table.csv` agree on which models enter behavioral, latent neural/geometry, efficiency/resource, and scanpath/task-search axes;
+4. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, AdaptiveNN, DeepGaze IIE/III/MSDB, DynamicViT, ToMe, local anchors, priors, random baseline, and task prior have actual source/checkpoint/environment/adapter/certification records where applicable;
+5. DeepGaze tensor exports and conditional/scanpath outputs actually exist and pass deterministic validation, rather than only having manifests;
+6. SemBA/SemBA-FAST exclusion is explicit in registry/config/audit artifacts and does not silently remove the model family from the model-universe record;
+7. clean-rerun configs include only eligible certified rows, have `execution_enabled: true`, and do not reuse admission-panel outputs as clean evidence;
+8. dedicated clean runner scripts or commands exist and pass `--dry-run` for behavioral, latent neural encoding, geometry, efficiency/resource, and cross-axis assembly;
+9. expected-output manifests define output paths, row/file expectations, and import validation;
+10. no clean behavioral, latent neural encoding, geometry, efficiency, or cross-axis artifact is accepted as Paper 1 publication evidence until the bounded rerun finishes and passes audit.
 
-<!-- Historical pre-repair blocker list retained only as provenance; do not use for current status.
-
-The previous preflight object is no longer sufficient for rerun execution. Remaining blockers are:
-
-1. the current first-clean-rerun plan excludes multiple suitable models that are likely Codex-preparable, including SigLIP, MambaVision, ScanDiff, SemBA/SemBA-FAST, AdaptiveNN, and the empirical spatial prior;
-2. empirical spatial prior remains unimplemented even though it is a local control with no external model dependency;
-3. DeepGaze latent/conditional rows are still insufficient if only manifests exist; actual tensor export, output files, shape/order/determinism checks, and hashable validation records are required;
-4. SigLIP and MambaVision should not remain blocked without real Hugging Face/source download attempts, adapter execution, and certification logs;
-5. DINOv3 should not remain blocked until Codex attempts official source/weight access and distinguishes a genuine gated-access failure from an unattempted setup;
-6. ScanDiff, HAT, SemBA/SemBA-FAST, and AdaptiveNN should not remain blocked through vague license/checkpoint/environment language; each needs an actual clone/install/download/run attempt or an explicit user-required step;
-7. “license clearance” is not a valid stopping reason unless the repo or model card explicitly restricts the planned research use; Codex must record the license and continue when use is permitted;
-8. “network unavailable” is not a valid stopping reason unless a concrete command fails and the command, error, and log path are recorded;
-9. cluster execution remains premature because the model universe has not been repaired and no clean full-matrix runner is registered;
-10. no clean behavioral, latent neural encoding, geometry, efficiency, or cross-axis artifact is accepted as Paper 1 publication evidence.
-
--->
 
 ### Current implementation priority
 
 Active priority:
 
-> Execute only the bounded clean-rerun scope described in `outputs/paper1_publication_v0/preflight/first_clean_rerun_plan.md`; SemBA/SemBA-FAST are excluded as unavailable and no longer block the plan.
+> Run the bounded first clean rerun only through the verified dedicated clean runners or the generated user-run cluster commands. Do not use admission-panel runners as clean-evidence substitutes, and do not interpret any results until post-run clean evidence audit passes.
 
-This is not a rerun session, DynamicViT/ToMe session, cluster session, Markdown session, or smoke-test session. The canonical artifact list lives in `Next Concrete Milestone`. Do not duplicate it here.
+This is not another blocked-model repair session, DynamicViT/ToMe-only session, cluster-only session, Markdown session, smoke-test session, or paper-interpretation session. The canonical artifact list lives in `Next Concrete Milestone`. Do not duplicate it here.
 
 ### Required end-of-session report
 
@@ -554,21 +543,39 @@ Do not report smoke tests, debugging fixes, old-result summaries, or legacy audi
 
 Implementation history is archived in `docs/project_status_changelog.md`.
 
+### End-of-session report - Clean Rerun Execution Infrastructure
+
+1. **Publication-contract change:** no full clean rerun was launched. Dedicated clean runner infrastructure now exists for behavioral, latent neural encoding, geometry, efficiency/resource, and cross-axis assembly. `configs/paper1_publication_contract.yaml` has `execution_authorized: true` after runner dry-runs and strict verification passed.
+2. **Accepted artifact:** accepted infrastructure artifacts are `configs/paper1_clean_behavioral_rerun.yaml`, `configs/paper1_latent_neural_matrix.yaml`, `configs/paper1_efficiency_resource_rerun.yaml`, `configs/paper1_cross_axis_assembly.yaml`, `scripts/paper1_clean_rerun_common.py`, `scripts/run_paper1_clean_behavioral_rerun.py`, `scripts/run_paper1_clean_latent_neural_encoding.py`, `scripts/run_paper1_clean_geometry.py`, `scripts/run_paper1_clean_efficiency_resource.py`, `scripts/assemble_paper1_clean_cross_axis.py`, `scripts/verify_paper1_clean_rerun_authorization.py`, `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`, and `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`.
+3. **Method gate status change:** method gates remain pass/accepted-with-limitations for pre-rerun readiness. The execution-path gate moved from blocked to ready after config, runner, dry-run, and strict verification checks passed.
+4. **Paper evidence status change:** no behavioral, neural encoding, geometry, efficiency, or cross-axis clean output exists as publication evidence. Dry-run plans and audit rows are infrastructure only; clean outputs remain `clean_publication_evidence_pending` until the bounded rerun is actually executed and audited.
+5. **Reviewer risk reduced:** reduced false-authorization and legacy-contamination risk by requiring every clean lane to reject legacy/admission paths, write only under `outputs/paper1_publication_v0/`, preserve model/role/source/checkpoint and ROI/stream/regime fields, emit dry-run plans, and pass strict verification before execution.
+
+### End-of-session report - Authorization Verification And Execution-Path Block
+
+Historical status retained for provenance only. This blocked state was superseded by the later Clean Rerun Execution Infrastructure report.
+
+1. **Publication-contract change:** no clean rerun was launched. The earlier authorization claim was repaired by adding strict contract/config/runner gates to regenerated preflight. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` now blocks `first_clean_rerun_authorization` on `publication_contract_execution_flag`, `clean_rerun_configs_execution_enabled`, and `clean_rerun_runner_scripts`.
+2. **Accepted artifact:** accepted verification artifacts are `outputs/paper1_publication_v0/preflight/authorization_verification_table.csv`, `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`, `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`, `outputs/paper1_publication_v0/preflight/postrun_import_validation_plan.md`, `outputs/paper1_publication_v0/audits/clean_rerun_audit.csv`, regenerated `outputs/paper1_publication_v0/preflight/expected_outputs_manifest.csv`, regenerated `outputs/paper1_publication_v0/preflight/user_action_checklist.csv`, and `scripts/verify_paper1_clean_rerun_authorization.py`.
+3. **Method gate status change:** behavioral, latent neural encoding, geometry, efficiency/resource, and cross-axis method gates remain pass/accepted-with-limitations for pre-rerun readiness. A separate execution-path gate is now blocked; this is not a reopened blocked-model repair.
+4. **Paper evidence status change:** no behavioral, neural encoding, geometry, efficiency, or cross-axis clean output exists as publication evidence. Admission-panel outputs remain provenance only. Current model/data/method/cache/DeepGaze checks pass in verification, but clean outputs remain `clean_publication_evidence_pending`.
+5. **Reviewer risk reduced:** reduced false-authorization risk by requiring the frozen contract, clean configs, dedicated runners, checkpoint locks, DeepGaze deterministic tensor exports, and expected-output manifest to agree before any cluster or local clean run.
+
 ### End-of-session report - Blocked-Model Repair And Rerun Authorization
 
-1. **Publication-contract change:** no clean rerun was launched. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` now authorizes `first_clean_rerun_authorization` because all preflight gates are ready.
-2. **Accepted artifact:** regenerated readiness artifacts include `model_setup_attempts.csv`, `model_certification_summary.csv`, `user_action_checklist.csv`, `method_rerun_readiness_table.csv`, `rerun_readiness_table.csv`, `first_clean_rerun_plan.md`, and DeepGaze IIE/III/MSDB deterministic validation JSONs.
+1. **Publication-contract change:** no clean rerun was launched. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` now blocks `first_clean_rerun_authorization` through the `blocked_model_repair` gate.
+2. **Accepted artifact:** regenerated readiness artifacts include `model_setup_attempts.csv`, `model_certification_summary.csv`, `user_action_checklist.csv`, `method_rerun_readiness_table.csv`, `rerun_readiness_table.csv`, `first_clean_rerun_plan.md`, DeepGaze IIE/III deterministic validation JSONs, and the DeepGaze MSDB timeout validation JSON.
 3. **Method gate status change:** empirical spatial prior is implemented and method leftovers are ready; behavioral, latent, geometry, efficiency, and cross-axis methods remain pre-rerun methods only, not final evidence.
-4. **Model setup status change:** AdaptiveNN, DINOv3, MambaVision, HAT, SigLIP, and ScanDiff are now adapter-certified with source, checkpoint, environment, and smoke evidence. SemBA and SemBA-FAST are audited unavailable and removed from active behavioral/neural/geometry rerun configs.
+4. **Model setup status change:** AdaptiveNN is now adapter-certified with source, checkpoint, environment, and smoke evidence. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, SemBA, and SemBA-FAST remain evidence-backed setup or user-action blockers, not vague placeholders.
 5. **Reviewer risk reduced:** model-universe missingness is now explicit and machine-readable; first clean rerun authorization cannot be confused with adapter smoke success or partial local setup.
 
 ### End-of-session report - Paper 1 Publication Matrix V0 Preflight
-Supersession note: this report is retained as provenance only. Its rerun authorization is suspended because the generated plan excludes multiple suitable model families that remain Codex-resolvable, and because actual DeepGaze tensor export has not yet been validated. The next session must repair blocked-model readiness before any rerun.
+Historical note: this pre-repair report is retained as provenance only. Its earlier suspended authorization was superseded by the later Blocked-Model Repair And Rerun Authorization report. Do not use this older section to block the currently authorized bounded rerun; use the regenerated readiness artifacts and current `Next Concrete Milestone` instead.
 
 1. **Publication-contract change:** the first clean rerun gate now uses machine-readable method/model/data/checkpoint/environment/ROI/expected-output/readiness artifacts under `outputs/paper1_publication_v0/preflight/` and `outputs/paper1_publication_v0/roi_stream/`. DeepGaze III is the certified scanpath-capable model for the initial clean rerun.
 2. **Accepted artifact:** accepted preflight artifacts include `outputs/paper1_publication_v0/preflight/model_certification_summary.csv`, `outputs/paper1_publication_v0/preflight/model_setup_attempts.csv`, `outputs/paper1_publication_v0/preflight/user_action_checklist.csv`, `outputs/paper1_publication_v0/preflight/method_rerun_readiness_table.csv`, `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv`, `outputs/paper1_publication_v0/roi_stream/stream_roi_grouping_spec.csv`, `outputs/paper1_publication_v0/roi_stream/subject_roi_availability.csv`, `outputs/paper1_publication_v0/external/scanpath_or_foveated_certified/manifest.json`, and `configs/paper1_latent_neural_stream_admission.yaml`.
 3. **Method gate status change:** model adapter comparability and efficiency/resource allocation remain `accepted_with_limitations`; the prior `first_clean_rerun_authorization=authorized` state is superseded and must be regenerated after blocked-model repair.
-4. **Paper evidence status change:** ConvNeXt, SwinV2, Hiera, DeepGaze III, DeepGaze MSDB, DynamicViT, ToMe, DINOv3, MambaVision, SigLIP, HAT, AdaptiveNN, ScanDiff, and empirical spatial prior remain preflight-certified or setup-preflighted. SemBA/SemBA-FAST are excluded as unavailable after source inspection. No clean rerun output is `accepted_publication_evidence`.
+4. **Paper evidence status change:** ConvNeXt, SwinV2, Hiera, DeepGaze III, DeepGaze MSDB, DynamicViT, and ToMe remain preflight-certified or setup-preflighted, but their status does not authorize rerun execution. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, AdaptiveNN, SemBA/SemBA-FAST, and empirical spatial prior require a blocked-model repair pass. No clean rerun output is `accepted_publication_evidence`.
 5. **Reviewer risk reduced:** reduced missing latent-feature risk for DeepGaze, missing scanpath-gate risk via DeepGaze III, adapter-incomparability risk through full-universe certification rows, stream/ROI ambiguity through explicit availability manifests, and stale-runbook risk through generated rerun-readiness and user-action tables.
 
 ### End-of-session report - Gate-Conditioned Publication Admission Panel V1
@@ -661,186 +668,172 @@ Current evidence state:
 
 Next milestone:
 
-> Complete Blocked-Model Preparation And Rerun Authorization Repair. The previous bounded first-clean-rerun authorization is suspended until suitable blocked models are either certified or converted into concrete user-action gates after real setup attempts.
+> Verify the completed rerun authorization, build or verify the bounded clean-rerun execution path, and execute the bounded first clean rerun if verification passes. Do not reopen blocked-model repair unless artifact-level verification fails.
 
 ## Next Concrete Milestone
 
-Priority: **Blocked-Model Preparation And Rerun Authorization Repair**.
+Priority: **Authorized Rerun Verification And Bounded Clean Rerun Execution**.
 
-The previous first-clean-rerun plan is suspended. It authorized a narrowed subset before suitable blocked models were fully prepared. The next session must repair model readiness and method/control leftovers before any clean rerun.
+The blocked-model repair pass is complete according to regenerated preflight artifacts. The next session must verify that authorization against actual files and executable paths, then run the bounded first clean rerun if verification passes.
 
-This milestone must reduce avoidable blocked rows. It must not run the clean rerun, produce paper interpretation, treat blocked models as later work, or move forward with DeepGaze III as the only scanpath-capable model unless all other suitable scanpath/foveated/adaptive candidates have received real setup attempts.
+This milestone is not another blocked-model repair pass. It must not reopen already repaired model rows unless verification finds missing files, mismatched configs, failed hashes, missing tensors, invalid runners, or inconsistent eligibility tables.
 
-### Stage A — Method and control leftovers
+### Stage A — Authorization verification
 
-Codex must complete all method/control leftovers that are implementable inside the repository.
+Codex must verify the authorization before running anything.
 
-Required work:
+Required checks:
 
-1. implement the leakage-safe empirical spatial prior using training/reference data only;
-2. add provenance fields showing which split and images define the empirical prior;
-3. add empirical-prior sensitivity as a planned behavioral-control condition;
-4. verify behavioral distribution metrics, point metrics, uncertainty, conditional-map schema, and scanpath schema against actual code;
-5. verify neural encoding leakage control, PCA/ridge selection, raw/noise-normalized separation, and nonfinite ceiling handling;
-6. verify whether voxel-specific or spatial-readout sensitivity is implemented; if absent, add the config and code-path target rather than treating it as prose;
-7. verify geometry interval behavior for debiased CKA/RSA before scaling;
-8. verify matched efficiency and total-cost schemas for static, token-pruning, token-merging, foveated, diffusion, recurrent, and scanpath models.
+1. `outputs/paper1_publication_v0/preflight/user_action_checklist.csv` is empty or contains no action required for the bounded rerun;
+2. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` reports `first_clean_rerun_authorization=authorized`;
+3. `outputs/paper1_publication_v0/preflight/model_certification_summary.csv`, `model_setup_attempts.csv`, and `model_rerun_eligibility_table.csv` agree on model eligibility by axis;
+4. `outputs/paper1_publication_v0/preflight/method_rerun_readiness_table.csv` marks all required method lanes ready or explicitly accepted with limitations;
+5. all referenced model sources, checkpoint/cache paths, environment records, and smoke/certification artifacts exist;
+6. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, AdaptiveNN, DeepGaze IIE/III/MSDB, DynamicViT, ToMe, local anchors, priors, random baseline, and task prior are represented correctly;
+7. DeepGaze latent tensors, conditional maps, scanpath outputs, and deterministic validation files exist where claimed;
+8. empirical spatial prior exists and records leakage-safe split provenance;
+9. SemBA/SemBA-FAST exclusion is explicit in registry/config/audit artifacts;
+10. clean-rerun configs include only eligible certified rows and do not route admission-panel outputs into clean evidence.
 
-Required artifacts:
+Required artifact:
 
-- `outputs/paper1_publication_v0/preflight/method_rerun_readiness_table.csv`
-- `outputs/paper1_publication_v0/preflight/empirical_spatial_prior_audit.csv`
-- `outputs/paper1_publication_v0/preflight/empirical_prior_sensitivity_plan.md`
-
-### Stage B — DeepGaze actual export validation
-
-Codex must convert DeepGaze latent/conditional certification from manifest-level preflight into actual exported evidence-readiness artifacts.
-
-Required work:
-
-1. inspect the actual PyTorch module graph used by DeepGaze IIE, DeepGaze III, and DeepGaze MSDB;
-2. export internal tensors before final density normalization;
-3. export conditional next-fixation maps for DeepGaze III;
-4. export generated/iterated scanpaths where the implementation supports them;
-5. validate tensor shape, image ordering, deterministic repeatability, file counts, and hashes;
-6. keep final gaze-density maps as behavioral outputs;
-7. keep output-map-to-fMRI rows labeled only as `output_map_neural_control`.
-
-Required artifacts:
-
-- `outputs/paper1_publication_v0/external/deepgaze_iie_latent/manifest.json`
-- `outputs/paper1_publication_v0/external/deepgaze_iie_latent/certification.csv`
-- `outputs/paper1_publication_v0/external/deepgaze_iii_conditional/manifest.json`
-- `outputs/paper1_publication_v0/external/deepgaze_iii_conditional/certification.csv`
-- `outputs/paper1_publication_v0/external/deepgaze_msdb_latent/manifest.json`
-- `outputs/paper1_publication_v0/preflight/deepgaze_tensor_export_validation.csv`
-- `outputs/paper1_publication_v0/preflight/deepgaze_hook_audit.md`
+- `outputs/paper1_publication_v0/preflight/authorization_verification_table.csv`
 
 Acceptance rule:
 
-DeepGaze certification is valid only if actual tensor files or arrays exist and pass deterministic validation. A manifest without exported tensors does not count.
+If any authorization claim fails verification, Codex must repair the failed claim and regenerate preflight. Do not run the rerun with unresolved verification failures.
 
-### Stage C — Public image-encoder repair
+### Stage B — Execution path verification
 
-Codex must resolve public image encoders that are suitable for the project and should not remain blocked through setup prose.
+After Stage A passes, Codex must verify or build the actual execution path for the bounded clean rerun.
 
-Required work for SigLIP:
+Required execution lanes:
 
-1. completed: official source is pinned to `0127fb6b337ee2a27bf4e54dea79cff176527356`;
-2. completed: the local `google/siglip-base-patch16-224` Hugging Face snapshot is locked at SHA-256 `da7f9aae1ea2d0e77e13e4031c4d01481d5dc216735703f65b7e82ed04a3d7ba`;
-3. completed: the pinned environment is locked and smoke validation passes;
-4. completed: image-tower latent export is wired through `encoder.layers.0`, `encoder.layers.3`, `encoder.layers.6`, `encoder.layers.9`, and `encoder.layers.11`;
-5. remaining: no further SigLIP user action is recorded in the regenerated preflight.
+1. behavioral fixation/saliency/scanpath rerun;
+2. latent-feature neural encoding rerun;
+3. latent-feature representational geometry rerun;
+4. efficiency/resource-allocation rerun;
+5. cross-axis assembly and audit.
 
-Required work for MambaVision:
+For each lane, Codex must identify:
 
-1. completed: official source is pinned to `7860a506b2eb844eaaae676f08461ce8c3c26f43`;
-2. completed: the local `nvidia/MambaVision-T-1K` Hugging Face snapshot is locked at SHA-256 `570aa89000d922dab69def1ed1c55dd6b78e1e4536d3896619a3361c9ab519f9`;
-3. completed: the CUDA-capable pinned environment is locked and smoke validation passes;
-4. completed: stage latent export is wired through `levels.0` through `levels.3`;
-5. remaining: no further MambaVision user action is recorded in the regenerated preflight.
-
-Required work for DINOv3:
-
-1. completed: official source is pinned to `50001c6db58dbca7e7d06a5c5a9f1e078ca29197`;
-2. completed: the local `facebook/dinov3-vits16-pretrain-lvd1689m` Hugging Face snapshot is present and certified from the user-provided gated-access files;
-3. completed: the adapter and preprocessing contract are implemented;
-4. completed: the pinned environment is locked and smoke validation passes;
-5. remaining: no further DINOv3 user action is recorded in the regenerated preflight.
+- config file;
+- runner script or command;
+- local versus cluster execution;
+- input manifests;
+- eligible model list;
+- expected output path;
+- expected row/file counts where feasible;
+- failure log path;
+- post-run validation command.
 
 Required artifacts:
 
-- `outputs/paper1_publication_v0/preflight/siglip_certification.csv`
-- `outputs/paper1_publication_v0/preflight/mambavision_certification.csv`
-- `outputs/paper1_publication_v0/preflight/dinov3_setup_attempt.csv`
+- `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`
+- `outputs/paper1_publication_v0/preflight/expected_outputs_manifest.csv`
+- `outputs/paper1_publication_v0/preflight/postrun_import_validation_plan.md`
 
 Acceptance rule:
 
-SigLIP, MambaVision, and DINOv3 are now certified and should not be listed as remaining public image-encoder blockers unless a later smoke or lock regression is recorded.
+Do not use admission-panel runners as substitutes for clean-rerun runners unless Codex explicitly verifies that the runner writes clean rerun outputs under the frozen publication contract and cannot mix admission/provenance artifacts into final evidence.
 
-### Stage D — Scanpath/foveated/adaptive model repair
+### Stage C — User-run cluster command package
 
-Codex must attempt real setup for every suitable scanpath/foveated/adaptive model, rather than using license/checkpoint/environment as generic stopping language.
+If any lane requires cluster execution, Codex must produce exact commands for the user to run.
 
-Required candidates:
+Required command package:
 
-- ScanDiff;
-- HAT;
-- SemBA/SemBA-FAST audited as unavailable and excluded from active plan;
-- AdaptiveNN.
+- sync/update commands;
+- environment activation commands;
+- cache/checkpoint verification commands;
+- one small cluster-side verification command before long jobs;
+- `sbatch` or direct job commands for each lane;
+- `squeue` and log-monitoring commands;
+- expected-output verification commands;
+- output-copy-back commands;
+- local import/merge validation commands after outputs return.
 
-Current status: ScanDiff, HAT, and AdaptiveNN are certified with concrete source/checkpoint/environment/adapter/smoke evidence. SemBA/SemBA-FAST were inspected at `https://github.com/vislab-tecnico-lisboa/SemBA.git`; the repository contains algorithm code and a CC0 license but no released SemBA model/checkpoint artifact, package, or GitHub release suitable for checkpoint-bound adapter certification. They are removed from `configs/external_models/publication_registry.yaml`, `configs/paper1_clean_behavioral_rerun.yaml`, and `configs/paper1_latent_neural_matrix.yaml`.
+Required artifact:
 
-For each candidate, Codex must:
-
-1. locate and record official source/package/model-card identity;
-2. record license text or license file path;
-3. continue implementation unless the license explicitly forbids the planned research use;
-4. clone/install dependencies where possible;
-5. attempt checkpoint/model download where public;
-6. implement adapter stubs around expected outputs;
-7. attempt tiny inference or demo execution;
-8. define behavioral output, scanpath/glimpse/fixation-history output, latent/internal-state output where available, and total-cost/resource traces;
-9. produce concrete user instructions only for actions Codex cannot perform, such as gated access, manual download, credential/token setup, or user-run cluster commands.
-
-Required artifacts:
-
-- `outputs/paper1_publication_v0/preflight/scandiff_setup_attempt.csv`
-- `outputs/paper1_publication_v0/preflight/hat_setup_attempt.csv`
-- `outputs/paper1_publication_v0/preflight/adaptivenn_setup_attempt.csv`
-- `outputs/paper1_publication_v0/preflight/scanpath_foveated_certification_summary.csv`
-- `outputs/paper1_publication_v0/preflight/scanpath_foveated_user_actions.csv`
+- `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`
 
 Acceptance rule:
 
-A blocked row is valid only if it records the exact command attempted, exact error, log path, missing dependency/checkpoint/access condition, whether the next step is Codex-implementable or user-required, and the next command after that action is completed.
+Codex must not claim it ran cluster jobs. User-run cluster commands must be tied to expected outputs and validation checks.
 
-### Stage E — Rerun-readiness regeneration
+### Stage D — Bounded first clean rerun
 
-After Stages A-D, Codex must regenerate all readiness artifacts and explicitly decide whether the first clean rerun is still blocked or newly authorized.
+After Stages A-C pass, Codex may execute local lanes and provide user-run cluster commands for cluster lanes.
+
+Required outputs:
+
+- `outputs/paper1_publication_v0/behavioral/per_image_metrics/`
+- `outputs/paper1_publication_v0/behavioral/aggregate.csv`
+- `outputs/paper1_publication_v0/behavioral/uncertainty.csv`
+- `outputs/paper1_publication_v0/neural_encoding/encoding_scores.csv`
+- `outputs/paper1_publication_v0/geometry/geometry_scores.csv`
+- `outputs/paper1_publication_v0/efficiency/efficiency_profiles.csv`
+- `outputs/paper1_publication_v0/efficiency/resource_allocation_profiles.csv`
+- `outputs/paper1_publication_v0/cross_axis/model_axis_scores.csv`
+- `outputs/paper1_publication_v0/audits/clean_rerun_audit.csv`
+
+Acceptance rule:
+
+Every output must be labeled as clean publication-root evidence or rejected/diagnostic evidence according to the publication contract. No legacy, admission-panel, Matrix V1, or Matrix V2 output may be silently merged.
+
+### Stage E — Post-run audit and status update
+
+After the bounded rerun completes, Codex must audit outputs before reporting scientific results.
+
+Required checks:
+
+1. output files exist at expected paths;
+2. row counts and model/axis coverage match the eligibility table;
+3. no blocked/excluded model is silently included;
+4. no eligible certified model is silently omitted;
+5. no admission/provenance output is merged as clean evidence;
+6. metrics are finite or failures are explicitly logged;
+7. behavioral/free-viewing/task-search/scanpath regimes remain separated;
+8. neural/geometry outputs retain ROI/stream/subject scope;
+9. efficiency rows retain matched-cost and total-cost fields;
+10. cross-axis table reports availability and scores without causal or paper-facing interpretation.
 
 Required artifacts:
 
-- `outputs/paper1_publication_v0/preflight/model_certification_summary.csv`
-- `outputs/paper1_publication_v0/preflight/model_setup_attempts.csv`
-- `outputs/paper1_publication_v0/preflight/model_rerun_eligibility_table.csv`
-- `outputs/paper1_publication_v0/preflight/user_action_checklist.csv`
-- `outputs/paper1_publication_v0/preflight/method_rerun_readiness_table.csv`
-- `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv`
-- `outputs/paper1_publication_v0/preflight/first_clean_rerun_plan.md`
+- `outputs/paper1_publication_v0/audits/clean_rerun_audit.csv`
+- `outputs/paper1_publication_v0/audits/publication_contract_compliance.md`
+- updated `docs/project_status_and_next_steps.md`
 
-The regenerated `first_clean_rerun_plan.md` must state whether it is authorized or blocked. If authorized, it must include only models that have actual certification records after this repair pass. If blocked, it must list the exact remaining user actions and Codex-implementable next commands.
+Acceptance rule:
+
+The session succeeds only if clean publication-root evidence exists and passes audit, or if execution fails with exact failed command, error/log path, missing artifact, and next repair command.
 
 ### Non-goals
 
-Do not run the clean rerun.
+Do not reopen blocked-model repair unless verification fails.
 
-Do not launch broad cluster jobs.
+Do not run a broader matrix than the regenerated authorization allows.
 
-Do not use the previous first-clean-rerun authorization.
+Do not produce paper interpretation.
 
-Do not treat `license clearance`, `checkpoint unresolved`, `environment missing`, or `network unavailable` as a valid blocker without a concrete command, source, error, and next action.
+Do not collapse free-viewing, task-search, and scanpath metrics.
 
-Do not leave SigLIP, MambaVision, empirical spatial prior, or SemBA as vague blocked rows.
+Do not collapse neural evidence into V1-only summaries.
 
-Do not report smoke tests as success unless they produce certification artifacts.
+Do not treat smoke tests, preflight tables, or admission artifacts as clean paper evidence.
 
-Do not interpret cross-axis convergence or dissociation.
+Do not claim cluster execution unless the user ran the commands and outputs were imported/validated.
 
 ### Acceptance rule
 
 The milestone succeeds only if:
 
-1. empirical spatial prior is implemented or fails for a concrete code-level reason;
-2. DeepGaze actual tensor export and validation are completed or concretely failed;
-3. SigLIP and MambaVision are certified or have concrete failed commands;
-4. DINOv3 official access is attempted and any user-required action is exact;
-5. ScanDiff, HAT, and AdaptiveNN each receive real setup attempts, while SemBA/SemBA-FAST receive an explicit unavailable-model audit and active-plan exclusion;
-6. all blocked rows distinguish Codex-implementable next work from user-required external action;
-7. rerun-readiness artifacts are regenerated after the repair pass;
-8. the first clean rerun remains blocked unless the repaired model universe and method/control leftovers are actually ready.
-
-The milestone fails if Codex runs the clean rerun, only edits Markdown, only updates tables without setup attempts, only certifies easy local anchors, only works on DynamicViT/ToMe, or leaves avoidable model blockers unresolved.
+1. authorization verification passes or failed claims are repaired;
+2. execution paths exist for behavioral, neural, geometry, efficiency/resource, and cross-axis lanes;
+3. cluster/user-run commands are produced where needed;
+4. clean publication-root outputs are generated or the exact execution blocker is recorded;
+5. post-run audit proves outputs follow the publication contract;
+6. project status is updated with evidence status, not scientific interpretation.
 
 ## Data/control readiness update:
 
@@ -909,7 +902,7 @@ Acceptance rule:
 No publication-root full rerun begins until the relevant method gates are `accepted_for_publication_rerun` or `accepted_with_limitations`.
 
 ### Phase 2 — Full model-role matrix and adapter certification
-Status: repaired preflight authorized. The model-role matrix includes every active candidate after the SemBA/SemBA-FAST unavailable-model exclusion. Actual DeepGaze MSDB tensor export is locally CUDA-validated; SigLIP, MambaVision, AdaptiveNN, HAT, ScanDiff, DINOv3, and the empirical spatial prior have been repaired or certified in the regenerated preflight.
+Status: blocked-model repair pass complete for the current regenerated preflight. Model/data/method/cache/DeepGaze verification passes, and clean execution infrastructure is now strictly verified.
 
 Purpose:
 
@@ -926,7 +919,7 @@ Required candidate families:
 * CLIP/SigLIP VLM/semantic models;
 * MambaVision, Hiera, Swin/SwinV2 hierarchical/hybrid/efficient models;
 * DynamicViT and ToMe generic efficient-computation models;
-* DeepGaze, HAT, and ScanDiff gaze or scanpath models; SemBA/SemBA-FAST are audited unavailable and excluded from the active plan;
+* DeepGaze, HAT, ScanDiff, SemBA/SemBA-FAST gaze or scanpath models;
 * AdaptiveNN human-gaze-inspired adaptive/foveated model;
 * center, random, spatial-prior, and task-prior controls.
 
@@ -943,7 +936,7 @@ Acceptance rule:
 Every required candidate has a status. A model may be behavior-only, diagnostic-only, or rejected after audit, but it must not disappear before audit.
 
 ### Phase 2.5 — Gate-conditioned admission panel
-Status: bounded local admission object generated on 2026-06-15 and retained as provenance only. The previous bounded clean-rerun authorization is suspended. Phase 2.5 now feeds into blocked-model repair and rerun-readiness regeneration, not immediate execution.
+Status: bounded local admission object generated on 2026-06-15 and retained as provenance only. Blocked-model repair has now superseded the earlier suspended authorization. Phase 2.5 feeds into authorization verification and bounded clean-rerun execution, not paper interpretation.
 
 Purpose:
 
@@ -967,8 +960,7 @@ Admission-panel outputs may diagnose readiness, coverage, missingness, and role/
 
 
 ### Phase 3 — Clean behavioral rerun
-
-Status: blocked until blocked-model preparation and rerun-readiness regeneration are complete.
+Status: authorized for bounded clean rerun execution after strict dry-run verification; not yet executed.
 
 Purpose:
 
@@ -987,7 +979,7 @@ SALICON, CAT2000, COCO-Search18, fixation references, task priors, gaze/scanpath
 
 ### Phase 4 — Clean latent-feature neural and geometry rerun
 
-Status: after neural/geometry method gates and adapter certification.
+Status: authorized for bounded clean rerun execution after strict dry-run verification; DeepGaze bounded tensor-export validation passes; not yet executed.
 
 Purpose:
 
@@ -1025,7 +1017,7 @@ Every neural and geometry claim must state its ROI/stream and subject scope.
 
 ### Phase 6 — Efficiency and resource allocation
 
-Status: after model adapters and efficiency method gate are certified.
+Status: authorized for bounded clean rerun execution after strict dry-run verification; not yet executed.
 
 Purpose:
 
@@ -1043,7 +1035,7 @@ Efficiency metrics must be connected to model role and behavioral/neural/geometr
 
 ### Phase 7 — Cross-axis publication analysis
 
-Status: after Phases 3–6.
+Status: assembly/audit may run after clean behavioral, neural, geometry, and efficiency outputs exist; interpretation remains blocked until post-run audit passes.
 
 Purpose:
 
@@ -1176,3 +1168,13 @@ Blocked-model repair and preflight regeneration:
 - `outputs/paper1_publication_v0/preflight/method_rerun_readiness_table.csv`
 - `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv`
 - future repair scripts should explicitly target empirical spatial prior, SigLIP, MambaVision, DINOv3, DeepGaze tensor export, ScanDiff, HAT, SemBA/SemBA-FAST, and AdaptiveNN.
+
+Authorized rerun verification and execution:
+
+- `outputs/paper1_publication_v0/preflight/authorization_verification_table.csv`
+- `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`
+- `outputs/paper1_publication_v0/preflight/expected_outputs_manifest.csv`
+- `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`
+- `outputs/paper1_publication_v0/preflight/postrun_import_validation_plan.md`
+- `outputs/paper1_publication_v0/audits/clean_rerun_audit.csv`
+- next implementation should verify or create runner commands for behavioral, latent neural encoding, geometry, efficiency/resource allocation, and cross-axis assembly under `outputs/paper1_publication_v0/`.

@@ -51,11 +51,35 @@ SCANPATH_OR_FOVEATED = {
     "hat",
     "adaptivenn_deit_small",
 }
+CLEAN_RERUN_CONFIGS = {
+    "behavioral": "configs/paper1_clean_behavioral_rerun.yaml",
+    "latent_neural_encoding": "configs/paper1_latent_neural_matrix.yaml",
+    "geometry": "configs/paper1_latent_neural_matrix.yaml",
+    "efficiency_resource": "configs/paper1_efficiency_resource_rerun.yaml",
+    "cross_axis": "configs/paper1_cross_axis_assembly.yaml",
+}
+CLEAN_RERUN_RUNNERS = {
+    "behavioral": "scripts/run_paper1_clean_behavioral_rerun.py",
+    "latent_neural_encoding": "scripts/run_paper1_clean_latent_neural_encoding.py",
+    "geometry": "scripts/run_paper1_clean_geometry.py",
+    "efficiency_resource": "scripts/run_paper1_clean_efficiency_resource.py",
+    "cross_axis": "scripts/assemble_paper1_clean_cross_axis.py",
+}
 METHOD_READY_VALUES = {
     "ready",
     "accepted_with_explicit_limitation",
     "not_applicable_to_this_axis",
 }
+USER_ACTION_FIELDNAMES = [
+    "item_type",
+    "item_id",
+    "status",
+    "next_step_owner",
+    "error_log_path",
+    "missing_external_requirement",
+    "user_action_needed",
+    "next_command_cmd",
+]
 KNOWN_ROW_COUNTS = {
     "data/manifests/salicon_observer_annotations_manifest.csv": 893854,
     "data/manifests/coco_search18_manifest.csv": 74646,
@@ -661,6 +685,10 @@ def expected_output_rows() -> list[dict[str, str]]:
         ("roi_stream_grouping", ROI_ROOT / "stream_roi_grouping_spec.csv", "pre_rerun_required"),
         ("roi_availability", ROI_ROOT / "subject_roi_availability.csv", "pre_rerun_required"),
         ("rerun_readiness", PREFLIGHT_ROOT / "rerun_readiness_table.csv", "pre_rerun_required"),
+        ("authorization_verification", PREFLIGHT_ROOT / "authorization_verification_table.csv", "pre_rerun_required"),
+        ("execution_path_verification", PREFLIGHT_ROOT / "execution_path_verification_table.csv", "pre_rerun_required"),
+        ("user_run_cluster_commands", PREFLIGHT_ROOT / "user_run_cluster_commands.md", "pre_rerun_required"),
+        ("postrun_import_validation_plan", PREFLIGHT_ROOT / "postrun_import_validation_plan.md", "pre_rerun_required"),
         ("clean_behavioral", PUBLICATION_ROOT / "behavioral" / "aggregate.csv", "expected_after_authorized_rerun"),
         ("clean_neural_encoding", PUBLICATION_ROOT / "neural_encoding" / "encoding_scores.csv", "expected_after_authorized_rerun"),
         ("clean_geometry", PUBLICATION_ROOT / "geometry" / "geometry_scores.csv", "expected_after_authorized_rerun"),
@@ -987,6 +1015,28 @@ def rerun_readiness_rows(
         readiness_row("roi_early_subject_scope", early_ready, "subject_roi_availability.csv"),
         readiness_row("roi_stream_scope", stream_ready, "stream_roi_grouping_spec.csv"),
     ]
+    contract_authorized, contract_basis = publication_contract_execution_status()
+    configs_enabled, configs_basis = clean_rerun_config_status()
+    runners_ready, runners_basis = clean_rerun_runner_status()
+    checks.extend(
+        [
+            readiness_row(
+                "publication_contract_execution_flag",
+                contract_authorized,
+                contract_basis,
+            ),
+            readiness_row(
+                "clean_rerun_configs_execution_enabled",
+                configs_enabled,
+                configs_basis,
+            ),
+            readiness_row(
+                "clean_rerun_runner_scripts",
+                runners_ready,
+                runners_basis,
+            ),
+        ]
+    )
     authorized = all(row["status"] == "ready" for row in checks)
     checks.append(
         {
@@ -1006,6 +1056,43 @@ def readiness_row(gate: str, ready: bool, basis: str) -> dict[str, str]:
         "basis": basis,
         "next_action": "none" if ready else "resolve blocking rows and regenerate preflight",
     }
+
+
+def publication_contract_execution_status() -> tuple[bool, str]:
+    path = resolve_path("configs/paper1_publication_contract.yaml")
+    if not path.is_file():
+        return False, "missing configs/paper1_publication_contract.yaml"
+    payload = load_yaml(path)
+    authorized = bool(payload.get("execution_authorized"))
+    value = str(payload.get("execution_authorized", ""))
+    return authorized, f"execution_authorized={value}"
+
+
+def clean_rerun_config_status() -> tuple[bool, str]:
+    disabled = []
+    missing = []
+    for lane, relative in CLEAN_RERUN_CONFIGS.items():
+        path = resolve_path(relative)
+        if not path.is_file():
+            missing.append(f"{lane}:{relative}")
+            continue
+        payload = load_yaml(path)
+        if payload.get("execution_enabled") is not True:
+            disabled.append(f"{lane}:execution_enabled={payload.get('execution_enabled')}")
+    if missing or disabled:
+        return False, "missing=" + pipe_join(missing) + "; disabled=" + pipe_join(disabled)
+    return True, "all configured clean rerun lanes have execution_enabled=true"
+
+
+def clean_rerun_runner_status() -> tuple[bool, str]:
+    missing = [
+        f"{lane}:{relative}"
+        for lane, relative in CLEAN_RERUN_RUNNERS.items()
+        if not resolve_path(relative).is_file()
+    ]
+    if missing:
+        return False, "missing_clean_runners=" + pipe_join(missing)
+    return True, "all clean rerun runner scripts exist"
 
 
 def write_first_clean_rerun_plan(
@@ -1121,7 +1208,13 @@ def write_user_action_checklist(
                 "next_command_cmd": ".\\.venv\\Scripts\\python.exe scripts\\generate_paper1_publication_preflight.py",
             }
         )
-    write_csv(PREFLIGHT_ROOT / "user_action_checklist.csv", rows)
+    path = PREFLIGHT_ROOT / "user_action_checklist.csv"
+    if rows:
+        write_csv(path, rows)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        csv.DictWriter(handle, fieldnames=USER_ACTION_FIELDNAMES).writeheader()
 
 
 def paper_status_for_record(record: dict[str, Any], entry: dict[str, Any]) -> str:
