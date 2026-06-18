@@ -436,21 +436,31 @@ class MambaVisionAdapter(ExternalModelAdapter):
 
     def load_model(self) -> Any:
         transformers = _require_module("transformers")
-        timm = _require_module("timm")
+        _require_module("timm")
+        transforms_factory = importlib.import_module("timm.data.transforms_factory")
         checkpoint = str(self.checkpoint_path or self.adapter_config["checkpoint_id"])
         model = transformers.AutoModel.from_pretrained(
             checkpoint,
             trust_remote_code=True,
         )
         config = getattr(model, "config", None)
-        input_resolution = tuple(self.preprocessing.get("input_size", [224, 224]))
+        preprocessing = dict(self.model_config.get("preprocessing", {}))
+        input_size = preprocessing.get("input_size", getattr(config, "input_size", [224, 224]))
+        if len(input_size) == 3:
+            _channels, height, width = input_size
+        else:
+            height, width = input_size
+        mean = getattr(config, "mean", preprocessing.get("mean", [0.485, 0.456, 0.406]))
+        std = getattr(config, "std", preprocessing.get("std", [0.229, 0.224, 0.225]))
+        crop_pct = getattr(config, "crop_pct", preprocessing.get("crop_pct", 1.0))
+        crop_mode = getattr(config, "crop_mode", preprocessing.get("crop_mode", "center"))
         self.transform = transforms_factory.create_transform(
-            input_size=(3, int(input_resolution[0]), int(input_resolution[1])),
+            input_size=(3, int(height), int(width)),
             is_training=False,
-            mean=getattr(config, "mean", self.mean),
-            std=getattr(config, "std", self.std),
-            crop_mode=getattr(config, "crop_mode", "center"),
-            crop_pct=getattr(config, "crop_pct", self.crop_pct),
+            mean=mean,
+            std=std,
+            crop_mode=crop_mode,
+            crop_pct=float(crop_pct),
         )
         return model.eval().to(self.device)
 

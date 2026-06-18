@@ -439,6 +439,7 @@ def _model_environment_dir(registry: Any, model_id: str) -> Path:
 
 
 def _prepare_source(model: dict[str, Any], source_dir: Path) -> None:
+    model_id = str(model["id"])
     repository = str(model["source"]["repository"])
     commit = str(model["source"]["commit"])
     if commit == "PIN_REQUIRED":
@@ -447,19 +448,40 @@ def _prepare_source(model: dict[str, Any], source_dir: Path) -> None:
         )
     source_dir.parent.mkdir(parents=True, exist_ok=True)
     if not source_dir.exists():
-        _run(["git", "clone", repository, str(source_dir)])
+        _run_source_command(model_id, ["git", "clone", repository, str(source_dir)])
     if not (source_dir / ".git").is_dir():
         raise RuntimeError(f"External source path is not a git checkout: {source_dir}")
     actual = _git_commit(source_dir)
     if actual == commit:
         return
-    _run(["git", "-C", str(source_dir), "fetch", "origin", commit])
-    _run(["git", "-C", str(source_dir), "checkout", "--detach", commit])
-    _run(["git", "-C", str(source_dir), "reset", "--hard", commit])
-    _run(["git", "-C", str(source_dir), "clean", "-fdx"])
+    _run_source_command(model_id, ["git", "-C", str(source_dir), "fetch", "origin", commit])
+    _run_source_command(model_id, ["git", "-C", str(source_dir), "checkout", "--detach", commit])
+    _run_source_command(model_id, ["git", "-C", str(source_dir), "reset", "--hard", commit])
+    _run_source_command(model_id, ["git", "-C", str(source_dir), "clean", "-fdx"])
     actual = _git_commit(source_dir)
     if actual != commit:
         raise RuntimeError(f"Source commit mismatch: expected {commit}, found {actual}")
+
+
+def _run_source_command(model_id: str, command: list[str]) -> None:
+    log_dir = resolve_path("outputs/paper1_publication_v0/preflight/setup_logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"{model_id}_source_latest.log"
+    with log_path.open("ab") as log_file:
+        log_file.write(("$ " + " ".join(command) + "\n").encode("utf-8"))
+        completed = subprocess.run(
+            command,
+            check=False,
+            cwd=PROJECT_ROOT,
+            env=_scratch_runtime_environment(),
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+        log_file.write(f"EXIT_CODE={completed.returncode}\n\n".encode("utf-8"))
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"{model_id} source command failed; see {log_path.relative_to(PROJECT_ROOT)}"
+        )
 
 
 def _prepare_environment(
@@ -598,12 +620,13 @@ def _repair_existing_environment(
                     "--yes",
                     "--prefix",
                     str(environment_dir),
-                    "conda-forge::gcc_linux-64=13",
-                    "conda-forge::gxx_linux-64=13",
+                    "conda-forge::gcc_linux-64=12",
+                    "conda-forge::gxx_linux-64=12",
                     "conda-forge::ninja",
                     "conda-forge::packaging",
-                    "nvidia::cuda-nvcc=12.4",
-                    "nvidia::cuda-cudart-dev=12.4",
+                    "nvidia::cuda-nvcc=12.6",
+                    "nvidia::cuda-cudart-dev=12.6",
+                    "nvidia::cuda-cccl",
                 ]
             )
         return
@@ -679,14 +702,19 @@ def _hat_pillow_legacy_constants_available(
 
 
 def _mambavision_build_toolchain_available(environment_dir: Path) -> bool:
-    return all(
-        (environment_dir / relative).exists()
-        for relative in (
-            "bin/nvcc",
-            "include/cuda_runtime.h",
-            "bin/x86_64-conda-linux-gnu-gcc",
-            "bin/x86_64-conda-linux-gnu-c++",
-        )
+    include_roots = [
+        environment_dir / "include",
+        environment_dir / "targets" / "x86_64-linux" / "include",
+    ]
+    required_headers = ("cuda_runtime.h", "cub/cub.cuh", "thrust/version.h")
+    required_tools = (
+        "bin/nvcc",
+        "bin/x86_64-conda-linux-gnu-gcc",
+        "bin/x86_64-conda-linux-gnu-c++",
+    )
+    return all((environment_dir / relative).exists() for relative in required_tools) and all(
+        any((root / header).is_file() for root in include_roots)
+        for header in required_headers
     )
 
 
@@ -739,6 +767,24 @@ def _validate_model_environment(
                     command,
                 ]
             )
+    if model_id == "mambavision_t":
+        command = (
+            "import torch; "
+            "version = tuple(map(int, torch.__version__.split('+')[0].split('.')[:2])); "
+            "assert version >= (2, 6), torch.__version__; "
+            "assert torch.version.cuda == '12.6', torch.version.cuda"
+        )
+        _run(
+            [
+                micromamba,
+                "run",
+                "--prefix",
+                str(environment_dir),
+                "python",
+                "-c",
+                command,
+            ]
+        )
 
 
 def _validate_torch_environment(
@@ -779,15 +825,35 @@ def _post_install_commands(model_id: str) -> list[str]:
     if model_id == "mambavision_t":
         return [
             (
-                'CUDA_HOME="${CONDA_PREFIX}" '
-                'CC="${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-gcc" '
-                'CXX="${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-c++" '
-                'CUDAHOSTCXX="${CONDA_PREFIX}/bin/x86_64-conda-linux-gnu-c++" '
-                'MAMBA_FORCE_BUILD=TRUE '
-                'MAX_JOBS="${MAX_JOBS:-2}" '
-                'TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.9}" '
-                'python -m pip install --no-build-isolation --no-cache-dir '
-                '"mamba-ssm==2.2.4"'
+                'python -c "from mamba_ssm.ops.selective_scan_interface '
+                'import selective_scan_fn" || '
+                '(set -o pipefail; '
+                'mkdir -p outputs/paper1_publication_v0/preflight/setup_logs; '
+                'log="outputs/paper1_publication_v0/preflight/setup_logs/'
+                'mambavision_mamba_ssm_build_latest.log"; '
+                'wheel="external/checkpoints/mambavision_t/dependencies/'
+                'mamba_ssm-2.2.4+cu12torch2.6cxx11abiTRUE-cp310-cp310-linux_x86_64.whl"; '
+                'cuda_includes="${{CONDA_PREFIX}}/include"; '
+                'if [ -d "${{CONDA_PREFIX}}/targets/x86_64-linux/include" ]; then '
+                'cuda_includes="${{CONDA_PREFIX}}/targets/x86_64-linux/include:${{cuda_includes}}"; '
+                'fi; '
+                'export CUDA_HOME="${{CONDA_PREFIX}}"; '
+                'export CC="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-gcc"; '
+                'export CXX="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-c++"; '
+                'export CUDAHOSTCXX="${{CONDA_PREFIX}}/bin/x86_64-conda-linux-gnu-c++"; '
+                'export MAMBA_FORCE_BUILD=TRUE; '
+                'export MAX_JOBS="${{MAX_JOBS:-1}}"; '
+                'export CPATH="${{cuda_includes}}:${{CPATH:-}}"; '
+                'export C_INCLUDE_PATH="${{cuda_includes}}:${{C_INCLUDE_PATH:-}}"; '
+                'export CPLUS_INCLUDE_PATH="${{cuda_includes}}:${{CPLUS_INCLUDE_PATH:-}}"; '
+                'export TORCH_CUDA_ARCH_LIST="${{TORCH_CUDA_ARCH_LIST:-8.9}}"; '
+                'if [ -f "$wheel" ]; then '
+                'python -m pip install -vv --no-cache-dir "$wheel"; '
+                'else '
+                'python -m pip install -vv --no-build-isolation --no-cache-dir '
+                '"https://github.com/state-spaces/mamba/archive/refs/tags/v2.2.4.tar.gz"; '
+                'fi '
+                '2>&1 | tee "$log")'
             ),
             'python -m pip install -e "{source}"',
         ]
@@ -887,6 +953,25 @@ def _download_checkpoint(
         hub_id = model.get("adapter_config", {}).get("checkpoint_id")
         if not hub_id:
             raise RuntimeError(f"Model '{canonical_id}' is missing adapter_config.checkpoint_id")
+        expected_files = [str(value) for value in checkpoint.get("expected_files", [])]
+        missing_files = [
+            relative for relative in expected_files if not (target / relative).is_file()
+        ]
+        if target.is_dir() and expected_files and not missing_files:
+            digest = sha256_tree(target)
+            lock = {
+                "schema_version": "hma.external.checkpoint_lock.v1",
+                "model_id": canonical_id,
+                "source": checkpoint.get("url"),
+                "sha256": digest,
+                "path_kind": "directory",
+            }
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            lock_path.write_text(
+                json.dumps(lock, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            return
         executable = _resolve_micromamba(micromamba)
         code = (
             "from huggingface_hub import snapshot_download; "
@@ -1082,6 +1167,11 @@ def _run_adapter_smoke(
     micromamba: str,
 ) -> None:
     executable = _resolve_micromamba(micromamba)
+    device = _adapter_smoke_device(
+        canonical_id=canonical_id,
+        environment_dir=environment_dir,
+        micromamba=str(executable),
+    )
     command = [
         str(executable),
         "run",
@@ -1093,7 +1183,7 @@ def _run_adapter_smoke(
         canonical_id,
         "--smoke-only",
         "--device",
-        "cpu",
+        device,
     ]
     log_path = (
         PROJECT_ROOT
@@ -1126,6 +1216,44 @@ def _run_adapter_smoke(
         raise RuntimeError(
             f"{canonical_id} smoke failed; see {log_path.relative_to(PROJECT_ROOT)}"
         )
+
+
+def _adapter_smoke_device(
+    *,
+    canonical_id: str,
+    environment_dir: Path,
+    micromamba: str,
+) -> str:
+    if canonical_id != "mambavision_t":
+        return "cpu"
+    completed = subprocess.run(
+        [
+            micromamba,
+            "run",
+            "--prefix",
+            str(environment_dir),
+            "python",
+            "-c",
+            "import torch; print('cuda' if torch.cuda.is_available() else 'cpu')",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=PROJECT_ROOT,
+        env=_scratch_runtime_environment(),
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "Could not inspect CUDA availability for mambavision_t smoke: "
+            f"{completed.stderr.strip() or completed.stdout.strip()}"
+        )
+    device = completed.stdout.strip().splitlines()[-1] if completed.stdout.strip() else "cpu"
+    if device != "cuda":
+        raise RuntimeError(
+            "mambavision_t requires CUDA for smoke because mamba-ssm selective_scan "
+            "does not run on CPU in this environment"
+        )
+    return device
 
 
 def _checkpoint_path(registry: Any, model: dict[str, Any]) -> Path | None:
@@ -1257,21 +1385,39 @@ def _run_environment_create(command: list[str], *, environment_dir: Path) -> Non
     attempts = int(os.environ.get("HMA_CONDA_CREATE_ATTEMPTS", "4"))
     attempts = max(1, attempts)
     last_error: subprocess.CalledProcessError | None = None
+    log_dir = resolve_path("outputs/paper1_publication_v0/preflight/setup_logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"{environment_dir.name}_environment_create_latest.log"
+    log_path.write_text("", encoding="utf-8")
+    print(f"Writing environment create log to {log_path}", file=sys.stderr)
     for attempt in range(1, attempts + 1):
-        try:
-            _run(command)
-            return
-        except subprocess.CalledProcessError as exc:
-            last_error = exc
-            if attempt >= attempts:
-                break
-            print(
-                "External environment create failed; removing partial prefix "
-                f"and retrying {attempt + 1}/{attempts}: {environment_dir}",
-                file=sys.stderr,
+        with log_path.open("ab") as log_file:
+            log_file.write(
+                (
+                    f"\n=== micromamba create attempt {attempt}/{attempts} ===\n"
+                    f"{' '.join(command)}\n"
+                ).encode("utf-8")
             )
-            _remove_stale_environment(environment_dir)
-            time.sleep(min(30, 5 * attempt))
+            completed = subprocess.run(
+                command,
+                env=_scratch_runtime_environment(),
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+        if completed.returncode == 0:
+            return
+        last_error = subprocess.CalledProcessError(completed.returncode, command)
+        if attempt >= attempts:
+            break
+        print(
+            "External environment create failed; removing partial prefix "
+            f"and retrying {attempt + 1}/{attempts}: {environment_dir}. "
+            f"See {log_path}",
+            file=sys.stderr,
+        )
+        _remove_stale_environment(environment_dir)
+        time.sleep(min(30, 5 * attempt))
     if last_error is not None:
         raise last_error
 

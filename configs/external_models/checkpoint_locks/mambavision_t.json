@@ -1,0 +1,7 @@
+{
+  "model_id": "mambavision_t",
+  "path_kind": "directory",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "570aa89000d922dab69def1ed1c55dd6b78e1e4536d3896619a3361c9ab519f9",
+  "source": "https://huggingface.co/nvidia/MambaVision-T-1K"
+}

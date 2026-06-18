@@ -499,7 +499,7 @@ Current implementation readiness is:
 | efficiency/resource-allocation method | accepted_with_limitations_evidence_backed_blockers | static/token-pruning/token-merging schemas and AdaptiveNN/HAT resource hooks are certified; ScanDiff/SemBA-family rows remain blocked by setup/source requirements |
 | cross-axis inference method | accepted_with_limitations_no_interpretation | readiness/missingness reporting is allowed; convergence/dissociation interpretation remains blocked |
 | model adapter comparability | partial_repair_completed_blocked_rows_evidence_backed | adapters/setup metadata were extended; remaining blocked rows now have concrete commands, logs, missing requirements, and next actions |
-| easy public image encoders | attempted_public_snapshot_timeout | SigLIP and MambaVision adapters are prepared; public Hugging Face snapshot downloads timed out before complete weight snapshots were available |
+| easy public image encoders | partial_repair_completed | MambaVision is now source/environment/checkpoint/adapter/smoke certified; SigLIP remains blocked by incomplete public Hugging Face snapshot download |
 | DINOv3 | adapter_certified | `dinov3_small_patch16` is certified against the manually supplied gated Hugging Face snapshot with source, environment, checkpoint, adapter, smoke, and evidence stages ready |
 | empirical spatial prior | implemented_ready | leakage-safe train-split empirical spatial prior is registered, tested, and included in method readiness |
 | DeepGaze IIE/III/MSDB | iie_iii_validated_msdb_timeout | IIE latent and III conditional/scanpath exports are deterministic; MSDB export was attempted and failed only after a recorded 600-second timeout |
@@ -513,10 +513,10 @@ Current implementation readiness is:
 
 The regenerated preflight object is sufficient to block rerun execution truthfully. Remaining blockers are:
 
-1. `blocked_model_repair` remains blocked for `mambavision_t`, `scandiff_freeview`, `scandiff_visual_search`, `semba`, `semba_fast`, and `siglip_base_patch16`;
-2. DINOv3 `dinov3_small_patch16` is now source/checkpoint/environment/adapter/smoke certified from the manually supplied gated Hugging Face snapshot and has been removed from `user_action_checklist.csv`;
-3. SigLIP and MambaVision are public suitable models with prepared adapters, but their Hugging Face snapshot downloads timed out before complete local weight snapshots were available;
-4. HAT and AdaptiveNN are now source/checkpoint/environment/smoke certified and have been removed from `user_action_checklist.csv`; they are not remaining rerun blockers;
+1. `blocked_model_repair` remains blocked for `scandiff_freeview`, `scandiff_visual_search`, `semba`, `semba_fast`, and `siglip_base_patch16`;
+2. DINOv3 `dinov3_small_patch16` and MambaVision `mambavision_t` are now source/checkpoint/environment/adapter/smoke certified from local Hugging Face snapshots and have been removed from `user_action_checklist.csv`;
+3. SigLIP is a public suitable model with a prepared adapter, but its Hugging Face snapshot download timed out before a complete local weight snapshot was available;
+4. HAT, AdaptiveNN, and MambaVision are now source/checkpoint/environment/smoke certified and have been removed from `user_action_checklist.csv`; they are not remaining rerun blockers;
 5. ScanDiff source/checkpoint/license metadata are concrete, but its pinned WSL conda/micromamba environment build timed out and checkpoint completion remains unresolved;
 6. SemBA and SemBA-FAST remain user-required because no official executable source/checkpoint API is registered; setup attempts fail immediately on `UNRESOLVED_OFFICIAL_SOURCE` / `PIN_REQUIRED`;
 7. DeepGaze IIE and DeepGaze III tensor exports are deterministic; DeepGaze MSDB export was attempted and failed after the recorded 600-second timeout, so MSDB-specific tensor validation remains incomplete;
@@ -561,7 +561,7 @@ Implementation history is archived in `docs/project_status_changelog.md`.
 1. **Publication-contract change:** no clean rerun was launched. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` now blocks `first_clean_rerun_authorization` through the `blocked_model_repair` gate.
 2. **Accepted artifact:** regenerated readiness artifacts include `model_setup_attempts.csv`, `model_certification_summary.csv`, `user_action_checklist.csv`, `method_rerun_readiness_table.csv`, `rerun_readiness_table.csv`, `first_clean_rerun_plan.md`, DeepGaze IIE/III deterministic validation JSONs, and the DeepGaze MSDB timeout validation JSON.
 3. **Method gate status change:** empirical spatial prior is implemented and method leftovers are ready; behavioral, latent, geometry, efficiency, and cross-axis methods remain pre-rerun methods only, not final evidence.
-4. **Model setup status change:** AdaptiveNN is now adapter-certified with source, checkpoint, environment, and smoke evidence. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, SemBA, and SemBA-FAST remain evidence-backed setup or user-action blockers, not vague placeholders.
+4. **Model setup status change:** AdaptiveNN, DINOv3, MambaVision, and HAT are now adapter-certified with source, checkpoint, environment, and smoke evidence. SigLIP, ScanDiff, SemBA, and SemBA-FAST remain evidence-backed setup or user-action blockers, not vague placeholders.
 5. **Reviewer risk reduced:** model-universe missingness is now explicit and machine-readable; first clean rerun authorization cannot be confused with adapter smoke success or partial local setup.
 
 ### End-of-session report - Paper 1 Publication Matrix V0 Preflight
@@ -570,7 +570,7 @@ Supersession note: this report is retained as provenance only. Its rerun authori
 1. **Publication-contract change:** the first clean rerun gate now uses machine-readable method/model/data/checkpoint/environment/ROI/expected-output/readiness artifacts under `outputs/paper1_publication_v0/preflight/` and `outputs/paper1_publication_v0/roi_stream/`. DeepGaze III is the certified scanpath-capable model for the initial clean rerun.
 2. **Accepted artifact:** accepted preflight artifacts include `outputs/paper1_publication_v0/preflight/model_certification_summary.csv`, `outputs/paper1_publication_v0/preflight/model_setup_attempts.csv`, `outputs/paper1_publication_v0/preflight/user_action_checklist.csv`, `outputs/paper1_publication_v0/preflight/method_rerun_readiness_table.csv`, `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv`, `outputs/paper1_publication_v0/roi_stream/stream_roi_grouping_spec.csv`, `outputs/paper1_publication_v0/roi_stream/subject_roi_availability.csv`, `outputs/paper1_publication_v0/external/scanpath_or_foveated_certified/manifest.json`, and `configs/paper1_latent_neural_stream_admission.yaml`.
 3. **Method gate status change:** model adapter comparability and efficiency/resource allocation remain `accepted_with_limitations`; the prior `first_clean_rerun_authorization=authorized` state is superseded and must be regenerated after blocked-model repair.
-4. **Paper evidence status change:** ConvNeXt, SwinV2, Hiera, DeepGaze III, DeepGaze MSDB, DynamicViT, and ToMe remain preflight-certified or setup-preflighted, but their status does not authorize rerun execution. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, AdaptiveNN, SemBA/SemBA-FAST, and empirical spatial prior require a blocked-model repair pass. No clean rerun output is `accepted_publication_evidence`.
+4. **Paper evidence status change:** ConvNeXt, SwinV2, Hiera, DeepGaze III, DeepGaze MSDB, DynamicViT, ToMe, DINOv3, MambaVision, HAT, AdaptiveNN, and empirical spatial prior remain preflight-certified or setup-preflighted, but their status does not authorize rerun execution. SigLIP, ScanDiff, and SemBA/SemBA-FAST require remaining blocked-model repair. No clean rerun output is `accepted_publication_evidence`.
 5. **Reviewer risk reduced:** reduced missing latent-feature risk for DeepGaze, missing scanpath-gate risk via DeepGaze III, adapter-incomparability risk through full-universe certification rows, stream/ROI ambiguity through explicit availability manifests, and stale-runbook risk through generated rerun-readiness and user-action tables.
 
 ### End-of-session report - Gate-Conditioned Publication Admission Panel V1
@@ -736,11 +736,11 @@ Required work for SigLIP:
 
 Required work for MambaVision:
 
-1. install or clone the official source/package path;
-2. download/cache the chosen MambaVision checkpoint;
-3. implement stage/block latent export;
-4. certify preprocessing, deterministic condition, tensor shapes, and candidate layers;
-5. add neural/geometry/efficiency eligibility rows.
+1. completed: official source is pinned to `7860a506b2eb844eaaae676f08461ce8c3c26f43`;
+2. completed: the local `nvidia/MambaVision-T-1K` Hugging Face snapshot is locked at SHA-256 `570aa89000d922dab69def1ed1c55dd6b78e1e4536d3896619a3361c9ab519f9`;
+3. completed: the CUDA-capable pinned environment is locked and smoke validation passes;
+4. completed: stage latent export is wired through `levels.0` through `levels.3`;
+5. remaining: no further MambaVision user action is recorded in the regenerated preflight.
 
 Required work for DINOv3:
 
@@ -757,7 +757,7 @@ Required artifacts:
 
 Acceptance rule:
 
-SigLIP and MambaVision may remain blocked only after concrete failed install/download/run commands. DINOv3 may require user action only after a genuine official access/gated-weight failure is recorded.
+SigLIP may remain blocked only after concrete failed install/download/run commands. MambaVision and DINOv3 are now certified and should not be listed as remaining public image-encoder blockers unless a later smoke or lock regression is recorded.
 
 ### Stage D — Scanpath/foveated/adaptive model repair
 
@@ -909,7 +909,7 @@ Acceptance rule:
 No publication-root full rerun begins until the relevant method gates are `accepted_for_publication_rerun` or `accepted_with_limitations`.
 
 ### Phase 2 — Full model-role matrix and adapter certification
-Status: incomplete repair required. The model-role matrix includes every required candidate, but the current certification tables still contain avoidable blocked rows. SigLIP, MambaVision, empirical spatial prior, ScanDiff, SemBA/SemBA-FAST, AdaptiveNN, HAT, DINOv3, and actual DeepGaze tensor export must be repaired or concretely failed before the first clean rerun.
+Status: incomplete repair required. The model-role matrix includes every required candidate, but the current certification tables still contain avoidable blocked rows. SigLIP, ScanDiff, SemBA/SemBA-FAST, and actual DeepGaze MSDB tensor export remain unresolved; MambaVision, AdaptiveNN, HAT, DINOv3, and the empirical spatial prior have been repaired or certified in the regenerated preflight.
 
 Purpose:
 

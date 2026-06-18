@@ -179,9 +179,9 @@ def _commands_for(model_id: str) -> list[dict[str, Any]]:
                     "--models",
                     model_id,
                     "--device",
-                    "cpu",
+                    "auto",
                 ],
-                ".\\.venv\\Scripts\\python.exe scripts\\certify_local_publication_models.py --models mambavision_t --device cpu",
+                ".\\.venv\\Scripts\\python.exe scripts\\certify_local_publication_models.py --models mambavision_t --device auto",
             ),
         ]
     if model_id == "dinov3_small_patch16":
