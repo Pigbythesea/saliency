@@ -1,7 +1,7 @@
 schema_version: hma.paper1.publication_contract.v0
 contract_version: 0.1.0
 frozen_on: 2026-06-14
-execution_authorized: true
+execution_authorized: false
 method_position: controlled_benchmark_method
 claim:
   primary: >-

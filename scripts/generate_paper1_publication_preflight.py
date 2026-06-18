@@ -1090,9 +1090,30 @@ def clean_rerun_runner_status() -> tuple[bool, str]:
         for lane, relative in CLEAN_RERUN_RUNNERS.items()
         if not resolve_path(relative).is_file()
     ]
-    if missing:
-        return False, "missing_clean_runners=" + pipe_join(missing)
-    return True, "all clean rerun runner scripts exist"
+    blocked = []
+    full_run_blocking_markers = [
+        "Full behavioral scoring is not launched",
+        "Full latent neural encoding is cluster-backed and was not launched",
+        "Full geometry computation is cluster-backed and was not launched",
+        "Full efficiency/resource profiling was not launched",
+    ]
+    for lane, relative in CLEAN_RERUN_RUNNERS.items():
+        path = resolve_path(relative)
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        matched = [marker for marker in full_run_blocking_markers if marker in text]
+        if matched:
+            blocked.append(f"{lane}:full_run_not_implemented")
+    if missing or blocked:
+        return (
+            False,
+            "missing_clean_runners="
+            + pipe_join(missing)
+            + "; blocked_clean_runners="
+            + pipe_join(blocked),
+        )
+    return True, "all clean rerun runner scripts exist and expose full-run paths"
 
 
 def write_first_clean_rerun_plan(

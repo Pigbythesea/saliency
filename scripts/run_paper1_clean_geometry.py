@@ -16,10 +16,12 @@ from paper1_clean_rerun_common import (
     output_paths_from_config,
     pipe_join,
     read_csv,
+    reject_forbidden_path,
     run_with_failure_log,
     validate_contract,
     validate_execution_enabled,
     validate_input_path,
+    write_csv,
     write_dry_run_report,
     write_lane_audit,
 )
@@ -94,10 +96,75 @@ def run(config_path: str, *, dry_run: bool) -> int:
         )
         print(f"dry_run_passed={report.relative_to(PROJECT_ROOT)}")
         return 0
-    raise CleanRerunValidationError(
-        "Full geometry computation is cluster-backed and was not launched. "
-        "Run after full clean external artifacts are generated for the planned rows."
+    cell_files = clean_cell_score_files(outputs["geometry_scores"].parent / "cells")
+    rows = materialize_geometry_scores(
+        cell_files,
+        model_rows=model_rows,
+        subject_roi_rows=subject_roi_rows,
     )
+    write_csv(outputs["geometry_scores"], rows)
+    audit_rows.append(
+        audit_row(
+            lane=LANE,
+            check_id="geometry_scores_written",
+            status="pass",
+            artifact="geometry_scores",
+            path=outputs["geometry_scores"].relative_to(PROJECT_ROOT),
+            detail=f"source_cell_files={len(cell_files)}; rows={len(rows)}",
+        )
+    )
+    write_lane_audit(outputs["audit"], audit_rows)
+    print(outputs["geometry_scores"].relative_to(PROJECT_ROOT))
+    return 0
+
+
+def clean_cell_score_files(root: Any) -> list[Any]:
+    root.mkdir(parents=True, exist_ok=True)
+    files = []
+    for path in sorted(root.rglob("geometry_scores.csv")):
+        reject_forbidden_path(path, "geometry.cell_score")
+        files.append(path)
+    if not files:
+        raise CleanRerunValidationError(
+            "No clean geometry cell scores found under "
+            f"{root.relative_to(PROJECT_ROOT)}. Generate clean geometry cell jobs first."
+        )
+    return files
+
+
+def materialize_geometry_scores(
+    cell_files: list[Any],
+    *,
+    model_rows: list[dict[str, str]],
+    subject_roi_rows: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    identity = {row["model_id"]: model_identity(row) for row in model_rows}
+    roi_scope = {
+        (row.get("subject_id", ""), row.get("roi", "")): row
+        for row in subject_roi_rows
+    }
+    output_rows: list[dict[str, Any]] = []
+    for path in cell_files:
+        for row in read_csv(path):
+            model_id = str(row.get("model") or row.get("model_id") or "")
+            subject_id = str(row.get("subject_id", ""))
+            roi = str(row.get("roi", ""))
+            scope = roi_scope.get((subject_id, roi), {})
+            enriched = {
+                **identity.get(model_id, {"model_id": model_id}),
+                **row,
+                "model_id": model_id,
+                "subject_id": subject_id,
+                "roi": roi,
+                "stream": scope.get("stream", row.get("stream", "")),
+                "roi_class": scope.get("roi_class", row.get("roi_class", "")),
+                "source_cell_score": str(path.relative_to(PROJECT_ROOT)),
+                "evidence_status": "clean_publication_rerun",
+            }
+            output_rows.append(enriched)
+    if not output_rows:
+        raise CleanRerunValidationError("Clean geometry cell files contained no rows")
+    return output_rows
 
 
 def available_subject_roi_rows(config: dict[str, Any]) -> list[dict[str, str]]:

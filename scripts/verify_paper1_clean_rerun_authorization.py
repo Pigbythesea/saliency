@@ -111,6 +111,13 @@ CLEAN_RUNNER_REQUIREMENTS = {
     },
 }
 
+FULL_RUN_BLOCKING_MARKERS = [
+    "Full behavioral scoring is not launched",
+    "Full latent neural encoding is cluster-backed and was not launched",
+    "Full geometry computation is cluster-backed and was not launched",
+    "Full efficiency/resource profiling was not launched",
+]
+
 DEEPGAZE_ARTIFACTS = {
     "deepgaze_iie": "outputs/paper1_publication_v0/external/deepgaze_iie_latent",
     "deepgaze_iii": "outputs/paper1_publication_v0/external/deepgaze_iii_conditional",
@@ -539,6 +546,7 @@ def build_execution_rows() -> list[dict[str, str]]:
         expected = resolve_path(spec["expected"])
         config_status = config_status_for(config)
         runner_status = "ready" if runner.is_file() else "missing"
+        implementation_status = full_run_implementation_status(runner)
         dry_run_status, dry_run_report = runner_dry_run_status(
             lane=lane,
             config=spec["config"],
@@ -558,6 +566,7 @@ def build_execution_rows() -> list[dict[str, str]]:
         ready = (
             config_status == "ready"
             and runner_status == "ready"
+            and implementation_status == "implemented"
             and dry_run_status == "pass"
             and root_status == "publication_root"
             and admission_status == "not_used"
@@ -568,10 +577,15 @@ def build_execution_rows() -> list[dict[str, str]]:
             else ""
         )
         cluster_command = (
-            f"ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python {spec['runner']} --config {spec['config']}\""
+            f"ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python {spec['runner']} --config {spec['config']}\""
             if runner.is_file()
             else ""
         )
+        next_action = "none"
+        if implementation_status != "implemented":
+            next_action = implementation_status
+        elif not ready:
+            next_action = "implement/enable dedicated clean lane before execution"
         rows.append(
             {
                 "lane": lane,
@@ -587,10 +601,20 @@ def build_execution_rows() -> list[dict[str, str]]:
                 "execution_path_status": "ready" if ready else "blocked",
                 "local_verification_command_cmd": local_command,
                 "cluster_full_command_cmd": cluster_command,
-                "next_action": "none" if ready else "implement/enable dedicated clean lane before execution",
+                "next_action": next_action,
             }
         )
     return rows
+
+
+def full_run_implementation_status(runner: Path) -> str:
+    if not runner.is_file():
+        return "missing_runner"
+    text = runner.read_text(encoding="utf-8", errors="replace")
+    markers = [marker for marker in FULL_RUN_BLOCKING_MARKERS if marker in text]
+    if markers:
+        return "full_run_not_implemented:" + pipe_join(markers)
+    return "implemented"
 
 
 def runner_dry_run_status(
@@ -670,11 +694,13 @@ def build_clean_audit_rows() -> list[dict[str, str]]:
 
 
 def write_cluster_commands(execution_rows: list[dict[str, str]]) -> None:
-    ready_commands = [
-        row["cluster_full_command_cmd"]
-        for row in execution_rows
-        if row.get("cluster_full_command_cmd")
-    ]
+    ready_commands = (
+        [
+            "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && bash outputs/paper1_publication_v0/preflight/cluster_jobs/full/submit_clean_full.sh\""
+        ]
+        if all(row["execution_path_status"] == "ready" for row in execution_rows)
+        else []
+    )
     blocked_lanes = [
         row["lane"] for row in execution_rows if row["execution_path_status"] != "ready"
     ]
@@ -682,6 +708,8 @@ def write_cluster_commands(execution_rows: list[dict[str, str]]) -> None:
         "# User-Run Cluster Commands",
         "",
         "These are cmd.exe-compatible commands. They intentionally do not use PowerShell.",
+        "",
+        "The cluster environment is `/scratch/tshu2/zzhan330/miniconda3` with `conda activate hma`.",
         "",
         "Run full clean jobs only after `authorization_verification_table.csv` and `execution_path_verification_table.csv` contain only passing/ready rows. Do not substitute `scripts/run_paper1_admission_panel.py` for clean publication-root evidence.",
         "",
@@ -704,19 +732,23 @@ def write_cluster_commands(execution_rows: list[dict[str, str]]) -> None:
         "scp scripts\\run_paper1_clean_geometry.py zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/scripts/",
         "scp scripts\\run_paper1_clean_efficiency_resource.py zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/scripts/",
         "scp scripts\\assemble_paper1_clean_cross_axis.py zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/scripts/",
+        "scp scripts\\export_external_prediction_maps.py zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/scripts/",
+        "scp scripts\\prepare_paper1_clean_behavior_cell.py zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/scripts/",
+        "scp scripts\\run_paper1_clean_cell_job.py zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/scripts/",
+        "scp scripts\\create_paper1_clean_cluster_jobs.py zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/scripts/",
         "```",
         "",
         "## 2. Environment Activation",
         "",
         "```cmd",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python --version\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python --version\"",
         "```",
         "",
         "## 3. Cache And Checkpoint Verification",
         "",
         "```cmd",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/generate_paper1_publication_preflight.py\"",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/verify_paper1_clean_rerun_authorization.py\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/generate_paper1_publication_preflight.py\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/verify_paper1_clean_rerun_authorization.py\"",
         "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && cat outputs/paper1_publication_v0/preflight/authorization_verification_table.csv\"",
         "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && cat outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv\"",
         "```",
@@ -726,15 +758,33 @@ def write_cluster_commands(execution_rows: list[dict[str, str]]) -> None:
         "This job validates the clean runner dry-run paths only. It does not create clean publication-root evidence.",
         "",
         "```cmd",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/run_paper1_clean_behavioral_rerun.py --dry-run\"",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/run_paper1_clean_latent_neural_encoding.py --dry-run\"",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/run_paper1_clean_geometry.py --dry-run\"",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/run_paper1_clean_efficiency_resource.py --dry-run\"",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/assemble_paper1_clean_cross_axis.py --dry-run\"",
-        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/verify_paper1_clean_rerun_authorization.py --strict\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/run_paper1_clean_behavioral_rerun.py --dry-run\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/run_paper1_clean_latent_neural_encoding.py --dry-run\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/run_paper1_clean_geometry.py --dry-run\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/run_paper1_clean_efficiency_resource.py --dry-run\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/assemble_paper1_clean_cross_axis.py --dry-run\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/verify_paper1_clean_rerun_authorization.py --strict\"",
         "```",
         "",
-        "## 5. Full Clean Job Commands",
+        "## 5. Generate Clean Cell Cluster Jobs",
+        "",
+        "These commands generate Slurm scripts and job tables only. They do not run the clean rerun.",
+        "",
+        "```cmd",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/create_paper1_clean_cluster_jobs.py --mode smoke --max-items 8\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/create_paper1_clean_cluster_jobs.py --mode full\"",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && cat outputs/paper1_publication_v0/preflight/cluster_jobs/smoke/clean_cluster_job_manifest.json && cat outputs/paper1_publication_v0/preflight/cluster_jobs/full/clean_cluster_job_manifest.json\"",
+        "```",
+        "",
+        "## 6. Submit Smoke Verification Jobs",
+        "",
+        "This submits a tiny bounded cluster verification subset under `outputs/paper1_publication_v0/preflight/smoke_cells/`; it is not clean publication evidence.",
+        "",
+        "```cmd",
+        "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && bash outputs/paper1_publication_v0/preflight/cluster_jobs/smoke/submit_clean_smoke.sh\"",
+        "```",
+        "",
+        "## 7. Full Clean Job Commands",
         "",
     ]
     if ready_commands:
@@ -750,7 +800,7 @@ def write_cluster_commands(execution_rows: list[dict[str, str]]) -> None:
     lines.extend(
         [
             "",
-            "## 6. Log Monitoring",
+            "## 8. Log Monitoring",
             "",
             "Use these only after a verified full job command has been launched.",
             "",
@@ -761,21 +811,21 @@ def write_cluster_commands(execution_rows: list[dict[str, str]]) -> None:
             "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && tail -n 100 outputs/paper1_publication_v0/logs/efficiency_clean_rerun.log\"",
             "```",
             "",
-            "## 7. Output Verification",
+            "## 9. Output Verification",
             "",
-            "```cmd",
-            "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && . .venv/bin/activate && python scripts/verify_paper1_clean_rerun_authorization.py\"",
+        "```cmd",
+            "ssh zzhan330@dsailogin.arch.jhu.edu \"source /scratch/tshu2/zzhan330/miniconda3/etc/profile.d/conda.sh && conda activate hma && cd /scratch/tshu2/zzhan330/saliency && python scripts/verify_paper1_clean_rerun_authorization.py\"",
             "ssh zzhan330@dsailogin.arch.jhu.edu \"cd /scratch/tshu2/zzhan330/saliency && test -f outputs/paper1_publication_v0/behavioral/aggregate.csv && test -f outputs/paper1_publication_v0/neural_encoding/encoding_scores.csv && test -f outputs/paper1_publication_v0/geometry/geometry_scores.csv && test -f outputs/paper1_publication_v0/efficiency/efficiency_profiles.csv && test -f outputs/paper1_publication_v0/cross_axis/model_axis_scores.csv\"",
             "```",
             "",
-            "## 8. Copy Back",
+            "## 10. Copy Back",
             "",
             "```cmd",
             "cd /d D:\\Git\\saliency",
             "scp -r zzhan330@dsailogin.arch.jhu.edu:/scratch/tshu2/zzhan330/saliency/outputs/paper1_publication_v0 outputs\\",
             "```",
             "",
-            "## 9. Import Validation",
+            "## 11. Import Validation",
             "",
             "```cmd",
             "cd /d D:\\Git\\saliency",

@@ -6,6 +6,9 @@ import argparse
 from pathlib import Path
 from typing import Any
 
+from hma.behavioral.uncertainty import image_cluster_bootstrap
+from hma.experiments.aggregate_results import aggregate_records, load_per_image_records
+
 from paper1_clean_rerun_common import (
     PROJECT_ROOT,
     CleanRerunValidationError,
@@ -16,10 +19,13 @@ from paper1_clean_rerun_common import (
     model_identity,
     output_paths_from_config,
     pipe_join,
+    read_csv,
+    reject_forbidden_path,
     run_with_failure_log,
     validate_contract,
     validate_execution_enabled,
     validate_input_path,
+    write_csv,
     write_dry_run_report,
     write_lane_audit,
 )
@@ -93,10 +99,114 @@ def run(config_path: str, *, dry_run: bool) -> int:
         )
         print(f"dry_run_passed={report.relative_to(PROJECT_ROOT)}")
         return 0
-    raise CleanRerunValidationError(
-        "Full behavioral scoring is not launched in validation mode. "
-        "Run this script on the cluster only after all model-specific clean scoring backends are available."
+    per_image_files = clean_per_image_files(outputs["per_image_metrics_dir"])
+    aggregate_rows = materialize_aggregate(per_image_files, model_rows)
+    uncertainty_rows = materialize_uncertainty(per_image_files, config)
+    write_csv(outputs["aggregate"], aggregate_rows)
+    write_csv(outputs["uncertainty"], uncertainty_rows)
+    audit_rows.extend(
+        [
+            audit_row(
+                lane=LANE,
+                check_id="aggregate_written",
+                status="pass",
+                artifact="behavioral_aggregate",
+                path=outputs["aggregate"].relative_to(PROJECT_ROOT),
+                detail=f"source_per_image_files={len(per_image_files)}; rows={len(aggregate_rows)}",
+            ),
+            audit_row(
+                lane=LANE,
+                check_id="uncertainty_written",
+                status="pass",
+                artifact="behavioral_uncertainty",
+                path=outputs["uncertainty"].relative_to(PROJECT_ROOT),
+                detail=f"uncertainty_rows={len(uncertainty_rows)}",
+            ),
+        ]
     )
+    write_lane_audit(outputs["audit"], audit_rows)
+    print(outputs["aggregate"].relative_to(PROJECT_ROOT))
+    print(outputs["uncertainty"].relative_to(PROJECT_ROOT))
+    return 0
+
+
+def clean_per_image_files(root: Path) -> list[Path]:
+    root.mkdir(parents=True, exist_ok=True)
+    files = []
+    for path in sorted(root.rglob("per_image_metrics.csv")):
+        reject_forbidden_path(path, "behavioral.per_image_metrics")
+        files.append(path)
+    if not files:
+        raise CleanRerunValidationError(
+            "No clean per-image behavioral metric files found under "
+            f"{root.relative_to(PROJECT_ROOT)}. Generate clean cell scores first."
+        )
+    return files
+
+
+def materialize_aggregate(
+    per_image_files: list[Path],
+    model_rows: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    records = []
+    for path in per_image_files:
+        records.extend(load_per_image_records(path))
+    if not records:
+        raise CleanRerunValidationError("Clean behavioral per-image files contained no metric rows")
+    rows = aggregate_records(records)
+    identity = {row["model_id"]: model_identity(row) for row in model_rows}
+    for row in rows:
+        model_id = str(row.get("model", ""))
+        row.update(identity.get(model_id, {"model_id": model_id}))
+        row["evidence_status"] = "clean_publication_rerun"
+    return rows
+
+
+def materialize_uncertainty(
+    per_image_files: list[Path],
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    resamples = int(
+        dict(dict(config.get("uncertainty", {})).get("map_metrics", {})).get("resamples", 2000)
+    )
+    seed = int(config.get("seed", 123))
+    records = []
+    for path in per_image_files:
+        records.extend(load_per_image_records(path))
+    grouped: dict[tuple[str, str, str, str, str, str], list[dict[str, Any]]] = {}
+    for record in records:
+        key = (
+            str(record.get("dataset", "")),
+            str(record.get("model", "")),
+            str(record.get("saliency_method", "")),
+            str(record.get("saliency_family", "")),
+            str(record.get("fixation_protocol", "")),
+            str(record.get("metric", "")),
+        )
+        grouped.setdefault(key, []).append(record)
+    rows = []
+    for key, values in sorted(grouped.items()):
+        dataset, model, method, family, protocol, metric = key
+        interval = image_cluster_bootstrap(
+            values,
+            value_key="value",
+            image_key="image_path",
+            resamples=resamples,
+            seed=seed,
+        )
+        rows.append(
+            {
+                "dataset": dataset,
+                "model_id": model,
+                "saliency_method": method,
+                "saliency_family": family,
+                "fixation_protocol": protocol,
+                "metric": metric,
+                **interval.as_dict(),
+                "evidence_status": "clean_publication_rerun",
+            }
+        )
+    return rows
 
 
 def validate_datasets(config: dict[str, Any]) -> list[dict[str, str]]:
