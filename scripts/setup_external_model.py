@@ -924,7 +924,12 @@ def _post_install_commands(model_id: str) -> list[str]:
             ),
         ]
     if model_id == "scandiff":
-        return ['python -m pip install -r "{source}/requirements.txt"']
+        return [
+            (
+                'cd "{source}" && python -c "import hydra, omegaconf, timm; '
+                'from src.model.components.dit_model import DiTModel"'
+            )
+        ]
     return []
 
 
@@ -988,6 +993,8 @@ def _download_checkpoint(
                 code,
             ]
         )
+    elif canonical_id == "scandiff" and _scandiff_checkpoint_files_ready(target):
+        pass
     else:
         url = checkpoint.get("url")
         if not url:
@@ -1012,6 +1019,15 @@ def _download_checkpoint(
     }
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(json.dumps(lock, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _scandiff_checkpoint_files_ready(target: Path) -> bool:
+    required = (
+        "scandiff_freeview.pth",
+        "scandiff_visualsearch.pth",
+        "task_embeddings.npy",
+    )
+    return target.is_dir() and all((target / name).is_file() for name in required)
 
 
 def _download_checkpoint_asset(url: str, target_dir: Path) -> None:
@@ -1224,7 +1240,7 @@ def _adapter_smoke_device(
     environment_dir: Path,
     micromamba: str,
 ) -> str:
-    if canonical_id != "mambavision_t":
+    if canonical_id not in {"mambavision_t", "scandiff"}:
         return "cpu"
     completed = subprocess.run(
         [
@@ -1244,14 +1260,13 @@ def _adapter_smoke_device(
     )
     if completed.returncode != 0:
         raise RuntimeError(
-            "Could not inspect CUDA availability for mambavision_t smoke: "
+            f"Could not inspect CUDA availability for {canonical_id} smoke: "
             f"{completed.stderr.strip() or completed.stdout.strip()}"
         )
     device = completed.stdout.strip().splitlines()[-1] if completed.stdout.strip() else "cpu"
     if device != "cuda":
         raise RuntimeError(
-            "mambavision_t requires CUDA for smoke because mamba-ssm selective_scan "
-            "does not run on CPU in this environment"
+            f"{canonical_id} requires CUDA for smoke in this environment"
         )
     return device
 

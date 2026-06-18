@@ -51,12 +51,6 @@ models:
     scandiff_visual_search:
       condition: uniform_average_over_18_frozen_target_embeddings_seed_123
       layers: [dinov2_condition_tokens, dit.blocks.0, dit.blocks.2, dit.blocks.5]
-    semba:
-      condition: uniform_target_marginalization_pending_source_release
-      layers: [detector_features, semantic_belief_state]
-    semba_fast:
-      condition: uniform_target_marginalization_pending_source_release
-      layers: [detector_features, semantic_belief_state]
     adaptivenn_deit_small:
       condition: greedy_policy_seed_123_fixed_step_budget
       layers: [glance_state, integrated_states, final_state]

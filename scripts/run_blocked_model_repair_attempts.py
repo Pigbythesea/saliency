@@ -39,8 +39,6 @@ def main() -> int:
             "hat",
             "scandiff",
             "adaptivenn_deit_small",
-            "semba",
-            "semba_fast",
         ],
     )
     parser.add_argument("--timeout-seconds", type=int, default=1800)

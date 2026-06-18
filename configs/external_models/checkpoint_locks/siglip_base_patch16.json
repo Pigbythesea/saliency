@@ -1,0 +1,7 @@
+{
+  "model_id": "siglip_base_patch16",
+  "path_kind": "directory",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "da7f9aae1ea2d0e77e13e4031c4d01481d5dc216735703f65b7e82ed04a3d7ba",
+  "source": "https://huggingface.co/google/siglip-base-patch16-224"
+}

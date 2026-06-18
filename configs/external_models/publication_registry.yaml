@@ -247,30 +247,6 @@ models:
     latent_outputs: [condition_tokens, dit.blocks.0, dit.blocks.2, dit.blocks.5]
     resource_outputs: [scanpath_length, diffusion_steps, sampling_seed]
     paper_evidence_status: adapter_in_progress
-  semba:
-    family: SemBA
-    model_role: human_gaze_prediction|human_gaze_inspired_foveated
-    setup_kind: unavailable_source
-    runtime_model_id: semba
-    input_modes: [image_only, task_conditioned, gaze_history_conditioned, scanpath, foveated, active_vision]
-    deterministic_condition: uniform_target_marginal_pending
-    behavioral_outputs: [semantic_belief_map, generated_scanpath]
-    latent_outputs: [detector_features, semantic_belief_state]
-    resource_outputs: [fixation_count, selected_glimpses, stopping_behavior, high_resolution_sampled_area]
-    paper_evidence_status: adapter_in_progress
-    resolution: identify official code checkpoint license and callable API
-  semba_fast:
-    family: SemBA-FAST
-    model_role: human_gaze_prediction|human_gaze_inspired_foveated
-    setup_kind: unavailable_source
-    runtime_model_id: semba_fast
-    input_modes: [image_only, task_conditioned, gaze_history_conditioned, scanpath, foveated, active_vision]
-    deterministic_condition: target_present_uniform_target_marginal_pending
-    behavioral_outputs: [semantic_belief_map, generated_scanpath]
-    latent_outputs: [detector_features, semantic_belief_state]
-    resource_outputs: [fixation_count, selected_glimpses, stopping_behavior, high_resolution_sampled_area]
-    paper_evidence_status: adapter_in_progress
-    resolution: identify official code checkpoint license target-absent support and callable API
   adaptivenn_deit_small:
     family: AdaptiveNN
     model_role: human_gaze_inspired_efficient_foveated

@@ -58,8 +58,6 @@ model_groups:
     - hat
     - scandiff_freeview
     - scandiff_visual_search
-    - semba
-    - semba_fast
   adaptive_or_foveated_diagnostic:
     - adaptivenn_deit_small
   efficient_routing_diagnostic:

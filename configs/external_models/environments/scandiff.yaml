@@ -16,3 +16,4 @@ dependencies:
       - hydra-core
       - omegaconf
       - huggingface-hub
+      - timm==1.0.9

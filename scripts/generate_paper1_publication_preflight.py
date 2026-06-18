@@ -49,8 +49,6 @@ SCANPATH_OR_FOVEATED = {
     "scandiff_freeview",
     "scandiff_visual_search",
     "hat",
-    "semba",
-    "semba_fast",
     "adaptivenn_deit_small",
 }
 METHOD_READY_VALUES = {

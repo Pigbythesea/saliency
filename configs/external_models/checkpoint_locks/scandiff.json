@@ -1,0 +1,7 @@
+{
+  "model_id": "scandiff",
+  "path_kind": "directory",
+  "schema_version": "hma.external.checkpoint_lock.v1",
+  "sha256": "bc7a62cacc3993fc8645f226142b2ff410925cb664e84ff2ef72354c16f6e09e",
+  "source": "https://ailb-web.ing.unimore.it/publicfiles/ScanDiff_ICCV2025/checkpoints.zip"
+}

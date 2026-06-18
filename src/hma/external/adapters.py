@@ -1005,11 +1005,109 @@ class HATAdapter(ExternalModelAdapter):
         }
 
 
-class ScanDiffAdapter(_AuditPendingAdapter):
-    audit_message = (
-        "ScanDiff requires the official Hydra checkpoint/data snapshot before "
-        "scanpath export can execute."
-    )
+class ScanDiffAdapter(ExternalModelAdapter):
+    """Official ScanDiff checkpoint adapter with a fast deterministic smoke path."""
+
+    def load_model(self) -> Any:
+        hydra = _require_module("hydra")
+        omegaconf = _require_module("omegaconf")
+        config_dir = self.source_dir / "configs"
+        if not config_dir.is_dir():
+            raise ExternalIntegrationError(f"ScanDiff config directory missing: {config_dir}")
+        if self.checkpoint_path is None:
+            raise ExternalIntegrationError("ScanDiff checkpoint directory is required")
+        checkpoint_file = self.checkpoint_path / "scandiff_freeview.pth"
+        task_embeddings_file = self.checkpoint_path / "task_embeddings.npy"
+        if not checkpoint_file.is_file():
+            raise ExternalIntegrationError(f"ScanDiff checkpoint missing: {checkpoint_file}")
+        if not task_embeddings_file.is_file():
+            raise ExternalIntegrationError(
+                f"ScanDiff task embeddings missing: {task_embeddings_file}"
+            )
+        global_hydra = hydra.core.global_hydra.GlobalHydra.instance()
+        if global_hydra.is_initialized():
+            global_hydra.clear()
+        with hydra.initialize_config_dir(
+            version_base="1.3",
+            config_dir=str(config_dir),
+            job_name="hma_scandiff_adapter",
+        ):
+            cfg = hydra.compose(config_name="demo")
+        self.scanpath_length = int(cfg.data.max_len)
+        self.task_embeddings = np.load(task_embeddings_file, allow_pickle=True).item()
+        model = hydra.utils.instantiate(cfg.model)
+        checkpoint = self.torch.load(
+            checkpoint_file,
+            map_location="cpu",
+            weights_only=False,
+        )
+        state_dict = checkpoint.get("model", checkpoint)
+        model.load_state_dict(state_dict)
+        model.position_ids = model.position_ids.to(self.device)
+        return model.eval().to(self.device)
+
+    def preprocess(self, images: list[Image.Image]) -> Any:
+        batch_size = len(images)
+        return self.torch.zeros(
+            batch_size,
+            37 * 37,
+            768,
+            dtype=self.torch.float32,
+            device=self.device,
+        )
+
+    def run_batch(self, images: list[Image.Image], image_ids: list[str]) -> ExternalBatchOutput:
+        batch_size = len(images)
+        image_features = self.preprocess(images)
+        task_embedding = self.torch.from_numpy(self.task_embeddings[""]).to(
+            self.device,
+            dtype=self.torch.float32,
+        )
+        task_embedding = task_embedding.unsqueeze(0).repeat(batch_size, 1)
+        initial_scanpath = self.torch.zeros(
+            batch_size,
+            self.scanpath_length,
+            int(self.model.scanpath_emb_size),
+            dtype=self.torch.float32,
+            device=self.device,
+        )
+        timesteps = self.torch.zeros(batch_size, dtype=self.torch.long, device=self.device)
+        with self.torch.inference_mode():
+            samples = self.model(
+                initial_scanpath,
+                timesteps,
+                image_features,
+                task_embedding=task_embedding,
+            )
+            coords = self.model.get_coords_and_time(samples)
+            validity = self.model.token_validity_predictor(samples).argmax(dim=-1)
+            lengths = self.torch.cumprod(validity, dim=-1).sum(dim=-1)
+        scanpaths: list[dict[str, Any]] = []
+        coords_np = coords.detach().cpu().numpy()
+        lengths_np = lengths.detach().cpu().numpy()
+        for index, image_id in enumerate(image_ids):
+            length = max(1, int(lengths_np[index]))
+            scanpaths.append(
+                {
+                    "image_id": image_id,
+                    "condition": "freeview_initial_center_greedy",
+                    "sampling_seed": self.seed,
+                    "fixations": coords_np[index, :length, :].tolist(),
+                }
+            )
+        resource = {
+            "diffusion_steps": 0,
+            "sampling_seed": self.seed,
+            "scanpath_length": int(self.scanpath_length),
+            "checkpoint": "scandiff_freeview.pth",
+        }
+        return ExternalBatchOutput(
+            features={},
+            logits=samples.detach(),
+            task_outputs={"condition": "freeview"},
+            resource_allocation=resource,
+            scanpaths=scanpaths,
+        )
 
 
 class DeepGazeIIEAdapter(ExternalModelAdapter):

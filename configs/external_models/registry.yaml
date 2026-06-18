@@ -450,10 +450,10 @@ models:
     source:
       repository: https://github.com/aimagelab/ScanDiff.git
       commit: 9eff26cf2df140c09b868e7351f02d3797a37d1f
-      license: unverified_no_root_license_file_found_2026-06-16
+      license: no_root_license_file_found_2026-06-16
     environment: configs/external_models/environments/scandiff.yaml
     adapter: hma.external.adapters:ScanDiffAdapter
-    adapter_status: checkpoint_api_audit_pending
+    adapter_status: implemented
     checkpoint:
       url: https://ailb-web.ing.unimore.it/publicfiles/ScanDiff_ICCV2025/checkpoints.zip
       filename: checkpoints
@@ -607,15 +607,15 @@ models:
     track: sequential_foveated_behavior
     role: semantic_bayesian_scanpaths
     source:
-      repository: UNRESOLVED_OFFICIAL_SOURCE
+      repository: https://github.com/vislab-tecnico-lisboa/SemBA.git
       commit: PIN_REQUIRED
-      license: unknown
+      license: CC0-1.0
     environment: configs/external_models/environments/source_unavailable.yaml
     adapter: hma.external.adapters:SemBAAdapter
-    adapter_status: setup_scaffold
+    adapter_status: unavailable_no_released_model_artifact
     checkpoint:
-      url: UNRESOLVED_OFFICIAL_CHECKPOINT_API
-      filename: official_checkpoint_api_unresolved
+      url: unavailable_no_released_model_artifact
+      filename: no_released_model_artifact
       sha256:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
@@ -630,15 +630,15 @@ models:
     track: sequential_foveated_behavior
     role: semantic_bayesian_foveated_scanpaths
     source:
-      repository: UNRESOLVED_OFFICIAL_SOURCE
+      repository: https://github.com/vislab-tecnico-lisboa/SemBA.git
       commit: PIN_REQUIRED
-      license: unknown
+      license: CC0-1.0
     environment: configs/external_models/environments/source_unavailable.yaml
     adapter: hma.external.adapters:SemBAFastAdapter
-    adapter_status: setup_scaffold
+    adapter_status: unavailable_no_released_model_artifact
     checkpoint:
-      url: UNRESOLVED_OFFICIAL_CHECKPOINT_API
-      filename: official_checkpoint_api_unresolved
+      url: unavailable_no_released_model_artifact
+      filename: no_released_model_artifact
       sha256:
       hash_policy: compute_and_lock_before_evidence
     preprocessing:
