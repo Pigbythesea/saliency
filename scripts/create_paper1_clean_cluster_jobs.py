@@ -35,6 +35,13 @@ BUILTIN_BEHAVIOR_MODELS = {
     "empirical_spatial_prior",
     "coco_search18_task_prior",
 }
+MAP_COMPATIBLE_EXTERNAL_BEHAVIOR_MODELS = {
+    "deepgaze_iie",
+    "deepgaze_msdb",
+    "deit_small_static",
+    "dynamicvit_deit_small_keep_0_7",
+    "tome_deit_small_r13",
+}
 
 
 def main() -> int:
@@ -117,9 +124,24 @@ def create_cluster_jobs(
     neural_table = write_csv(job_root / "clean_neural_cells.csv", neural_rows)
     efficiency_table = write_csv(job_root / "clean_efficiency_cells.csv", efficiency_rows)
     write_csv(job_root / "clean_behavior_unsupported_rows.csv", unsupported)
-    behavior_rows = limit_rows(behavior_rows, limit_behavior_cells)
-    neural_rows = limit_rows(neural_rows, limit_neural_cells)
-    efficiency_rows = limit_rows(efficiency_rows, limit_efficiency_cells)
+    behavior_rows = select_rows(
+        behavior_rows,
+        limit_behavior_cells,
+        mode=mode,
+        kind="behavior",
+    )
+    neural_rows = select_rows(
+        neural_rows,
+        limit_neural_cells,
+        mode=mode,
+        kind="neural",
+    )
+    efficiency_rows = select_rows(
+        efficiency_rows,
+        limit_efficiency_cells,
+        mode=mode,
+        kind="efficiency",
+    )
     behavior_table = write_csv(job_root / "clean_behavior_cells.csv", behavior_rows)
     neural_table = write_csv(job_root / "clean_neural_cells.csv", neural_rows)
     efficiency_table = write_csv(job_root / "clean_efficiency_cells.csv", efficiency_rows)
@@ -200,6 +222,14 @@ def build_behavior_rows(
         }
         if model_id in BUILTIN_BEHAVIOR_MODELS:
             rows.append({**base, "job_kind": "behavior_builtin", "artifact_dir": "", "map_dir": ""})
+            continue
+        if model_id not in MAP_COMPATIBLE_EXTERNAL_BEHAVIOR_MODELS:
+            unsupported.append(
+                {
+                    **planned,
+                    "unsupported_reason": "missing_clean_static_map_backend_for_behavioral_object",
+                }
+            )
             continue
         if not runtime_model_id:
             unsupported.append({**planned, "unsupported_reason": "missing_runtime_model_id"})
@@ -323,8 +353,16 @@ def write_neural_config(
     geometry = dict(plan.get("geometry", {}))
     smoke = max_items is not None
     preprocessing = parse_json_field(cert.get("preprocessing_contract", "{}"))
-    pca_components = min(int(encoding.get("pca_components", 512)), max(2, (max_items or 512) - 1))
-    subset_sizes = [8] if smoke else [int(value) for value in geometry.get("subset_sizes", [512, 1024, 2048])]
+    pca_components = (
+        min(4, max(2, (max_items or 8) // 2))
+        if smoke
+        else int(encoding.get("pca_components", 512))
+    )
+    subset_sizes = (
+        [min(4, max(2, max_items or 4))]
+        if smoke
+        else [int(value) for value in geometry.get("subset_sizes", [512, 1024, 2048])]
+    )
     config = {
         "seed": int(plan.get("seed", 123)),
         "device": "cpu",
@@ -619,6 +657,37 @@ def read_csv(path: str | Path) -> list[dict[str, str]]:
     resolved = resolve_path(path)
     with resolved.open("r", encoding="utf-8", newline="") as handle:
         return [dict(row) for row in csv.DictReader(handle)]
+
+
+def select_rows(
+    rows: list[dict[str, Any]],
+    limit: int | None,
+    *,
+    mode: str,
+    kind: str,
+) -> list[dict[str, Any]]:
+    if mode != "smoke":
+        return limit_rows(rows, limit)
+    preferred: list[dict[str, Any]] = []
+    if kind == "behavior":
+        preferred = [
+            row
+            for row in rows
+            if row.get("dataset") == "salicon"
+            and row.get("model_id") in {"center_prior", "deit_small_static"}
+        ]
+        preferred = sorted(preferred, key=lambda row: 0 if row.get("model_id") == "center_prior" else 1)
+    elif kind in {"neural", "efficiency"}:
+        preferred = [
+            row
+            for row in rows
+            if row.get("model_id") == "resnet50"
+            and row.get("subject_id", "subj01") == "subj01"
+            and row.get("roi", "V1") == "V1"
+        ]
+    if preferred:
+        return limit_rows(preferred, limit)
+    return limit_rows(rows, limit)
 
 
 def limit_rows(rows: list[dict[str, Any]], limit: int | None) -> list[dict[str, Any]]:

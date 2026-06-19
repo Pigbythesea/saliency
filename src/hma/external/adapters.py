@@ -231,7 +231,7 @@ class ToMeAdapter(ExternalModelAdapter):
     """Paired static DeiT-S and ToMe-DeiT-S adapter with source tracing."""
 
     def load_model(self) -> Any:
-        _require_module("timm")
+        timm = _require_module("timm")
         transforms_factory = importlib.import_module("timm.data.transforms_factory")
         model_name = str(self.adapter_config.get("model_name", "deit_small_patch16_224"))
         model = timm.create_model(model_name, pretrained=False)

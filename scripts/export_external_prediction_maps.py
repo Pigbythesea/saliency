@@ -75,7 +75,8 @@ def _load_selected_arrays(
     category: str | None,
     key: str | None,
 ) -> tuple[str, list[str], dict[str, np.ndarray], dict[str, Any]]:
-    categories = [category] if category else ["outputs", "resource_allocation"]
+    explicit_category = category is not None
+    categories = [category] if category else ["resource_allocation", "outputs"]
     failures: list[str] = []
     for candidate in categories:
         if candidate is None:
@@ -89,6 +90,11 @@ def _load_selected_arrays(
         except Exception as exc:
             failures.append(f"{candidate}:{type(exc).__name__}:{exc}")
             continue
+        if arrays and not explicit_category and candidate == "outputs":
+            non_logits = [array_key for array_key in arrays if array_key != "logits"]
+            if not non_logits:
+                failures.append(f"{candidate}:logits_only")
+                continue
         if arrays:
             return candidate, image_ids, arrays, manifest
         failures.append(f"{candidate}:no_arrays")
@@ -109,6 +115,7 @@ def _select_key(
         non_logits = [key for key in arrays if key != "logits"]
         if non_logits:
             return sorted(non_logits)[0]
+        raise ValueError("outputs category contains only logits; no map-like output key")
     resource_priority = [
         key
         for prefix in ("prediction_masks.stage_", "token_source_assignments.", "full_token_mask")
