@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import math
+from collections import defaultdict
 from typing import Any
 
 from paper1_clean_rerun_common import (
@@ -28,7 +30,48 @@ from paper1_clean_rerun_common import (
 
 
 LANE = "geometry"
-OUTPUT_KEYS = ["geometry_scores", "audit", "failure_log"]
+OUTPUT_KEYS = [
+    "geometry_scores",
+    "geometry_method_agreement",
+    "geometry_seed_stability",
+    "audit",
+    "failure_log",
+]
+METHOD_AGREEMENT_FIELDNAMES = [
+    "model_id",
+    "subject_id",
+    "roi",
+    "stream",
+    "roi_class",
+    "layer",
+    "cka_method",
+    "subset_rsa_method",
+    "cka_score",
+    "subset_rsa_mean_score",
+    "subset_rsa_seed_count",
+    "subset_rsa_size_count",
+    "absolute_score_delta",
+    "agreement_status",
+    "evidence_status",
+]
+SEED_STABILITY_FIELDNAMES = [
+    "model_id",
+    "subject_id",
+    "roi",
+    "stream",
+    "roi_class",
+    "layer",
+    "geometry_method",
+    "subset_size",
+    "seed_count",
+    "mean_score",
+    "std_score",
+    "min_score",
+    "max_score",
+    "score_range",
+    "stability_status",
+    "evidence_status",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -102,7 +145,19 @@ def run(config_path: str, *, dry_run: bool) -> int:
         model_rows=model_rows,
         subject_roi_rows=subject_roi_rows,
     )
+    method_agreement_rows = build_geometry_method_agreement_rows(rows)
+    seed_stability_rows = build_geometry_seed_stability_rows(rows)
     write_csv(outputs["geometry_scores"], rows)
+    write_csv(
+        outputs["geometry_method_agreement"],
+        method_agreement_rows,
+        fieldnames=METHOD_AGREEMENT_FIELDNAMES,
+    )
+    write_csv(
+        outputs["geometry_seed_stability"],
+        seed_stability_rows,
+        fieldnames=SEED_STABILITY_FIELDNAMES,
+    )
     audit_rows.append(
         audit_row(
             lane=LANE,
@@ -113,8 +168,30 @@ def run(config_path: str, *, dry_run: bool) -> int:
             detail=f"source_cell_files={len(cell_files)}; rows={len(rows)}",
         )
     )
+    audit_rows.extend(
+        [
+            audit_row(
+                lane=LANE,
+                check_id="geometry_method_agreement_written",
+                status="pass",
+                artifact="geometry_method_agreement",
+                path=outputs["geometry_method_agreement"].relative_to(PROJECT_ROOT),
+                detail=f"rows={len(method_agreement_rows)}",
+            ),
+            audit_row(
+                lane=LANE,
+                check_id="geometry_seed_stability_written",
+                status="pass",
+                artifact="geometry_seed_stability",
+                path=outputs["geometry_seed_stability"].relative_to(PROJECT_ROOT),
+                detail=f"rows={len(seed_stability_rows)}",
+            ),
+        ]
+    )
     write_lane_audit(outputs["audit"], audit_rows)
     print(outputs["geometry_scores"].relative_to(PROJECT_ROOT))
+    print(outputs["geometry_method_agreement"].relative_to(PROJECT_ROOT))
+    print(outputs["geometry_seed_stability"].relative_to(PROJECT_ROOT))
     return 0
 
 
@@ -165,6 +242,141 @@ def materialize_geometry_scores(
     if not output_rows:
         raise CleanRerunValidationError("Clean geometry cell files contained no rows")
     return output_rows
+
+
+def build_geometry_method_agreement_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str, str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        if str(row.get("control_type", "observed") or "observed") != "observed":
+            continue
+        grouped[geometry_group_key(row)].append(row)
+
+    output: list[dict[str, Any]] = []
+    for key, group_rows in sorted(grouped.items()):
+        cka_scores = [
+            score
+            for row in group_rows
+            if str(row.get("geometry_method", "")) == "debiased_linear_cka"
+            for score in [parse_score(row.get("score"))]
+            if score is not None
+        ]
+        subset_scores = [
+            score
+            for row in group_rows
+            if str(row.get("geometry_method", "")) == "subset_rsa"
+            for score in [parse_score(row.get("score"))]
+            if score is not None
+        ]
+        if not cka_scores or not subset_scores:
+            continue
+        subset_sizes = {
+            str(row.get("subset_size", ""))
+            for row in group_rows
+            if str(row.get("geometry_method", "")) == "subset_rsa" and str(row.get("subset_size", ""))
+        }
+        subset_seeds = {
+            str(row.get("subset_seed", ""))
+            for row in group_rows
+            if str(row.get("geometry_method", "")) == "subset_rsa" and str(row.get("subset_seed", ""))
+        }
+        cka_score = mean(cka_scores)
+        subset_mean = mean(subset_scores)
+        model_id, subject_id, roi, stream, roi_class, layer = key
+        output.append(
+            {
+                "model_id": model_id,
+                "subject_id": subject_id,
+                "roi": roi,
+                "stream": stream,
+                "roi_class": roi_class,
+                "layer": layer,
+                "cka_method": "debiased_linear_cka",
+                "subset_rsa_method": "subset_rsa_spearman",
+                "cka_score": cka_score,
+                "subset_rsa_mean_score": subset_mean,
+                "subset_rsa_seed_count": len(subset_seeds),
+                "subset_rsa_size_count": len(subset_sizes),
+                "absolute_score_delta": abs(cka_score - subset_mean),
+                "agreement_status": "paired_primary_methods_present",
+                "evidence_status": "clean_publication_rerun",
+            }
+        )
+    return output
+
+
+def build_geometry_seed_stability_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str, str, str, str, str, str], list[float]] = defaultdict(list)
+    for row in rows:
+        if str(row.get("control_type", "observed") or "observed") != "observed":
+            continue
+        if str(row.get("geometry_method", "")) != "subset_rsa":
+            continue
+        score = parse_score(row.get("score"))
+        if score is None:
+            continue
+        key = (
+            *geometry_group_key(row),
+            str(row.get("subset_size", "")),
+        )
+        grouped[key].append(score)
+
+    output: list[dict[str, Any]] = []
+    for key, scores in sorted(grouped.items()):
+        model_id, subject_id, roi, stream, roi_class, layer, subset_size = key
+        score_mean = mean(scores)
+        score_min = min(scores)
+        score_max = max(scores)
+        output.append(
+            {
+                "model_id": model_id,
+                "subject_id": subject_id,
+                "roi": roi,
+                "stream": stream,
+                "roi_class": roi_class,
+                "layer": layer,
+                "geometry_method": "subset_rsa_spearman",
+                "subset_size": subset_size,
+                "seed_count": len(scores),
+                "mean_score": score_mean,
+                "std_score": std(scores),
+                "min_score": score_min,
+                "max_score": score_max,
+                "score_range": score_max - score_min,
+                "stability_status": "ok" if len(scores) >= 2 else "single_seed_only",
+                "evidence_status": "clean_publication_rerun",
+            }
+        )
+    return output
+
+
+def geometry_group_key(row: dict[str, Any]) -> tuple[str, str, str, str, str, str]:
+    return (
+        str(row.get("model_id", "") or row.get("model", "")),
+        str(row.get("subject_id", "")),
+        str(row.get("roi", "")),
+        str(row.get("stream", "")),
+        str(row.get("roi_class", "")),
+        str(row.get("layer", "")),
+    )
+
+
+def parse_score(value: Any) -> float | None:
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return None
+    return score if math.isfinite(score) else None
+
+
+def mean(values: list[float]) -> float:
+    return float(sum(values) / len(values))
+
+
+def std(values: list[float]) -> float:
+    if len(values) < 2:
+        return 0.0
+    value_mean = mean(values)
+    return float(math.sqrt(sum((value - value_mean) ** 2 for value in values) / (len(values) - 1)))
 
 
 def available_subject_roi_rows(config: dict[str, Any]) -> list[dict[str, str]]:

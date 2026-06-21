@@ -7,6 +7,7 @@ import gc
 import hashlib
 import json
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -281,40 +282,64 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
     geometry_config = dict(neural_config.get("geometry", {}))
     geometry_rows: list[dict[str, Any]] = []
     geometry_path: Path | None = None
+    geometry_protocol = {
+        "protocol": str(geometry_config.get("protocol", "legacy_geometry_protocol")),
+        "methods": [str(method) for method in geometry_config.get("methods", ["linear_cka"])],
+        "subset_sizes": [int(size) for size in geometry_config.get("subset_sizes", [])],
+        "subset_seeds": [
+            int(value)
+            for value in geometry_config.get(
+                "subset_seeds",
+                [geometry_config.get("subset_seed", seed)],
+            )
+        ],
+        "null_control_seeds": [
+            int(value)
+            for value in geometry_config.get(
+                "null_control_seeds",
+                geometry_config.get(
+                    "subset_seeds",
+                    [geometry_config.get("subset_seed", seed)],
+                ),
+            )
+        ],
+        "bootstrap_resamples": int(geometry_config.get("bootstrap_resamples", 0)),
+        "bootstrap_confidence": float(geometry_config.get("bootstrap_confidence", 0.95)),
+        "uncertainty_scope": str(geometry_config.get("uncertainty_scope", "")),
+        "aggregate_uncertainty_outputs": [
+            str(value)
+            for value in geometry_config.get("aggregate_uncertainty_outputs", [])
+        ],
+    }
     if bool(geometry_config.get("enabled", False)):
         geometry_layers = (
             [str(selection_result["selected_candidate"]["layer"])]
             if selection_result
             else list(reduced_features_by_layer)
         )
+        print(
+            "geometry_stage=start "
+            f"model={config.get('model', {}).get('name')} "
+            f"dataset={config.get('dataset', {}).get('label')} "
+            f"layers={len(geometry_layers)} "
+            f"methods={','.join(geometry_protocol['methods'])} "
+            f"subset_sizes={','.join(str(value) for value in geometry_protocol['subset_sizes']) or 'none'} "
+            f"subset_seeds={','.join(str(value) for value in geometry_protocol['subset_seeds']) or 'none'} "
+            f"bootstrap_resamples={geometry_protocol['bootstrap_resamples']}",
+            flush=True,
+        )
+        geometry_started = time.perf_counter()
         geometry_rows = _compute_geometry_rows(
             reduced_features_by_layer,
             responses,
             layers=geometry_layers,
-            methods=[str(method) for method in geometry_config.get("methods", ["linear_cka"])],
-            subset_sizes=[int(size) for size in geometry_config.get("subset_sizes", [])],
-            subset_seeds=[
-                int(value)
-                for value in geometry_config.get(
-                    "subset_seeds",
-                    [geometry_config.get("subset_seed", seed)],
-                )
-            ],
-            null_control_seeds=[
-                int(value)
-                for value in geometry_config.get(
-                    "null_control_seeds",
-                    geometry_config.get(
-                        "subset_seeds",
-                        [geometry_config.get("subset_seed", seed)],
-                    ),
-                )
-            ],
-            bootstrap_resamples=int(geometry_config.get("bootstrap_resamples", 0)),
+            methods=geometry_protocol["methods"],
+            subset_sizes=geometry_protocol["subset_sizes"],
+            subset_seeds=geometry_protocol["subset_seeds"],
+            null_control_seeds=geometry_protocol["null_control_seeds"],
+            bootstrap_resamples=geometry_protocol["bootstrap_resamples"],
             bootstrap_seed=int(geometry_config.get("bootstrap_seed", seed)),
-            bootstrap_confidence=float(
-                geometry_config.get("bootstrap_confidence", 0.95)
-            ),
+            bootstrap_confidence=geometry_protocol["bootstrap_confidence"],
             row_context=_score_row_context(config, item_metadata),
             model_feature_reduction=feature_reduction_metadata.get(
                 "feature_reduction",
@@ -323,6 +348,14 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         )
         geometry_path = output_dir / "geometry_scores.csv"
         _write_geometry_rows(geometry_path, geometry_rows)
+        print(
+            "geometry_stage=done "
+            f"model={config.get('model', {}).get('name')} "
+            f"dataset={config.get('dataset', {}).get('label')} "
+            f"rows={len(geometry_rows)} "
+            f"elapsed_seconds={time.perf_counter() - geometry_started:.3f}",
+            flush=True,
+        )
 
     metadata = {
         "config_path": str(config_path),
@@ -376,6 +409,7 @@ def run_neural_alignment(config_path: str | Path) -> dict[str, Any]:
         "encoding_target_scores": str(target_scores_path),
         "rsa_scores": str(rsa_path) if rsa_path is not None else None,
         "geometry_scores": str(geometry_path) if geometry_path is not None else None,
+        "geometry_protocol": geometry_protocol,
         "selection_enabled": bool(selection_enabled),
         "selection_artifact": "",
         "selection_candidates": "",

@@ -52,14 +52,14 @@ SCANPATH_OR_FOVEATED = {
     "adaptivenn_deit_small",
 }
 CLEAN_RERUN_CONFIGS = {
-    "behavioral": "configs/paper1_clean_behavioral_rerun.yaml",
+    "primary_behavioral_latent_to_fixation_encoding": "configs/paper1_primary_behavioral_latent_fixation.yaml",
     "latent_neural_encoding": "configs/paper1_latent_neural_matrix.yaml",
     "geometry": "configs/paper1_latent_neural_matrix.yaml",
     "efficiency_resource": "configs/paper1_efficiency_resource_rerun.yaml",
     "cross_axis": "configs/paper1_cross_axis_assembly.yaml",
 }
 CLEAN_RERUN_RUNNERS = {
-    "behavioral": "scripts/run_paper1_clean_behavioral_rerun.py",
+    "primary_behavioral_latent_to_fixation_encoding": "scripts/run_paper1_primary_behavioral_latent_fixation.py",
     "latent_neural_encoding": "scripts/run_paper1_clean_latent_neural_encoding.py",
     "geometry": "scripts/run_paper1_clean_geometry.py",
     "efficiency_resource": "scripts/run_paper1_clean_efficiency_resource.py",
@@ -202,20 +202,20 @@ def method_readiness_rows() -> list[dict[str, str]]:
     rows = [
         method_row(
             "behavioral_evaluation",
-            "map_metrics",
-            "probabilistic log-likelihood, information gain, NSS, shuffled AUC, CC, SIM, KL, AUC Judd, AUC Borji",
-            "src/hma/metrics/saliency_metrics.py",
+            "primary_behavioral_latent_to_fixation_encoding",
+            "held-out fixation-density readout from certified latent tensors, selected by validation information gain",
+            "src/hma/behavioral/latent_fixation.py; scripts/run_paper1_primary_behavioral_latent_fixation.py",
             "ready",
-            "Metric implementations and constant-map policies are present.",
+            "Primary behavioral V0 lane trains ridge readouts from latent features to fixation density and scores held-out fixation information gain.",
             "none",
         ),
         method_row(
             "behavioral_evaluation",
-            "behavioral_uncertainty",
-            "image-cluster bootstrap, SALICON worker-within-image, COCO-Search18 subject-within-image/task uncertainty",
-            "src/hma/behavioral/uncertainty.py",
+            "legacy_behavioral_pipeline_excluded_from_v0",
+            "native maps, saliency metrics, attribution maps, routing maps, token maps, and scanpath map aggregates",
+            "configs/paper1_clean_behavioral_rerun.yaml; scripts/run_paper1_clean_behavioral_rerun.py",
             "ready",
-            "Hierarchical interval interfaces are implemented.",
+            "Legacy behavioral-map/saliency/scanpath outputs are retained only for diagnostics and expected-range checks.",
             "none",
         ),
         method_row(
@@ -257,10 +257,10 @@ def method_readiness_rows() -> list[dict[str, str]]:
         method_row(
             "representational_geometry",
             "geometry_controls",
-            "debiased CKA, biased CKA diagnostic, subset RSA, response permutations, image-resampling intervals",
+            "debiased CKA, biased CKA diagnostic, subset RSA, response permutations, subset-seed stability, aggregate method agreement",
             "src/hma/neural/geometry.py; src/hma/neural/rsa.py; scripts/compute_matched_geometry.py",
             "ready",
-            "Geometry methods are accepted for publication rerun on certified latent tensors.",
+            "Geometry methods are accepted for publication rerun on certified latent tensors with aggregate stability in place of per-cell image bootstrap.",
             "none",
         ),
         method_row(
@@ -571,6 +571,7 @@ def model_eligibility_rows(model_rows: list[dict[str, str]]) -> list[dict[str, s
                 "family": row["family"],
                 "model_role": row["model_role"],
                 "eligible_behavioral_evidence": yesno(behavior_ready or diagnostic),
+                "eligible_primary_behavioral_latent_fixation": yesno(latent_ready and not diagnostic),
                 "eligible_latent_neural_encoding": yesno(latent_ready and not diagnostic),
                 "eligible_latent_geometry": yesno(latent_ready and not diagnostic),
                 "eligible_task_search_or_scanpath": yesno(
@@ -689,7 +690,11 @@ def expected_output_rows() -> list[dict[str, str]]:
         ("execution_path_verification", PREFLIGHT_ROOT / "execution_path_verification_table.csv", "pre_rerun_required"),
         ("user_run_cluster_commands", PREFLIGHT_ROOT / "user_run_cluster_commands.md", "pre_rerun_required"),
         ("postrun_import_validation_plan", PREFLIGHT_ROOT / "postrun_import_validation_plan.md", "pre_rerun_required"),
-        ("clean_behavioral", PUBLICATION_ROOT / "behavioral" / "aggregate.csv", "expected_after_authorized_rerun"),
+        ("primary_behavioral_latent_fixation", PUBLICATION_ROOT / "behavioral_latent_fixation" / "fixation_encoding_scores.csv", "expected_after_authorized_rerun"),
+        ("primary_behavioral_latent_fixation_image_scores", PUBLICATION_ROOT / "behavioral_latent_fixation" / "fixation_image_scores.csv", "expected_after_authorized_rerun"),
+        ("primary_behavioral_latent_fixation_feature_reduction", PUBLICATION_ROOT / "behavioral_latent_fixation" / "feature_reduction_metadata.json", "expected_after_authorized_rerun"),
+        ("primary_behavioral_latent_fixation_readout_selection", PUBLICATION_ROOT / "behavioral_latent_fixation" / "readout_selection_artifact.json", "expected_after_authorized_rerun"),
+        ("legacy_behavioral_pipeline_exclusion_audit", PUBLICATION_ROOT / "audits" / "legacy_behavioral_pipeline_exclusion_audit.csv", "expected_after_authorized_rerun"),
         ("clean_neural_encoding", PUBLICATION_ROOT / "neural_encoding" / "encoding_scores.csv", "expected_after_authorized_rerun"),
         ("clean_geometry", PUBLICATION_ROOT / "geometry" / "geometry_scores.csv", "expected_after_authorized_rerun"),
         ("clean_efficiency", PUBLICATION_ROOT / "efficiency" / "efficiency_profiles.csv", "expected_after_authorized_rerun"),
@@ -1126,7 +1131,7 @@ def write_first_clean_rerun_plan(
         row["gate"] == "first_clean_rerun_authorization" and row["status"] == "authorized"
         for row in readiness_rows
     )
-    behavior = [row["model_id"] for row in model_rows if row["behavioral_output_status"] == "ready" and row["certification_status"] == "adapter_certified"]
+    behavior = [row["model_id"] for row in model_rows if row["latent_tensor_status"] == "ready" and row["certification_status"] == "adapter_certified" and row["paper_evidence_status"] != "diagnostic_only"]
     latent = [row["model_id"] for row in model_rows if row["latent_tensor_status"] == "ready" and row["certification_status"] == "adapter_certified"]
     scanpath = [row["model_id"] for row in model_rows if row["scanpath_glimpse_export_status"] == "ready" and row["certification_status"] == "adapter_certified"]
     efficiency = [row["model_id"] for row in model_rows if row["efficiency_metadata_status"] == "ready" and row["certification_status"] == "adapter_certified"]
@@ -1167,7 +1172,7 @@ def write_first_clean_rerun_plan(
         "",
         "## Eligible Models",
         "",
-        f"- behavioral: {pipe_join(behavior)}",
+        f"- primary_behavioral_latent_to_fixation_encoding: {pipe_join(behavior)}",
         f"- latent_neural_geometry: {pipe_join(latent)}",
         f"- task_search_or_scanpath: {pipe_join(scanpath)}",
         f"- efficiency_resource: {pipe_join(efficiency)}",

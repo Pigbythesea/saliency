@@ -16,16 +16,16 @@ Its purpose is to steer implementation toward publication-grade scientific evide
 
 The current Paper 1 claim to test is:
 
-> Human-like fixation alignment, neural encoding, representational geometry, cortical stream structure, and computational efficiency are separable axes of visual alignment. Paper 1 should test whether these axes converge or dissociate across modern vision systems. The central question is whether models that look more human-like behaviorally also predict visual-cortex responses and neural representational geometry better, or whether behavioral attention, neural encoding, latent geometry, stream selectivity, and efficiency come apart in systematic ways.
+> Human fixation behavior, visual-cortex neural encoding, representational geometry, cortical stream structure, model role, and computational efficiency are separable axes of visual alignment. Paper 1 should test whether these axes converge or dissociate across modern vision systems. The primary behavioral axis is no longer native saliency-map or scanpath-output similarity. It is a standardized latent-to-fixation encoding probe: frozen model latent features are mapped through a matched linear probabilistic readout to held-out human fixation density. The central question is whether models whose latent spaces make human fixation behavior linearly decodable also predict visual-cortex responses and neural representational geometry better, or whether fixation decodability, neural encoding, latent geometry, stream selectivity, model role, and efficiency come apart systematically.
 
 The paper should be organized around a cross-axis outcome grid:
 
-| fixation / behavioral alignment | neural encoding / geometry alignment | intended interpretation                                                                |
-| ------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
-| high                            | high                                 | overt human-like selection may track brain-like representation                         |
-| low                             | high                                 | representation convergence may emerge without human-like gaze or saliency              |
-| high                            | low                                  | saliency-map mimicry or human-like output may arise from non-human internal processing |
-| low                             | low                                  | weak alignment on both behavioral and neural axes                                      |
+| primary behavioral latent-to-fixation decodability | neural encoding / geometry alignment | intended interpretation |
+| --- | --- | --- |
+| high | high | human fixation structure is linearly accessible from representations that also align with visual-cortex responses or neural geometry |
+| low | high | brain-predictive representations may emerge without linearly decodable human fixation behavior |
+| high | low | human-fixation-decodable representations may arise without strong neural encoding or geometry alignment |
+| low | low | weak alignment on both behavioral-decoding and neural/geometry axes |
 
 ## Publication Evidence Contract Override
 
@@ -41,7 +41,7 @@ No result outside this root is final Paper 1 evidence unless it is explicitly re
 
 No publication-root full rerun is allowed unless the relevant behavioral, neural, geometry, adapter-comparability, efficiency, and cross-axis method gates are passed or explicitly accepted with limitations.
 
-The current active task is **Authorized Rerun Verification And Bounded Clean Rerun Execution**. It is not interpretation, manuscript writing, unrestricted cluster execution, adapter-only installation, metric-only implementation, model-universe reduction, or another blocked-model repair loop. The blocked-model repair pass is complete, but artifact-level authorization verification superseded the earlier regenerated preflight claim. The clean rerun is blocked until the frozen contract execution flag, clean lane config flags, and dedicated clean runner scripts are made consistent with the publication contract. Do not execute clean lanes until `outputs/paper1_publication_v0/preflight/authorization_verification_table.csv` and `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv` pass.
+The current active task is **Updated V0 Full Cluster Rerun With Primary Behavioral Latent-To-Fixation Evidence**. It is not interpretation, manuscript writing, blocked-model repair, adapter-only installation, legacy behavioral-map rerunning, or another incremental planning loop. The primary behavioral latent-to-fixation pipeline now exists, has a bounded local smoke output, and is routed into V0. The remaining work is to execute the generated full clean cluster package, copy back the outputs, rerun import validation, and keep the legacy behavioral-map/saliency/scanpath lane excluded from primary V0 evidence.
 
 
 The `Current Implementation Progress` section must summarize publication-readiness state only; it must not re-list historical runs, smoke passes, old Matrix V2 outputs, old result numbers, or debugging milestones.
@@ -61,11 +61,12 @@ The current Paper 1 claim remains valid. It should sharpen the neural-alignment 
   - general visual representation models;
   - spatial-prior and task-prior controls;
 - representation type:
-  - latent-feature neural encoding and latent-feature representational geometry as mandatory main evidence;
-  - behavioral fixation/scanpath output as behavioral evidence;
+  - latent-feature neural encoding and latent-feature representational geometry as mandatory neural/geometry evidence;
+  - primary behavioral latent-to-fixation encoding as mandatory behavioral evidence;
+  - native saliency maps, Grad-CAM maps, attention rollout maps, routing maps, token-retention maps, generated scanpaths, and model-native fixation outputs as legacy/diagnostic behavioral objects unless explicitly reintroduced as secondary controls after V0;
   - output-map-to-fMRI encoding only as a secondary diagnostic/control, not the primary neural-comparison scheme.
 
-Paper 1 should remain centered on whether fixation alignment, latent neural encoding, latent representational geometry, cortical stream structure, model role, and efficiency converge or dissociate. The publication-facing version must test whether these axes dissociate systematically by cortical stream and by model role.
+Paper 1 should remain centered on whether latent-to-fixation decodability, latent neural encoding, latent representational geometry, cortical stream structure, model role, and efficiency converge or dissociate. The publication-facing version must test whether these axes dissociate systematically by cortical stream and by model role. The behavioral comparison must be based on the standardized learned linear fixation readout from frozen latent features, not on heterogeneous native saliency, attribution, routing, or scanpath outputs.
 
 The model universe is fixed by the research question, not by convenience. Feasibility determines implementation status and adapter order; it must not shrink the scientific scope before a model-role and latent-feature audit is complete.
 
@@ -89,7 +90,8 @@ A change counts as progress only if it produces at least one of the following:
 - an adapter-certification result proving which models expose behavioral outputs, latent features, scanpaths/glimpses, efficiency metadata, and controlled input conditions;
 - a clean behavioral rerun artifact under the publication output root;
 - a clean latent-feature neural encoding artifact under the publication output root;
-- a clean latent-feature geometry artifact under the publication output root;
+- a clean primary behavioral latent-to-fixation encoding artifact under the publication output root;
+- a negative audit marking the old native-map / scanpath / saliency-metric behavioral rerun as legacy and excluded from V0 evidence;
 - a stream/ROI grouping table tied to actual neural manifests and publication configs;
 - an efficiency/resource-allocation table merged into the publication matrix;
 - a cross-axis table using only publication-root evidence;
@@ -107,13 +109,13 @@ Codex should prioritize:
 - full required model-role coverage before convenience-based model reduction;
 - adapter certification and setup scaffolding across the full required model universe, not only local anchors;
 - reusable method infrastructure before publication-root evidence generation;
-- behavioral uncertainty and sequence/task metrics before clean behavioral reruns;
+- completing the primary behavioral latent-to-fixation encoding pipeline before any V0 rerun;
 - debiased geometry and geometry resampling before clean geometry reruns;
 - sequential/adaptive total-cost accounting before efficiency comparisons;
 - family-aware cross-axis sensitivity before paper-facing quadrant interpretation;
 - latent-feature neural encoding and latent-feature geometry over output-map neural controls;
 - stream/ROI structure over flat ROI averages;
-- adaptive/foveated/scanpath/selective-computation mechanisms over additional post-hoc heatmap variants;
+- latent-feature behavioral encoding over post-hoc heatmap variants, native saliency maps, scanpath-output scoring, or routing-map similarity;
 - explicit paper-evidence status for every model, artifact, and result table.
 
 Codex should avoid:
@@ -174,15 +176,16 @@ Current scaffold/provenance assets:
 
 Current publication-facing status:
 
-- No final Paper 1 publication evidence matrix exists yet.
+- No final Paper 1 publication evidence matrix is accepted yet.
 - No legacy output is accepted as final paper evidence by default.
-- The blocked-model repair pass is complete according to the regenerated preflight artifacts.
-- Artifact-level verification passed model/data/method/cache/DeepGaze tensor checks, but clean execution remains blocked by the frozen contract flag, disabled/missing clean configs, and missing dedicated clean runner scripts.
-- The next accepted scientific artifact remains the bounded first clean rerun under `outputs/paper1_publication_v0/`, but only after authorization and execution-path verification pass.
-- Admission-panel artifacts remain provenance only. Regenerated preflight artifacts are authorization evidence, not final scientific evidence.
-- Static DeiT-S, DynamicViT, ToMe, DINOv3, SigLIP, MambaVision, DeepGaze, HAT, ScanDiff, AdaptiveNN, certified anchors, and controls must enter only through the repaired eligibility/config tables.
-- SemBA/SemBA-FAST are excluded from the active plan only as audited unavailable rows; their exclusion must remain explicit in audit/config artifacts.
-- All final behavioral, latent-feature neural, latent-feature geometry, efficiency, and cross-axis evidence must be regenerated under the publication output root and audited to exclude legacy/admission contamination.
+- The V0 rerun path is authorized and cluster-tested, but the behavioral lane is now methodologically stale.
+- The old behavioral fixation/saliency/scanpath/map-metric rerun is demoted to `legacy_behavioral_pipeline` and must not enter the V0 rerun.
+- The new primary behavioral evidence lane is `primary_behavioral_latent_to_fixation_encoding`.
+- The next accepted scientific artifact is the completed primary behavioral latent-to-fixation pipeline plus a regenerated V0 rerun under `outputs/paper1_publication_v0/`.
+- Static DeiT-S, DynamicViT, ToMe, DINOv3, SigLIP, MambaVision, DeepGaze, HAT, ScanDiff, AdaptiveNN, certified anchors, and controls must enter the behavioral lane only through frozen latent features or explicitly audited latent-feature artifacts.
+- Native behavioral outputs from DeepGaze, HAT, ScanDiff, AdaptiveNN, Grad-CAM, attention rollout, routing maps, token/glimpse maps, task priors, and legacy saliency maps are diagnostic-only for V0 unless explicitly used as baselines/controls outside the primary behavioral score.
+- SemBA/SemBA-FAST exclusion remains explicit in audit/config artifacts.
+- Final V0 evidence must contain primary behavioral latent-to-fixation encoding, latent-feature neural encoding, latent-feature geometry, efficiency/resource, and cross-axis outputs regenerated under the publication root and audited to exclude legacy/admission contamination.
 
 Publication output root:
 
@@ -231,11 +234,41 @@ It must not be labeled:
 
 ### Behavioral rule
 
-SALICON and CAT2000 are free-viewing datasets. COCO-Search18 is task-search. They must remain separated in all publication-root summaries.
+The primary V0 behavioral pipeline is `primary_behavioral_latent_to_fixation_encoding`.
 
-Point-fixation metrics, map-distribution metrics, task-search metrics, and scanpath/sequence metrics must be reported as distinct behavioral objects.
+Its scientific question is:
 
-DeepGaze, HAT, ScanDiff, SemBA/SemBA-FAST, AdaptiveNN, center priors, random baselines, task priors, attribution maps, routing maps, and token/glimpse maps must each retain their model-role and behavioral-object labels.
+> After freezing each model and giving it the same constrained fixation readout, how much held-out human fixation density is linearly decodable from the model's latent representation?
+
+The primary behavioral pipeline must use:
+
+- frozen model latent features, not native saliency/attention/routing maps;
+- deterministic one-tensor-per-image or one-audited-condition-per-image feature artifacts;
+- architecture-normalized spatial feature handling:
+  - CNN feature maps stay spatial;
+  - ViT/DeiT/DINO/CLIP/SigLIP tokens are reshaped to a 2D patch grid;
+  - DynamicViT/ToMe token-pruning or token-merging states are reconstructed or masked into an audited rectangular grid;
+  - DeepGaze/HAT/ScanDiff/AdaptiveNN states are used only under explicit deterministic condition labels;
+- a common spatial output grid, default `28x28`;
+- train-only feature normalization and dimensionality reduction;
+- a fixed primary readout family: linear L2-regularized log-density readout;
+- explicit center-bias baseline estimated only from training data;
+- held-out fixation log-likelihood and information gain above center bias as primary metrics;
+- NSS, CC, KL, AUC, and native map scores only as secondary or diagnostic metrics.
+
+SALICON and CAT2000 remain free-viewing datasets. COCO-Search18 remains task-search. They must remain separated if included, but V0 primary behavioral completion should prioritize the free-viewing latent-to-fixation lane unless task-conditioned latent fixtures are already certified.
+
+The following are legacy/diagnostic for V0 and must not define the primary behavioral axis:
+
+- Grad-CAM and Grad-CAM variants;
+- vanilla/integrated gradients;
+- attention rollout and transformer relevance maps;
+- native DeepGaze output maps;
+- HAT/ScanDiff/AdaptiveNN native scanpaths or glimpse outputs;
+- token-retention, routing, merge, or resource-allocation maps;
+- old point-fixation/map-distribution/scanpath metric aggregates from Matrix V1/V2 or admission-panel outputs.
+
+Legacy behavioral outputs may be used only for expected-range checks, diagnostic plots, or optional secondary controls after the primary behavioral latent-to-fixation encoding rerun exists and passes audit.
 
 ### Model inclusion rule
 
@@ -265,39 +298,67 @@ The current repository method is a controlled baseline pipeline, not a SOTA lead
 
 The publication method must be described as:
 
-> A controlled frozen-feature and behavioral-output benchmark for comparing model roles across behavioral fixation/scanpath alignment, latent-feature neural encoding, representational geometry, cortical stream structure, and efficiency/resource allocation.
+> A controlled frozen-feature benchmark for comparing model roles across primary behavioral latent-to-fixation encoding, latent-feature neural encoding, representational geometry, cortical stream structure, and efficiency/resource allocation.
 
 The publication method must not be described as:
 
 * an Algonauts leaderboard-equivalent fMRI model;
-* a SOTA saliency model;
+* a SOTA saliency model or native saliency-map leaderboard;
+* a comparison of heterogeneous Grad-CAM, attention-rollout, routing-map, native-saliency, or scanpath objects as if they were the same behavioral representation;
 * a causal attention-intervention study;
 * proof that fixation alignment causes neural alignment;
 * proof that output-map alignment replaces latent-feature neural encoding.
 
-### Gate 1 — Behavioral evaluation acceptance
+### Gate 1 — Primary behavioral latent-to-fixation encoding acceptance
 
-Status: `accepted_with_limitations`.
+Status: `implemented_smoke_tested_routed_full_cluster_pending`.
 
-Before clean behavioral reruns, Codex must produce:
+The old behavioral evaluation gate is superseded for V0. Native map, saliency, attribution, routing, scanpath, and point-metric behavioral scoring is now `legacy_behavioral_pipeline_excluded_from_v0` and must not enter the V0 rerun as the primary behavioral evidence.
 
-* `outputs/paper1_scope_reset/method_behavioral_sota_audit.md`
-* `outputs/paper1_scope_reset/behavioral_metric_acceptance_table.csv`
+The primary behavioral latent-to-fixation pipeline has been implemented, smoke-tested locally, routed through the V0 runner/preflight/cross-axis path, and audited. The remaining V0 blocker is full clean cluster execution, copy-back, and import validation.
 
-The audit must decide:
+Required implementation artifacts:
 
-* which metrics are primary for point-fixation maps;
-* which metrics are primary for map-distribution comparisons;
-* which metrics are primary for task-search outputs;
-* which metrics are primary for scanpath or sequential outputs;
-* whether image-level, observer-level, or clustered bootstrap uncertainty is required;
-* how SALICON/CAT2000 free-viewing and COCO-Search18 task-search remain separated;
-* how DeepGaze, HAT, ScanDiff, SemBA/SemBA-FAST, AdaptiveNN, center priors, task priors, attribution maps, routing maps, and token/glimpse maps are labeled as distinct behavioral objects.
+* `configs/paper1_primary_behavioral_latent_fixation.yaml`
+* `scripts/run_paper1_primary_behavioral_latent_fixation.py`
+* `src/hma/behavioral/latent_fixation.py`
+* `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`
+* `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_image_scores.csv`
+* `outputs/paper1_publication_v0/behavioral_latent_fixation/feature_reduction_metadata.json`
+* `outputs/paper1_publication_v0/behavioral_latent_fixation/readout_selection_artifact.json`
+* `outputs/paper1_publication_v0/audits/primary_behavioral_latent_fixation_audit.csv`
+* `outputs/paper1_publication_v0/audits/legacy_behavioral_pipeline_exclusion_audit.csv`
+* updated `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`
+* updated `outputs/paper1_publication_v0/preflight/expected_outputs_manifest.csv`
+* updated `outputs/paper1_publication_v0/cross_axis/model_axis_scores.csv` after the rerun finishes.
 
-A behavioral rerun can proceed only after this gate is `accepted_for_publication_rerun` or `accepted_with_limitations`.
+Required method contract:
 
-Current limitation: free-viewing map execution is admitted, while conditional
-next-fixation and generated-scanpath execution remains model-adapter gated.
+* input: frozen model latent tensors from certified adapters/artifacts;
+* model families: use the same eligible latent-feature model universe as the neural/geometry lane wherever fixation-dataset image coverage exists;
+* feature handling:
+  * CNN maps remain spatial;
+  * ViT-family tokens are reshaped to patch grids;
+  * token-pruned/merged models are reconstructed or masked into an audited grid;
+  * gaze/foveated/scanpath models use deterministic condition labels;
+* spatial grid: default `28x28`;
+* feature reduction: train-only channel PCA or equivalent train-only low-rank bottleneck, default `512` components when feasible;
+* readout: linear L2-regularized log-density readout;
+* center bias: train-split empirical center prior, never fit on validation/test fixations;
+* probability normalization: spatial softmax over the output grid;
+* layer and regularization selection: inner validation only;
+* held-out test split: untouched by PCA fitting, layer selection, readout selection, and center-prior fitting;
+* primary score: fixation log-likelihood and information gain above center bias;
+* secondary scores: NSS, CC, KL, AUC only as supporting diagnostics;
+* forbidden primary evidence: Grad-CAM, attention rollout, transformer relevance, native DeepGaze maps, routing maps, token maps, scanpath metrics, and old behavioral aggregate files.
+
+Acceptance rule:
+
+This gate can move to `accepted_for_publication_rerun` after the full clean cluster rerun finishes, outputs are copied back, import validation passes, and the cross-axis publication-root outputs are regenerated from the new primary behavioral lane.
+
+Current limitation:
+
+The updated V0 rerun is authorized and cluster-ready, but full cluster execution is still pending. The old behavioral outputs are marked `legacy_behavioral_pipeline_excluded_from_v0`.
 
 ### Gate 2 — Latent-feature neural encoding acceptance
 
@@ -429,7 +490,7 @@ It must contain:
 
 - model-role matrix;
 - adapter-certification matrix;
-- clean behavioral rerun;
+- clean primary behavioral latent-to-fixation encoding rerun;
 - clean latent-feature neural encoding rerun;
 - clean latent-feature geometry rerun;
 - stream/ROI grouping;
@@ -481,7 +542,7 @@ If observational cross-axis results remain weak after the full contract, shift m
 
 ## Current Implementation Progress
 
-Updated: 2026-06-18
+Updated: 2026-06-21
 
 Current implementation state is classified by **publication readiness**, not by smoke tests, local convenience runs, or legacy Matrix V2 progress.
 
@@ -492,14 +553,13 @@ Current implementation readiness is:
 | component | current classification | publication-facing meaning |
 | --- | --- | --- |
 | publication contract | frozen_v0 | `configs/paper1_publication_contract.yaml` remains the governing contract |
-| publication output root | preflight_artifacts_only_no_final_evidence | `outputs/paper1_publication_v0/` contains admission/preflight artifacts; no clean rerun evidence is final |
-| evidence reset | complete | legacy roots remain scaffold/provenance unless regenerated or equivalence-certified |
-| first clean rerun authorization | authorized_after_strict_infrastructure_verification | regenerated preflight and strict verification authorize the bounded clean rerun execution path; no full clean rerun has been launched |
-| behavioral evaluation method | accepted_with_limitations_method_leftovers_ready | map metrics, uncertainty, conditional-scanpath interfaces, and leakage-safe empirical spatial prior are implemented; non-DeepGaze scanpath/foveated breadth remains model-setup-limited |
+| publication output root | v0_authorized_primary_behavioral_lane_replaced_full_cluster_pending | `outputs/paper1_publication_v0/` remains the publication root; the primary behavioral latent-fixation bounded output exists, while full neural/geometry/efficiency/cross-axis outputs are still pending |
+| first clean rerun authorization | authorized_verified_after_behavioral_replacement | regenerated preflight and strict verification report `ready`; full cluster job package has been regenerated after replacing the stale behavioral lane |
+| primary behavioral latent-to-fixation method | implemented_smoke_tested_routed | `configs/paper1_primary_behavioral_latent_fixation.yaml`, `scripts/run_paper1_primary_behavioral_latent_fixation.py`, and `src/hma/behavioral/latent_fixation.py` implement train-only reduction, validation-selected ridge readouts, held-out fixation scoring, and legacy exclusion audit |
 | latent-feature neural encoding method | accepted_with_limitations_export_validated_for_deepgaze | controlled frozen-feature PCA/ridge is allowed for certified tensors; DeepGaze IIE/III/MSDB bounded tensor exports validate deterministically |
 | representational geometry method | accepted_for_publication_rerun_after_tensor_validation | debiased CKA/RSA machinery is ready for certified tensors; geometry execution must wait until model tensor exports are actually validated |
 | efficiency/resource-allocation method | accepted_with_limitations_clean_runner_ready | static/token-pruning/token-merging schemas and total-cost/resource hooks are preflight-certified where available; clean efficiency/resource config and dry-run runner exist |
-| cross-axis inference method | accepted_with_limitations_no_interpretation | cross-axis assembly/audit may run after clean evidence exists; convergence/dissociation interpretation remains blocked until publication-root outputs are validated |
+| cross-axis inference method | accepted_with_limitations_no_interpretation_primary_behavior_routed | cross-axis assembly now reads `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`; convergence/dissociation interpretation remains blocked until all publication-root outputs are validated |
 | model adapter comparability | repaired_preflight_certified | current regenerated preflight has no non-diagnostic uncertified model rows |
 | easy public image encoders | preflight_certified | SigLIP and MambaVision have adapter-certification rows and checkpoint locks in the regenerated preflight |
 | DINOv3 | preflight_certified | DINOv3 has an adapter-certification row and checkpoint lock in the regenerated preflight |
@@ -508,12 +568,12 @@ Current implementation readiness is:
 | scanpath/foveated/adaptive candidates | preflight_certified | DeepGaze III, AdaptiveNN, HAT, ScanDiff free-view, and ScanDiff visual-search are certified scanpath/foveated candidates |
 | efficient-computation models | keep_in_scope_not_main_bottleneck | DynamicViT and ToMe stay in scope, but they are not the central next-session target |
 | neural ROI/stream scope | partial_ready | early retinotopic and subj01 stream manifests exist; stream/category coverage limits must remain explicit |
-| cluster execution | user_run_commands_ready_full_run_pending | cluster command plan exists for sync, dry-run verification, full lane commands, log monitoring, copy-back, and import validation; Codex has not run cluster jobs |
-| legacy outputs | excluded | no existing empirical root is accepted or equivalence-certified as final Paper 1 evidence |
+| cluster execution | generated_full_package_ready_full_run_pending | regenerated cluster tables contain 63 behavioral latent export cells, 462 neural cells, 25 efficiency cells, and zero unsupported behavioral rows; Codex has not run remote Slurm jobs |
+| legacy outputs | excluded | no existing empirical root is accepted or equivalence-certified as final Paper 1 evidence; old behavioral-map/saliency/scanpath outputs are explicitly `legacy_behavioral_pipeline_excluded_from_v0` |
 
 ### Current checks before real paper progress
 
-The regenerated preflight and strict artifact-level verification now authorize the bounded first clean rerun execution path. Model/data/method/cache/DeepGaze checks pass, clean configs are enabled, dedicated clean runners exist, and runner dry-runs pass. Before execution, Codex or the user must still verify:
+The regenerated preflight, strict artifact-level verification, and cluster job generation authorize the updated V0 rerun execution path. Model/data/method/cache/DeepGaze checks pass, clean configs are enabled, dedicated runners exist, runner dry-runs pass, and the primary behavioral latent-to-fixation lane has a bounded local smoke output at `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`. Before remote execution, verify:
 
 1. `outputs/paper1_publication_v0/preflight/user_action_checklist.csv` contains no blocked execution-gate rows;
 2. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` reports `first_clean_rerun_authorization=authorized`;
@@ -521,19 +581,19 @@ The regenerated preflight and strict artifact-level verification now authorize t
 4. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, AdaptiveNN, DeepGaze IIE/III/MSDB, DynamicViT, ToMe, local anchors, priors, random baseline, and task prior have actual source/checkpoint/environment/adapter/certification records where applicable;
 5. DeepGaze tensor exports and conditional/scanpath outputs actually exist and pass deterministic validation, rather than only having manifests;
 6. SemBA/SemBA-FAST exclusion is explicit in registry/config/audit artifacts and does not silently remove the model family from the model-universe record;
-7. clean-rerun configs include only eligible certified rows, have `execution_enabled: true`, and do not reuse admission-panel outputs as clean evidence;
+7. clean-rerun configs include only eligible certified rows, have `execution_enabled: true`, route behavioral evidence through `primary_behavioral_latent_to_fixation_encoding`, and do not reuse admission-panel or legacy behavioral outputs as clean evidence;
 8. dedicated clean runner scripts or commands exist and pass `--dry-run` for behavioral, latent neural encoding, geometry, efficiency/resource, and cross-axis assembly;
 9. expected-output manifests define output paths, row/file expectations, and import validation;
-10. no clean behavioral, latent neural encoding, geometry, efficiency, or cross-axis artifact is accepted as Paper 1 publication evidence until the bounded rerun finishes and passes audit.
+10. no primary behavioral latent-to-fixation, latent neural encoding, geometry, efficiency, or cross-axis artifact is accepted as Paper 1 publication evidence until the updated V0 rerun finishes and passes audit.
 
 
 ### Current implementation priority
 
 Active priority:
 
-> Run the bounded first clean rerun only through the verified dedicated clean runners or the generated user-run cluster commands. Do not use admission-panel runners as clean-evidence substitutes, and do not interpret any results until post-run clean evidence audit passes.
+> Run the generated full clean cluster package, copy back `outputs/paper1_publication_v0/`, regenerate preflight and authorization verification, and confirm every expected V0 output exists. Do not use admission-panel runners, legacy saliency-map aggregates, native scanpath outputs, Grad-CAM/rollout maps, routing maps, or old behavioral metric tables as clean behavioral evidence. Do not interpret results until the updated V0 rerun and post-run clean evidence audit pass.
 
-This is not another blocked-model repair session, DynamicViT/ToMe-only session, cluster-only session, Markdown session, smoke-test session, or paper-interpretation session. The canonical artifact list lives in `Next Concrete Milestone`. Do not duplicate it here.
+This is not another blocked-model repair session, DynamicViT/ToMe-only session, cluster-only session, Markdown session, smoke-test session, audit-only session, config-only session, or paper-interpretation session. The next Codex session must finish code, config, runner, dry-run, rerun execution path, output generation, and audit for the primary behavioral latent-to-fixation lane in one session.
 
 ### Required end-of-session report
 
@@ -543,12 +603,13 @@ Do not report smoke tests, debugging fixes, old-result summaries, or legacy audi
 
 Implementation history is archived in `docs/project_status_changelog.md`.
 
+
 ### End-of-session report - Clean Rerun Execution Infrastructure
 
 1. **Publication-contract change:** no full clean rerun was launched. Dedicated clean runner infrastructure now exists for behavioral, latent neural encoding, geometry, efficiency/resource, and cross-axis assembly. `configs/paper1_publication_contract.yaml` has `execution_authorized: true` after runner dry-runs and strict verification passed.
-2. **Accepted artifact:** accepted infrastructure artifacts are `configs/paper1_clean_behavioral_rerun.yaml`, `configs/paper1_latent_neural_matrix.yaml`, `configs/paper1_efficiency_resource_rerun.yaml`, `configs/paper1_cross_axis_assembly.yaml`, `scripts/paper1_clean_rerun_common.py`, `scripts/run_paper1_clean_behavioral_rerun.py`, `scripts/run_paper1_clean_latent_neural_encoding.py`, `scripts/run_paper1_clean_geometry.py`, `scripts/run_paper1_clean_efficiency_resource.py`, `scripts/assemble_paper1_clean_cross_axis.py`, `scripts/verify_paper1_clean_rerun_authorization.py`, `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`, and `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`.
+2. **Accepted artifact:** accepted current infrastructure artifacts are `configs/paper1_primary_behavioral_latent_fixation.yaml`, `configs/paper1_latent_neural_matrix.yaml`, `configs/paper1_efficiency_resource_rerun.yaml`, `configs/paper1_cross_axis_assembly.yaml`, `scripts/paper1_clean_rerun_common.py`, `scripts/run_paper1_primary_behavioral_latent_fixation.py`, `scripts/run_paper1_clean_latent_neural_encoding.py`, `scripts/run_paper1_clean_geometry.py`, `scripts/run_paper1_clean_efficiency_resource.py`, `scripts/assemble_paper1_clean_cross_axis.py`, `scripts/verify_paper1_clean_rerun_authorization.py`, `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`, and `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`. `configs/paper1_clean_behavioral_rerun.yaml` and `scripts/run_paper1_clean_behavioral_rerun.py` are retained only as legacy behavioral diagnostics and are excluded from V0 primary evidence.
 3. **Method gate status change:** method gates remain pass/accepted-with-limitations for pre-rerun readiness. The execution-path gate moved from blocked to ready after config, runner, dry-run, and strict verification checks passed.
-4. **Paper evidence status change:** no behavioral, neural encoding, geometry, efficiency, or cross-axis clean output exists as publication evidence. Dry-run plans and audit rows are infrastructure only; clean outputs remain `clean_publication_evidence_pending` until the bounded rerun is actually executed and audited.
+4. **Paper evidence status change:** the bounded local primary behavioral smoke output exists at `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`; neural encoding, geometry, efficiency, and final cross-axis clean outputs remain pending full cluster execution, copy-back, and import validation.
 5. **Reviewer risk reduced:** reduced false-authorization and legacy-contamination risk by requiring every clean lane to reject legacy/admission paths, write only under `outputs/paper1_publication_v0/`, preserve model/role/source/checkpoint and ROI/stream/regime fields, emit dry-run plans, and pass strict verification before execution.
 
 ### End-of-session report - Authorization Verification And Execution-Path Block
@@ -558,7 +619,7 @@ Historical status retained for provenance only. This blocked state was supersede
 1. **Publication-contract change:** no clean rerun was launched. The earlier authorization claim was repaired by adding strict contract/config/runner gates to regenerated preflight. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` now blocks `first_clean_rerun_authorization` on `publication_contract_execution_flag`, `clean_rerun_configs_execution_enabled`, and `clean_rerun_runner_scripts`.
 2. **Accepted artifact:** accepted verification artifacts are `outputs/paper1_publication_v0/preflight/authorization_verification_table.csv`, `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`, `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`, `outputs/paper1_publication_v0/preflight/postrun_import_validation_plan.md`, `outputs/paper1_publication_v0/audits/clean_rerun_audit.csv`, regenerated `outputs/paper1_publication_v0/preflight/expected_outputs_manifest.csv`, regenerated `outputs/paper1_publication_v0/preflight/user_action_checklist.csv`, and `scripts/verify_paper1_clean_rerun_authorization.py`.
 3. **Method gate status change:** behavioral, latent neural encoding, geometry, efficiency/resource, and cross-axis method gates remain pass/accepted-with-limitations for pre-rerun readiness. A separate execution-path gate is now blocked; this is not a reopened blocked-model repair.
-4. **Paper evidence status change:** no behavioral, neural encoding, geometry, efficiency, or cross-axis clean output exists as publication evidence. Admission-panel outputs remain provenance only. Current model/data/method/cache/DeepGaze checks pass in verification, but clean outputs remain `clean_publication_evidence_pending`.
+4. **Paper evidence status change:** this earlier blocked-state report has been superseded. A bounded local primary behavioral smoke output now exists at `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`; final neural encoding, geometry, efficiency, and cross-axis clean outputs still require full cluster execution and import validation.
 5. **Reviewer risk reduced:** reduced false-authorization risk by requiring the frozen contract, clean configs, dedicated runners, checkpoint locks, DeepGaze deterministic tensor exports, and expected-output manifest to agree before any cluster or local clean run.
 
 ### End-of-session report - Blocked-Model Repair And Rerun Authorization
@@ -577,17 +638,6 @@ Historical note: this pre-repair report is retained as provenance only. Its earl
 3. **Method gate status change:** model adapter comparability and efficiency/resource allocation remain `accepted_with_limitations`; the prior `first_clean_rerun_authorization=authorized` state is superseded and must be regenerated after blocked-model repair.
 4. **Paper evidence status change:** ConvNeXt, SwinV2, Hiera, DeepGaze III, DeepGaze MSDB, DynamicViT, and ToMe remain preflight-certified or setup-preflighted, but their status does not authorize rerun execution. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, AdaptiveNN, SemBA/SemBA-FAST, and empirical spatial prior require a blocked-model repair pass. No clean rerun output is `accepted_publication_evidence`.
 5. **Reviewer risk reduced:** reduced missing latent-feature risk for DeepGaze, missing scanpath-gate risk via DeepGaze III, adapter-incomparability risk through full-universe certification rows, stream/ROI ambiguity through explicit availability manifests, and stale-runbook risk through generated rerun-readiness and user-action tables.
-
-### End-of-session report - Gate-Conditioned Publication Admission Panel V1
-
-Historical status retained for provenance only.
-
-1. **Publication-contract change:** no scientific claim changed. The admission configuration encoded a role-structured bounded scope, bounded SALICON/subj01 V1 execution, and explicit evidence labels.
-2. **Accepted artifact:** admission-panel outputs exist under `outputs/paper1_publication_v0/`, including behavioral uncertainty, neural encoding, corrected geometry, efficiency/resource allocation, cross-axis availability, preflight, and audit artifacts.
-3. **Method gate status change:** behavioral evaluation moved from `method_gap_found` to `accepted_with_limitations` after tested probabilistic log-likelihood, matched-prior information gain, and image-cluster intervals.
-4. **Paper evidence status change:** ResNet-50, ViT-B/16, DINOv2, CLIP, and Swin have bounded latent neural/geometry/efficiency admission rows; DeepGaze IIE and controls have bounded free-viewing behavioral rows; all remain `admission_panel_not_final_paper_result`.
-5. **Reviewer risk reduced:** reduced legacy-output contamination, distribution-metric mismatch, false latent eligibility for DeepGaze IIE, ambiguous resource units, silent role exclusion, and analytic-control overcounting in cross-axis coverage.
-6. **Superseded next step:** the previous instruction to run `docs/paper1_admission_cluster_runbook.md` is no longer valid. That runbook is deleted/superseded because the setup is not yet prepared for cluster execution. The next decisive step is the Model, Method, and Stream Preflight Gate in `Next Concrete Milestone`.
 
 ## Cluster Workflow Guidance
 
@@ -672,94 +722,85 @@ Next milestone:
 
 ## Next Concrete Milestone
 
-Priority: **Authorized Rerun Verification And Bounded Clean Rerun Execution**.
+Priority: **Execute Updated V0 Full Cluster Rerun With Primary Behavioral Latent-Fixation Evidence**.
 
-The blocked-model repair pass is complete according to regenerated preflight artifacts. The next session must verify that authorization against actual files and executable paths, then run the bounded first clean rerun if verification passes.
+The V0 rerun path is authorized, verified, and regenerated after replacing the old behavioral lane. The remaining blocker is execution: the full cluster package must run, outputs must be copied back, and import validation must pass. The old behavioral fixation/saliency/scanpath/map-metric lane is marked `legacy_behavioral_pipeline_excluded_from_v0` and must stay out of primary V0 evidence.
 
-This milestone is not another blocked-model repair pass. It must not reopen already repaired model rows unless verification finds missing files, mismatched configs, failed hashes, missing tensors, invalid runners, or inconsistent eligibility tables.
+This milestone is not another blocked-model repair pass, audit-only pass, config-only pass, runner-only pass, or incremental planning loop. It must execute the generated cluster package or document an execution blocker with the exact failed command, log path, missing artifact, and next repair command.
 
-### Stage A — Authorization verification
+### Stage A — Freeze the updated behavioral evidence contract
 
-Codex must verify the authorization before running anything.
+Status: completed for configuration/routing; full rerun execution pending.
+
+The V0 evidence contract now sets the primary behavioral lane to `primary_behavioral_latent_to_fixation_encoding`.
 
 Required checks:
 
-1. `outputs/paper1_publication_v0/preflight/user_action_checklist.csv` is empty or contains no action required for the bounded rerun;
-2. `outputs/paper1_publication_v0/preflight/rerun_readiness_table.csv` reports `first_clean_rerun_authorization=authorized`;
-3. `outputs/paper1_publication_v0/preflight/model_certification_summary.csv`, `model_setup_attempts.csv`, and `model_rerun_eligibility_table.csv` agree on model eligibility by axis;
-4. `outputs/paper1_publication_v0/preflight/method_rerun_readiness_table.csv` marks all required method lanes ready or explicitly accepted with limitations;
-5. all referenced model sources, checkpoint/cache paths, environment records, and smoke/certification artifacts exist;
-6. DINOv3, SigLIP, MambaVision, HAT, ScanDiff, AdaptiveNN, DeepGaze IIE/III/MSDB, DynamicViT, ToMe, local anchors, priors, random baseline, and task prior are represented correctly;
-7. DeepGaze latent tensors, conditional maps, scanpath outputs, and deterministic validation files exist where claimed;
-8. empirical spatial prior exists and records leakage-safe split provenance;
-9. SemBA/SemBA-FAST exclusion is explicit in registry/config/audit artifacts;
-10. clean-rerun configs include only eligible certified rows and do not route admission-panel outputs into clean evidence.
+1. old behavioral configs/runners are marked `legacy_behavioral_pipeline` or disabled for V0;
+2. `configs/paper1_clean_behavioral_rerun.yaml` is not used as the V0 primary behavioral lane unless it is rewritten to call the latent-to-fixation pipeline;
+3. no V0 clean behavioral output path points to old SALICON/CAT2000/COCO-Search18 map-metric aggregate files;
+4. expected-output manifests contain the new behavioral latent-to-fixation outputs;
+5. cross-axis assembly reads behavioral evidence from `outputs/paper1_publication_v0/behavioral_latent_fixation/`, not from legacy behavioral aggregate paths;
+6. native behavioral outputs are labeled diagnostic-only if retained anywhere.
 
 Required artifact:
 
-- `outputs/paper1_publication_v0/preflight/authorization_verification_table.csv`
+- `outputs/paper1_publication_v0/audits/legacy_behavioral_pipeline_exclusion_audit.csv`
+- `outputs/paper1_publication_v0/audits/primary_behavioral_latent_fixation_audit.csv`
 
 Acceptance rule:
 
-If any authorization claim fails verification, Codex must repair the failed claim and regenerate preflight. Do not run the rerun with unresolved verification failures.
+If any old behavioral-map/saliency/scanpath output still enters the V0 primary behavioral axis, Codex must repair the config/runner/cross-axis path before running anything.
 
-### Stage B — Execution path verification
+### Stage B — Implement the primary behavioral latent-to-fixation pipeline
 
-After Stage A passes, Codex must verify or build the actual execution path for the bounded clean rerun.
+Status: implemented and smoke-tested.
 
-Required execution lanes:
+Implemented behavior:
 
-1. behavioral fixation/saliency/scanpath rerun;
-2. latent-feature neural encoding rerun;
-3. latent-feature representational geometry rerun;
-4. efficiency/resource-allocation rerun;
-5. cross-axis assembly and audit.
+1. `src/hma/behavioral/latent_fixation.py` provides dataset loading, external latent-feature artifact loading, image-order validation, deterministic splits, train-only flattening/reduction, validation-selected ridge readouts, spatial probability normalization, held-out fixation scoring, and aggregate/image-level output rows.
+2. `scripts/run_paper1_primary_behavioral_latent_fixation.py` runs the lane, supports dry-run and `local_smoke`, writes the required behavioral latent-fixation outputs, and writes the legacy pipeline exclusion audit.
+3. `configs/paper1_primary_behavioral_latent_fixation.yaml` defines the full and local-smoke lane inputs.
+4. The clean rerun/common runner, expected-output manifest, preflight verification, cluster job generator, and cross-axis assembly route behavioral evidence through `latent_fixation_information_gain`.
 
-For each lane, Codex must identify:
+Required outputs:
 
-- config file;
-- runner script or command;
-- local versus cluster execution;
-- input manifests;
-- eligible model list;
-- expected output path;
-- expected row/file counts where feasible;
-- failure log path;
-- post-run validation command.
-
-Required artifacts:
-
-- `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`
-- `outputs/paper1_publication_v0/preflight/expected_outputs_manifest.csv`
-- `outputs/paper1_publication_v0/preflight/postrun_import_validation_plan.md`
+- `configs/paper1_primary_behavioral_latent_fixation.yaml`
+- `scripts/run_paper1_primary_behavioral_latent_fixation.py`
+- `src/hma/behavioral/latent_fixation.py`
+- updated `outputs/paper1_publication_v0/preflight/execution_path_verification_table.csv`
+- updated `outputs/paper1_publication_v0/preflight/expected_outputs_manifest.csv`
+- `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`
+- `outputs/paper1_publication_v0/audits/legacy_behavioral_pipeline_exclusion_audit.csv`
 
 Acceptance rule:
 
-Do not use admission-panel runners as substitutes for clean-rerun runners unless Codex explicitly verifies that the runner writes clean rerun outputs under the frozen publication contract and cannot mix admission/provenance artifacts into final evidence.
+A local smoke test has trained and scored an eligible model/layer on a bounded subset, written the required lane files, and produced the legacy exclusion audit. Full publication V0 still requires the generated cluster package to run and be imported.
 
-### Stage C — User-run cluster command package
+### Stage C — Updated V0 execution path
 
-If any lane requires cluster execution, Codex must produce exact commands for the user to run.
+The V0 rerun path is authorized and regenerated so the behavioral lane is the primary latent-to-fixation encoding lane. The bounded local smoke output exists; full cluster execution remains pending.
 
-Required command package:
+Required command/update package:
 
-- sync/update commands;
+- sync/update commands if cluster execution is needed;
 - environment activation commands;
-- cache/checkpoint verification commands;
-- one small cluster-side verification command before long jobs;
-- `sbatch` or direct job commands for each lane;
-- `squeue` and log-monitoring commands;
+- feature-artifact/cache verification commands;
+- one small verification command for `run_paper1_primary_behavioral_latent_fixation.py`;
+- full V0 rerun command or `sbatch` script using the updated behavioral lane;
+- `squeue` and log-monitoring commands if using Slurm;
 - expected-output verification commands;
-- output-copy-back commands;
-- local import/merge validation commands after outputs return.
+- output-copy-back commands if outputs are generated on cluster;
+- local import/merge validation commands after outputs return;
+- explicit check that old behavioral aggregate paths are absent from cross-axis input.
 
 Required artifact:
 
-- `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`
+- updated `outputs/paper1_publication_v0/preflight/user_run_cluster_commands.md`
 
 Acceptance rule:
 
-Codex must not claim it ran cluster jobs. User-run cluster commands must be tied to expected outputs and validation checks.
+Codex must not close the session with only instructions. It must update the command package, run every feasible local verification command, and leave the exact full rerun command ready for execution. If the session environment can execute the lane locally, Codex must execute the bounded rerun locally. If cluster execution is required, the command package must be exact and tied to expected outputs.
 
 ### Stage D — Bounded first clean rerun
 
@@ -767,19 +808,20 @@ After Stages A-C pass, Codex may execute local lanes and provide user-run cluste
 
 Required outputs:
 
-- `outputs/paper1_publication_v0/behavioral/per_image_metrics/`
-- `outputs/paper1_publication_v0/behavioral/aggregate.csv`
-- `outputs/paper1_publication_v0/behavioral/uncertainty.csv`
+- `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`
+- `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_image_scores.csv`
+- `outputs/paper1_publication_v0/behavioral_latent_fixation/feature_reduction_metadata.json`
+- `outputs/paper1_publication_v0/behavioral_latent_fixation/readout_selection_artifact.json`
 - `outputs/paper1_publication_v0/neural_encoding/encoding_scores.csv`
 - `outputs/paper1_publication_v0/geometry/geometry_scores.csv`
 - `outputs/paper1_publication_v0/efficiency/efficiency_profiles.csv`
 - `outputs/paper1_publication_v0/efficiency/resource_allocation_profiles.csv`
 - `outputs/paper1_publication_v0/cross_axis/model_axis_scores.csv`
+- `outputs/paper1_publication_v0/audits/primary_behavioral_latent_fixation_audit.csv`
 - `outputs/paper1_publication_v0/audits/clean_rerun_audit.csv`
 
 Acceptance rule:
-
-Every output must be labeled as clean publication-root evidence or rejected/diagnostic evidence according to the publication contract. No legacy, admission-panel, Matrix V1, or Matrix V2 output may be silently merged.
+Every output must be labeled as clean publication-root evidence or rejected/diagnostic evidence according to the publication contract. No legacy behavioral-map/saliency/scanpath output, admission-panel output, Matrix V1 output, or Matrix V2 output may be silently merged. The cross-axis behavioral score must come from `latent_fixation_information_gain` or an explicitly named primary latent-fixation score produced by the new pipeline.
 
 ### Stage E — Post-run audit and status update
 
@@ -958,24 +1000,28 @@ Acceptance rule:
 
 Admission-panel outputs may diagnose readiness, coverage, missingness, and role/family completeness. They must not be interpreted as final paper evidence or used for manuscript claims.
 
-
-### Phase 3 — Clean behavioral rerun
-Status: authorized for bounded clean rerun execution after strict dry-run verification; not yet executed.
+### Phase 3 — Clean primary behavioral latent-to-fixation rerun
+Status: implemented, smoke-tested, routed, and cluster-ready; full V0 cluster execution remains pending.
 
 Purpose:
 
-Regenerate behavioral evidence under the repaired publication contract.
+Regenerate behavioral evidence under the repaired publication contract using a neural-encoding-like latent-to-fixation pipeline. The primary behavioral score is not native map similarity or scanpath similarity. It is held-out human fixation information linearly decodable from frozen model latent features under a matched probabilistic readout.
 
 Required outputs:
 
-* `configs/paper1_clean_behavioral_rerun.yaml`
-* `outputs/paper1_publication_v0/behavioral/per_image_metrics/`
-* `outputs/paper1_publication_v0/behavioral/aggregate.csv`
-* `outputs/paper1_publication_v0/audits/behavioral_rerun_audit.csv`
+* `configs/paper1_primary_behavioral_latent_fixation.yaml`
+* `scripts/run_paper1_primary_behavioral_latent_fixation.py`
+* `src/hma/behavioral/latent_fixation.py`
+* `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`
+* `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_image_scores.csv`
+* `outputs/paper1_publication_v0/behavioral_latent_fixation/feature_reduction_metadata.json`
+* `outputs/paper1_publication_v0/behavioral_latent_fixation/readout_selection_artifact.json`
+* `outputs/paper1_publication_v0/audits/primary_behavioral_latent_fixation_audit.csv`
+* `outputs/paper1_publication_v0/audits/legacy_behavioral_pipeline_exclusion_audit.csv`
 
 Acceptance rule:
 
-SALICON, CAT2000, COCO-Search18, fixation references, task priors, gaze/scanpath models, adaptive/foveated outputs, routing maps, and controls are all run or explicitly audited as behavior-only/diagnostic/rejected.
+The phase is accepted for bounded local smoke because the pipeline trains, scores, writes the required publication-root behavioral latent-fixation files, is routed into V0 preflight/cross-axis infrastructure, and audits legacy behavioral-map/saliency/scanpath outputs as `legacy_behavioral_pipeline_excluded_from_v0`. Full publication V0 acceptance still requires cluster execution, copy-back, and import validation.
 
 ### Phase 4 — Clean latent-feature neural and geometry rerun
 
@@ -1052,7 +1098,7 @@ Required outputs:
 
 Acceptance rule:
 
-Only publication-root evidence can enter cross-axis analysis. Quadrant labels are descriptive unless the cross-axis inference gate allows stronger language.
+Only publication-root evidence can enter cross-axis analysis. The primary behavioral column must be derived from `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`, using held-out fixation information gain or an explicitly named equivalent primary latent-fixation score. Legacy behavioral-map/saliency/scanpath metrics may appear only as diagnostic secondary columns and must not determine quadrant labels. Quadrant labels are descriptive unless the cross-axis inference gate allows stronger language.
 
 ### Phase 8 — External positioning and paper split decision
 
@@ -1093,6 +1139,24 @@ Behavioral benchmark:
 - `scripts/run_saliency_benchmark.py`
 - `scripts/run_v2_matrix.py`
 - `scripts/aggregate_results.py`
+
+Primary behavioral latent-to-fixation encoding:
+
+- `src/hma/behavioral/latent_fixation.py`
+- `scripts/run_paper1_primary_behavioral_latent_fixation.py`
+- `configs/paper1_primary_behavioral_latent_fixation.yaml`
+- outputs under `outputs/paper1_publication_v0/behavioral_latent_fixation/`
+
+Legacy behavioral benchmark:
+
+- `src/hma/experiments/saliency_benchmark.py`
+- `src/hma/experiments/aggregate_results.py`
+- `src/hma/experiments/summarize_results.py`
+- `scripts/run_saliency_benchmark.py`
+- `scripts/run_v2_matrix.py`
+- `scripts/aggregate_results.py`
+
+Legacy behavioral benchmark code remains usable for diagnostics and expected-range checks, but it is excluded from V0 primary behavioral evidence.
 
 Saliency methods:
 

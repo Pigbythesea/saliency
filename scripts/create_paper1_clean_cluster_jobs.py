@@ -42,6 +42,12 @@ MAP_COMPATIBLE_EXTERNAL_BEHAVIOR_MODELS = {
     "dynamicvit_deit_small_keep_0_7",
     "tome_deit_small_r13",
 }
+EXPORT_BATCH_SIZE_OVERRIDES = {
+    "deepgaze_msdb": 1,
+}
+NEURAL_WAVE_SIZE = 48
+NEURAL_EXPORT_CONCURRENCY = 4
+NEURAL_ANALYSIS_CONCURRENCY = 4
 
 
 def main() -> int:
@@ -189,59 +195,41 @@ def build_behavior_rows(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rows = []
     unsupported = []
-    for planned in read_csv(PREFLIGHT_ROOT / "dry_runs" / "behavioral_planned_rows.csv"):
-        if planned.get("sequence_label") != "map":
-            unsupported.append(
-                {
-                    **planned,
-                    "unsupported_reason": "clean_static_map_cell_generator_handles_map_rows_only",
-                }
-            )
-            continue
+    plan_path = PREFLIGHT_ROOT / "dry_runs" / "primary_behavioral_latent_to_fixation_encoding_planned_rows.csv"
+    for planned in read_csv(plan_path):
         dataset = planned["dataset"]
         model_id = planned["model_id"]
         runtime_model_id = planned.get("runtime_model_id") or cert_by_model.get(model_id, {}).get("runtime_model_id", "")
-        output_dir = cell_root / "behavioral" / "per_image_metrics" / dataset / safe_name(model_id)
-        runtime_config = runtime_root / "behavioral" / f"{dataset}_{safe_name(model_id)}.yaml"
+        artifact_dir = resolve_path(planned["artifact_dir"])
+        output_dir = cell_root / "behavioral_latent_fixation" / "cells" / safe_name(dataset) / safe_name(model_id)
+        if mode != "full":
+            artifact_dir = cell_root / "behavioral_latent_fixation" / "external" / dataset / safe_name(model_id)
         base = {
             "mode": mode,
             "dataset": dataset,
             "model_id": model_id,
             "runtime_model_id": runtime_model_id,
-            "manifest": f"data/manifests/{dataset}_manifest.csv",
-            "image_root": DATA_ROOTS[dataset],
-            "split": planned["split"],
+            "manifest": planned["manifest"],
+            "image_root": planned.get("image_root") or DATA_ROOTS.get(dataset, ""),
+            "split": planned.get("split", ""),
             "max_items": "" if max_items is None else str(max_items),
-            "batch_size": "16",
+            "batch_size": export_batch_size(model_id),
             "device": "cuda",
-            "runtime_config": relative(runtime_config),
+            "artifact_key": planned.get("artifact_key", "map_key") or "map_key",
+            "artifact_dir": relative(artifact_dir),
             "output_dir": relative(output_dir),
+            "layers": planned.get("layers", ""),
             "behavioral_regime": planned.get("behavioral_regime", ""),
             "behavioral_object": planned.get("behavioral_object", ""),
-            "sequence_label": planned.get("sequence_label", ""),
+            "score_source": "primary_behavioral_latent_to_fixation_encoding",
         }
-        if model_id in BUILTIN_BEHAVIOR_MODELS:
-            rows.append({**base, "job_kind": "behavior_builtin", "artifact_dir": "", "map_dir": ""})
-            continue
-        if model_id not in MAP_COMPATIBLE_EXTERNAL_BEHAVIOR_MODELS:
-            unsupported.append(
-                {
-                    **planned,
-                    "unsupported_reason": "missing_clean_static_map_backend_for_behavioral_object",
-                }
-            )
-            continue
         if not runtime_model_id:
             unsupported.append({**planned, "unsupported_reason": "missing_runtime_model_id"})
             continue
-        artifact_dir = cell_root / "external" / "behavioral" / dataset / safe_name(model_id)
-        map_dir = cell_root / "behavioral" / "maps" / dataset / safe_name(model_id)
         rows.append(
             {
                 **base,
-                "job_kind": "behavior_external",
-                "artifact_dir": relative(artifact_dir),
-                "map_dir": relative(map_dir),
+                "job_kind": "behavior_latent_export",
             }
         )
     return rows, unsupported
@@ -272,7 +260,7 @@ def build_neural_rows(
                 "manifest": planned["manifest_path"],
                 "image_root": NSD_ROOT,
                 "max_items": "" if max_items is None else str(max_items),
-                "batch_size": "16",
+                "batch_size": export_batch_size(model_id),
                 "device": "cuda",
                 "layers": [],
             },
@@ -363,6 +351,8 @@ def write_neural_config(
         if smoke
         else [int(value) for value in geometry.get("subset_sizes", [512, 1024, 2048])]
     )
+    image_resampling = dict(geometry.get("image_resampling", {}))
+    aggregate_uncertainty = dict(geometry.get("aggregate_uncertainty", {}))
     config = {
         "seed": int(plan.get("seed", 123)),
         "device": "cpu",
@@ -417,13 +407,29 @@ def write_neural_config(
             "rsa": {"enabled": False},
             "geometry": {
                 "enabled": True,
+                "protocol": geometry.get(
+                    "protocol",
+                    "primary_deterministic_seed_stability_v1",
+                ),
                 "methods": ["debiased_linear_cka", "subset_rsa"],
                 "subset_sizes": subset_sizes,
                 "subset_seeds": [123] if smoke else geometry.get("subset_seeds", [123, 456, 789]),
                 "null_control_seeds": [123] if smoke else geometry.get("subset_seeds", [123, 456, 789]),
-                "bootstrap_resamples": 0 if smoke else int(dict(geometry.get("image_resampling", {})).get("resamples", 0)),
-                "bootstrap_seed": int(dict(geometry.get("image_resampling", {})).get("seed", 123)),
-                "bootstrap_confidence": float(dict(geometry.get("image_resampling", {})).get("confidence", 0.95)),
+                "bootstrap_resamples": 0 if smoke else int(image_resampling.get("resamples", 0)),
+                "bootstrap_seed": int(image_resampling.get("seed", 123)),
+                "bootstrap_confidence": float(image_resampling.get("confidence", 0.95)),
+                "uncertainty_scope": "none" if smoke else str(image_resampling.get("method", "aggregate_level_only")),
+                "aggregate_uncertainty_outputs": (
+                    []
+                    if smoke
+                    else [
+                        str(value)
+                        for value in aggregate_uncertainty.get(
+                            "outputs",
+                            ["geometry_method_agreement", "geometry_seed_stability"],
+                        )
+                    ]
+                ),
             },
         },
         "output": {"dir": relative(output_dir)},
@@ -451,7 +457,27 @@ def write_job_files(
             memory="48G",
             gpu=True,
             count=behavior_count,
-            command=f'python scripts/run_paper1_clean_cell_job.py --kind behavior --table "{relative(behavior_table)}" --index "$SLURM_ARRAY_TASK_ID" --mode {mode}',
+            command=f'python scripts/run_paper1_clean_cell_job.py --kind behavior_latent_export --table "{relative(behavior_table)}" --index "$SLURM_ARRAY_TASK_ID" --mode {mode}',
+        ),
+        "clean_behavior_latent_analysis.sbatch": array_job(
+            name=f"p1c_{mode}_bana",
+            partition="cpu",
+            time="02:00:00" if mode == "smoke" else "12:00:00",
+            cpus=16,
+            memory="64G",
+            gpu=False,
+            count=behavior_count,
+            command=f'python scripts/run_paper1_clean_cell_job.py --kind behavior_latent_analysis --table "{relative(behavior_table)}" --index "$SLURM_ARRAY_TASK_ID" --mode {mode}',
+        ),
+        "clean_behavior_latent_cleanup.sbatch": array_job(
+            name=f"p1c_{mode}_bcln",
+            partition="cpu",
+            time="00:30:00",
+            cpus=2,
+            memory="8G",
+            gpu=False,
+            count=behavior_count,
+            command=f'python scripts/run_paper1_clean_cell_job.py --kind behavior_latent_cleanup --table "{relative(behavior_table)}" --index "$SLURM_ARRAY_TASK_ID" --mode {mode}',
         ),
         "clean_neural_exports.sbatch": array_job(
             name=f"p1c_{mode}_nexp",
@@ -472,6 +498,16 @@ def write_job_files(
             gpu=False,
             count=neural_count,
             command=f'python scripts/run_paper1_clean_cell_job.py --kind neural_analysis --table "{relative(neural_table)}" --index "$SLURM_ARRAY_TASK_ID" --mode {mode}',
+        ),
+        "clean_neural_cleanup.sbatch": array_job(
+            name=f"p1c_{mode}_ncln",
+            partition="cpu",
+            time="00:30:00" if mode == "smoke" else "01:00:00",
+            cpus=2,
+            memory="8G",
+            gpu=False,
+            count=neural_count,
+            command=f'python scripts/run_paper1_clean_cell_job.py --kind neural_cleanup --table "{relative(neural_table)}" --index "$SLURM_ARRAY_TASK_ID" --mode {mode}',
         ),
         "clean_geometry_collect.sbatch": scalar_job(
             name=f"p1c_{mode}_geom",
@@ -501,11 +537,58 @@ def write_job_files(
             memory="64G",
             command="python scripts/run_paper1_clean_cell_job.py --kind materialize_axes --mode full",
         )
+        files["clean_neural_materialize.sbatch"] = scalar_job(
+            name="p1c_full_nmat",
+            partition="cpu",
+            time="04:00:00",
+            cpus=16,
+            memory="64G",
+            command=(
+                "python scripts/run_paper1_clean_latent_neural_encoding.py "
+                "--config configs/paper1_latent_neural_matrix.yaml && "
+                "python scripts/run_paper1_clean_geometry.py "
+                "--config configs/paper1_latent_neural_matrix.yaml"
+            ),
+        )
+        files["clean_no_behavior_materialize.sbatch"] = scalar_job(
+            name="p1c_full_nbmat",
+            partition="cpu",
+            time="04:00:00",
+            cpus=16,
+            memory="64G",
+            command=(
+                "python scripts/run_paper1_clean_latent_neural_encoding.py "
+                "--config configs/paper1_latent_neural_matrix.yaml && "
+                "python scripts/run_paper1_clean_geometry.py "
+                "--config configs/paper1_latent_neural_matrix.yaml && "
+                "python scripts/run_paper1_clean_efficiency_resource.py "
+                "--config configs/paper1_efficiency_resource_rerun.yaml"
+            ),
+        )
     for name, content in files.items():
         (job_root / name).write_text(content, encoding="utf-8", newline="\n")
-    submit = submit_script(mode=mode, include_materialize=(mode == "full"))
+    submit = submit_script(
+        mode=mode,
+        include_materialize=(mode == "full"),
+        behavior_count=behavior_count,
+        neural_count=neural_count,
+    )
     submit_path = job_root / f"submit_clean_{mode}.sh"
     submit_path.write_text(submit, encoding="utf-8", newline="\n")
+    neural_only = neural_only_submit_script(
+        mode=mode,
+        include_neural_materialize=(mode == "full"),
+        neural_count=neural_count,
+    )
+    neural_only_path = job_root / f"submit_clean_{mode}_neural_only.sh"
+    neural_only_path.write_text(neural_only, encoding="utf-8", newline="\n")
+    no_behavior = no_behavior_submit_script(
+        mode=mode,
+        include_no_behavior_materialize=(mode == "full"),
+        neural_count=neural_count,
+    )
+    no_behavior_path = job_root / f"submit_clean_{mode}_no_behavior.sh"
+    no_behavior_path.write_text(no_behavior, encoding="utf-8", newline="\n")
 
 
 def header(
@@ -539,6 +622,8 @@ mkdir -p slurm_logs outputs/paper1_publication_v0/logs/clean_cell_jobs
 export OMP_NUM_THREADS="$SLURM_CPUS_PER_TASK"
 export MKL_NUM_THREADS="$SLURM_CPUS_PER_TASK"
 export OPENBLAS_NUM_THREADS="$SLURM_CPUS_PER_TASK"
+export PYTORCH_CUDA_ALLOC_CONF="${{PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}}"
+export HMA_EXTERNAL_ENV_MODE="${{HMA_EXTERNAL_ENV_MODE:-active}}"
 """
 
 
@@ -588,7 +673,13 @@ def scalar_job(
     ) + f"\n{command}\n"
 
 
-def submit_script(*, mode: str, include_materialize: bool) -> str:
+def submit_script(
+    *,
+    mode: str,
+    include_materialize: bool,
+    behavior_count: int,
+    neural_count: int,
+) -> str:
     materialize = ""
     if include_materialize:
         materialize = f"""
@@ -596,6 +687,8 @@ MATERIALIZE=$(sbatch --parsable --dependency=afterok:$BEHAVIOR:$GEOMETRY:$EFFICI
   outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_materialize_axes.sbatch)
 printf 'materialize_axes=%s\\n' "$MATERIALIZE"
 """
+    neural_block = neural_wave_submit_block(mode=mode, neural_count=neural_count)
+    behavior_block = behavior_latent_submit_block(mode=mode, behavior_count=behavior_count)
     return f"""#!/usr/bin/env bash
 set -euo pipefail
 source {CONDA_SH}
@@ -606,21 +699,170 @@ python scripts/generate_paper1_publication_preflight.py
 if [[ "{mode}" == "full" ]]; then
   python scripts/verify_paper1_clean_rerun_authorization.py --strict
 fi
-BEHAVIOR=$(sbatch --parsable outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_behavior_cells.sbatch)
-NEURAL_EXPORT=$(sbatch --parsable outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_neural_exports.sbatch)
-NEURAL_ANALYSIS=$(sbatch --parsable --dependency=afterok:$NEURAL_EXPORT \\
-  outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_neural_analysis.sbatch)
-GEOMETRY=$(sbatch --parsable --dependency=afterok:$NEURAL_ANALYSIS \\
-  outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_geometry_collect.sbatch)
+{behavior_block}
 EFFICIENCY=$(sbatch --parsable outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_efficiency_cells.sbatch)
+{neural_block}
 printf 'mode={mode}\\n'
 printf 'behavior=%s\\n' "$BEHAVIOR"
-printf 'neural_export=%s\\n' "$NEURAL_EXPORT"
-printf 'neural_analysis=%s\\n' "$NEURAL_ANALYSIS"
 printf 'geometry_collect=%s\\n' "$GEOMETRY"
 printf 'efficiency=%s\\n' "$EFFICIENCY"
 {materialize}
 """
+
+
+def neural_only_submit_script(
+    *,
+    mode: str,
+    include_neural_materialize: bool,
+    neural_count: int,
+) -> str:
+    materialize = ""
+    if include_neural_materialize:
+        materialize = f"""
+if [[ -n "$GEOMETRY" ]]; then
+  NEURAL_MATERIALIZE=$(sbatch --parsable --dependency=afterok:$GEOMETRY \\
+    outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_neural_materialize.sbatch)
+  printf 'neural_materialize=%s\\n' "$NEURAL_MATERIALIZE"
+else
+  echo "neural_materialize_skipped=no_geometry_dependency"
+fi
+"""
+    neural_block = neural_wave_submit_block(mode=mode, neural_count=neural_count)
+    return f"""#!/usr/bin/env bash
+set -euo pipefail
+source {CONDA_SH}
+conda activate hma
+cd {REMOTE_PROJECT}
+mkdir -p slurm_logs outputs/paper1_publication_v0/preflight/cluster_submissions
+python scripts/generate_paper1_publication_preflight.py
+if [[ "{mode}" == "full" ]]; then
+  python scripts/verify_paper1_clean_rerun_authorization.py --strict
+fi
+{neural_block}
+printf 'mode={mode}\\n'
+printf 'geometry_collect=%s\\n' "$GEOMETRY"
+{materialize}
+"""
+
+
+def no_behavior_submit_script(
+    *,
+    mode: str,
+    include_no_behavior_materialize: bool,
+    neural_count: int,
+) -> str:
+    materialize = ""
+    if include_no_behavior_materialize:
+        materialize = f"""
+if [[ -n "$GEOMETRY" ]]; then
+  NO_BEHAVIOR_MATERIALIZE=$(sbatch --parsable --dependency=afterok:$GEOMETRY:$EFFICIENCY \\
+    outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_no_behavior_materialize.sbatch)
+  printf 'no_behavior_materialize=%s\\n' "$NO_BEHAVIOR_MATERIALIZE"
+else
+  echo "no_behavior_materialize_skipped=no_geometry_dependency"
+fi
+"""
+    neural_block = neural_wave_submit_block(mode=mode, neural_count=neural_count)
+    return f"""#!/usr/bin/env bash
+set -euo pipefail
+source {CONDA_SH}
+conda activate hma
+cd {REMOTE_PROJECT}
+mkdir -p slurm_logs outputs/paper1_publication_v0/preflight/cluster_submissions
+python scripts/generate_paper1_publication_preflight.py
+if [[ "{mode}" == "full" ]]; then
+  python scripts/verify_paper1_clean_rerun_authorization.py --strict
+fi
+EFFICIENCY=$(sbatch --parsable outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_efficiency_cells.sbatch)
+{neural_block}
+printf 'mode={mode}\\n'
+printf 'geometry_collect=%s\\n' "$GEOMETRY"
+printf 'efficiency=%s\\n' "$EFFICIENCY"
+{materialize}
+"""
+
+
+def behavior_latent_submit_block(*, mode: str, behavior_count: int) -> str:
+    return f"""BEHAVIOR_COUNT={int(behavior_count)}
+BEHAVIOR=""
+if (( BEHAVIOR_COUNT == 0 )); then
+  echo "no_behavior_latent_rows"
+else
+  BEHAVIOR_EXPORT_ARGS=()
+  if [[ -n "${{PAPER1_BEHAVIOR_EXPORT_CONCURRENCY:-}}" ]]; then
+    if (( PAPER1_BEHAVIOR_EXPORT_CONCURRENCY < 1 )); then
+      echo "PAPER1_BEHAVIOR_EXPORT_CONCURRENCY must be >= 1" >&2
+      exit 2
+    fi
+    BEHAVIOR_EXPORT_ARGS=(--array=0-$((BEHAVIOR_COUNT - 1))%${{PAPER1_BEHAVIOR_EXPORT_CONCURRENCY}})
+  fi
+  BEHAVIOR_EXPORT=$(sbatch --parsable "${{BEHAVIOR_EXPORT_ARGS[@]}}" \\
+    outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_behavior_cells.sbatch)
+  BEHAVIOR_ANALYSIS=$(sbatch --parsable --dependency=aftercorr:$BEHAVIOR_EXPORT \\
+    outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_behavior_latent_analysis.sbatch)
+  BEHAVIOR_CLEANUP=$(sbatch --parsable --dependency=aftercorr:$BEHAVIOR_ANALYSIS \\
+    outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_behavior_latent_cleanup.sbatch)
+  BEHAVIOR="$BEHAVIOR_CLEANUP"
+  printf 'behavior_export=%s\\n' "$BEHAVIOR_EXPORT"
+  printf 'behavior_analysis=%s\\n' "$BEHAVIOR_ANALYSIS"
+  printf 'behavior_cleanup=%s\\n' "$BEHAVIOR_CLEANUP"
+fi"""
+
+
+def neural_wave_submit_block(*, mode: str, neural_count: int) -> str:
+    return f"""NEURAL_COUNT={int(neural_count)}
+NEURAL_WAVE_SIZE="${{PAPER1_NEURAL_WAVE_SIZE:-{NEURAL_WAVE_SIZE}}}"
+NEURAL_EXPORT_CONCURRENCY="${{PAPER1_NEURAL_EXPORT_CONCURRENCY:-{NEURAL_EXPORT_CONCURRENCY}}}"
+NEURAL_ANALYSIS_CONCURRENCY="${{PAPER1_NEURAL_ANALYSIS_CONCURRENCY:-{NEURAL_ANALYSIS_CONCURRENCY}}}"
+if (( NEURAL_WAVE_SIZE < 1 )); then
+  echo "PAPER1_NEURAL_WAVE_SIZE must be >= 1" >&2
+  exit 2
+fi
+if (( NEURAL_EXPORT_CONCURRENCY < 1 )); then
+  echo "PAPER1_NEURAL_EXPORT_CONCURRENCY must be >= 1" >&2
+  exit 2
+fi
+if (( NEURAL_ANALYSIS_CONCURRENCY < 1 )); then
+  echo "PAPER1_NEURAL_ANALYSIS_CONCURRENCY must be >= 1" >&2
+  exit 2
+fi
+PREVIOUS_NEURAL_CLEANUP=""
+GEOMETRY=""
+if (( NEURAL_COUNT == 0 )); then
+  echo "no_neural_rows_for_geometry"
+else
+  WAVE=0
+  for ((START=0; START<NEURAL_COUNT; START+=NEURAL_WAVE_SIZE)); do
+    END=$((START + NEURAL_WAVE_SIZE - 1))
+    if (( END >= NEURAL_COUNT )); then
+      END=$((NEURAL_COUNT - 1))
+    fi
+    if [[ -n "$PREVIOUS_NEURAL_CLEANUP" ]]; then
+      NEURAL_EXPORT=$(sbatch --parsable --dependency=afterany:$PREVIOUS_NEURAL_CLEANUP \\
+        --array=${{START}}-${{END}}%${{NEURAL_EXPORT_CONCURRENCY}} \\
+        outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_neural_exports.sbatch)
+    else
+      NEURAL_EXPORT=$(sbatch --parsable \\
+        --array=${{START}}-${{END}}%${{NEURAL_EXPORT_CONCURRENCY}} \\
+        outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_neural_exports.sbatch)
+    fi
+    NEURAL_ANALYSIS=$(sbatch --parsable --dependency=aftercorr:$NEURAL_EXPORT \\
+      --array=${{START}}-${{END}}%${{NEURAL_ANALYSIS_CONCURRENCY}} \\
+      outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_neural_analysis.sbatch)
+    NEURAL_CLEANUP=$(sbatch --parsable --dependency=aftercorr:$NEURAL_ANALYSIS \\
+      --array=${{START}}-${{END}}%${{NEURAL_ANALYSIS_CONCURRENCY}} \\
+      outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_neural_cleanup.sbatch)
+    printf 'neural_wave_%03d_range=%s-%s\\n' "$WAVE" "$START" "$END"
+    printf 'neural_wave_%03d_export=%s\\n' "$WAVE" "$NEURAL_EXPORT"
+    printf 'neural_wave_%03d_analysis=%s\\n' "$WAVE" "$NEURAL_ANALYSIS"
+    printf 'neural_wave_%03d_cleanup=%s\\n' "$WAVE" "$NEURAL_CLEANUP"
+    PREVIOUS_NEURAL_CLEANUP="$NEURAL_CLEANUP"
+    WAVE=$((WAVE + 1))
+  done
+  printf 'neural_wave_count=%s\\n' "$WAVE"
+  GEOMETRY=$(sbatch --parsable --dependency=afterany:$PREVIOUS_NEURAL_CLEANUP \\
+    outputs/paper1_publication_v0/preflight/cluster_jobs/{mode}/clean_geometry_collect.sbatch)
+fi"""
 
 
 def write_manifest(
@@ -645,6 +887,36 @@ def write_manifest(
         "neural_cells": len(neural_rows),
         "efficiency_cells": len(efficiency_rows),
         "unsupported_behavior_rows": len(unsupported),
+        "behavior_latent_storage_plan": {
+            "strategy": "export_analysis_cleanup_cells",
+            "analysis_kind": "behavior_latent_analysis",
+            "cleanup_kind": "behavior_latent_cleanup",
+            "cleanup_after": "per_cell_analysis_aftercorr",
+            "optional_export_throttle_env": "PAPER1_BEHAVIOR_EXPORT_CONCURRENCY",
+            "cleanup_removes": [
+                "external behavioral latent artifact directory",
+            ],
+            "preserved_outputs": [
+                "behavioral_latent_fixation/cells/*/*/fixation_encoding_scores.csv",
+                "behavioral_latent_fixation/cells/*/*/fixation_image_scores.csv",
+                "behavioral_latent_fixation/cells/*/*/feature_reduction_metadata.json",
+                "behavioral_latent_fixation/cells/*/*/readout_selection_artifact.json",
+            ],
+        },
+        "neural_storage_plan": {
+            "strategy": "bounded_export_analysis_cleanup_waves",
+            "default_wave_size": NEURAL_WAVE_SIZE,
+            "default_export_concurrency": NEURAL_EXPORT_CONCURRENCY,
+            "default_analysis_concurrency": NEURAL_ANALYSIS_CONCURRENCY,
+            "cleanup_kind": "neural_cleanup",
+            "cleanup_after": "per_cell_analysis_aftercorr",
+            "next_wave_after": "previous_cleanup_afterany",
+            "cleanup_removes": [
+                "external neural artifact directory",
+                "external artifact raw feature cache",
+                "neural PCA cache",
+            ],
+        },
         "contract_rule": "full mode jobs require configs/paper1_publication_contract.yaml execution_authorized true",
     }
     (job_root / "clean_cluster_job_manifest.json").write_text(
@@ -674,9 +946,12 @@ def select_rows(
             row
             for row in rows
             if row.get("dataset") == "salicon"
-            and row.get("model_id") in {"center_prior", "deit_small_static"}
+            and row.get("model_id") in {"deit_small_static", "convnext_tiny", "deepgaze_msdb"}
         ]
-        preferred = sorted(preferred, key=lambda row: 0 if row.get("model_id") == "center_prior" else 1)
+        preferred = sorted(
+            preferred,
+            key=lambda row: {"deit_small_static": 0, "convnext_tiny": 1}.get(row.get("model_id"), 2),
+        )
     elif kind in {"neural", "efficiency"}:
         preferred = [
             row
@@ -733,6 +1008,10 @@ def relative(path: str | Path) -> str:
 
 def safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", str(value)).strip("._") or "item"
+
+
+def export_batch_size(model_id: str) -> str:
+    return str(EXPORT_BATCH_SIZE_OVERRIDES.get(model_id, 16))
 
 
 def unique(values: list[str]) -> list[str]:

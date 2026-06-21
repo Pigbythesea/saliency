@@ -645,7 +645,7 @@ class HATAdapter(ExternalModelAdapter):
                 output_feature_map_name=hparams.Model.output_feature_map_name,
             )
         checkpoint = self._hat_checkpoint_file()
-        payload = self.torch.load(checkpoint, map_location="cpu")
+        payload = _torch_load(checkpoint, self.torch)
         state = payload.get("model", payload) if isinstance(payload, dict) else None
         if not isinstance(state, dict):
             raise ExternalIntegrationError(f"HAT checkpoint has no model state: {checkpoint}")
@@ -1036,11 +1036,7 @@ class ScanDiffAdapter(ExternalModelAdapter):
         self.scanpath_length = int(cfg.data.max_len)
         self.task_embeddings = np.load(task_embeddings_file, allow_pickle=True).item()
         model = hydra.utils.instantiate(cfg.model)
-        checkpoint = self.torch.load(
-            checkpoint_file,
-            map_location="cpu",
-            weights_only=False,
-        )
+        checkpoint = _torch_load(checkpoint_file, self.torch)
         state_dict = checkpoint.get("model", checkpoint)
         model.load_state_dict(state_dict)
         model.position_ids = model.position_ids.to(self.device)
@@ -1636,7 +1632,7 @@ def _normalize_hat_checkpoint_state_dict(state_dict: dict[str, Any]) -> dict[str
 def _load_checkpoint(model: Any, path: Path | None, torch: Any) -> None:
     if path is None or not path.exists():
         raise ExternalIntegrationError(f"Checkpoint is not ready: {path}")
-    payload = torch.load(path, map_location="cpu")
+    payload = _torch_load(path, torch)
     if isinstance(payload, dict):
         for key in ("model", "state_dict"):
             if key in payload and isinstance(payload[key], dict):
@@ -1660,6 +1656,15 @@ def _load_checkpoint(model: Any, path: Path | None, torch: Any) -> None:
             "Checkpoint does not match the registered architecture; "
             f"missing={missing[:8]}, unexpected={unexpected[:8]}"
         )
+
+
+def _torch_load(path: Path, torch: Any) -> Any:
+    try:
+        return torch.load(path, map_location="cpu", weights_only=False)
+    except TypeError as exc:
+        if "weights_only" not in str(exc):
+            raise
+        return torch.load(path, map_location="cpu")
 
 
 def _require_module(name: str) -> Any:

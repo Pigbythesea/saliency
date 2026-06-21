@@ -1,0 +1,97 @@
+schema_version: hma.paper1.primary_behavioral_latent_fixation_plan.v0
+lane: primary_behavioral_latent_to_fixation_encoding
+contract: configs/paper1_publication_contract.yaml
+execution_enabled: true
+default_profile: publication_full
+seed: 123
+output_root: outputs/paper1_publication_v0/behavioral_latent_fixation
+model_eligibility_table: outputs/paper1_publication_v0/preflight/model_rerun_eligibility_table.csv
+model_certification_summary: outputs/paper1_publication_v0/preflight/model_certification_summary.csv
+outputs:
+  fixation_encoding_scores: outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv
+  fixation_image_scores: outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_image_scores.csv
+  feature_reduction_metadata: outputs/paper1_publication_v0/behavioral_latent_fixation/feature_reduction_metadata.json
+  readout_selection_artifact: outputs/paper1_publication_v0/behavioral_latent_fixation/readout_selection_artifact.json
+  audit: outputs/paper1_publication_v0/audits/primary_behavioral_latent_fixation_audit.csv
+  legacy_exclusion_audit: outputs/paper1_publication_v0/audits/legacy_behavioral_pipeline_exclusion_audit.csv
+  failure_log: outputs/paper1_publication_v0/logs/primary_behavioral_latent_fixation_failure.log
+feature_artifacts:
+  root: outputs/paper1_publication_v0/behavioral_latent_fixation/external
+datasets:
+  salicon:
+    enabled: true
+    name: salicon
+    regime: free_viewing
+    behavioral_object: latent_encoded_human_fixation_density
+    root: data/raw/SALICON
+    manifest_path: data/manifests/salicon_manifest.csv
+    split: val
+    artifact_key: map_key
+    expected_rows: 5000
+    validate_files: true
+  cat2000:
+    enabled: true
+    name: cat2000
+    regime: free_viewing
+    behavioral_object: latent_encoded_human_fixation_density
+    root: data/raw/CAT2000
+    manifest_path: data/manifests/cat2000_manifest.csv
+    split: train
+    artifact_key: map_key
+    expected_rows: 2000
+    validate_files: true
+    limitation: public_test_ground_truth_unavailable
+  coco_search18:
+    enabled: true
+    name: coco_search18
+    regime: task_search
+    behavioral_object: latent_encoded_human_fixation_density
+    root: data/raw/COCO-Search18
+    manifest_path: data/manifests/coco_search18_manifest.csv
+    split: val
+    artifact_key: map_key
+    expected_rows: 10534
+    generate_fixation_map: true
+    fixation_sigma: 10.0
+    validate_files: true
+  salicon_train_certification:
+    enabled: false
+    name: salicon
+    regime: free_viewing
+    behavioral_object: latent_encoded_human_fixation_density
+    root: data/raw/SALICON
+    manifest_path: data/manifests/salicon_manifest.csv
+    split: train
+    artifact_key: image_id
+    max_items: 4
+    validate_files: true
+models:
+  layers_from: configs/paper1_latent_neural_matrix.yaml
+  include: []
+encoding:
+  method: flatten_pca_validation_selected_ridge_to_fixation_density
+  target_size: [32, 32]
+  feature_reduction: flatten_pca
+  pca_components: 64
+  pca_fit_scope: training_only
+  train_fraction: 0.75
+  validation_fraction_of_train: 0.25
+  ridge_alphas: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
+  selection_metric: validation_mean_latent_fixation_information_gain
+  primary_score: latent_fixation_information_gain
+  baseline: simple_center_bias_map
+profiles:
+  local_smoke:
+    datasets: [salicon_train_certification]
+    models: [deepgaze_msdb]
+    layers:
+      deepgaze_msdb: [features]
+    layer_limit: 1
+    feature_artifacts:
+      deepgaze_msdb: outputs/paper1_publication_v0/external/deepgaze_msdb_latent
+admission:
+  require_behavioral_gate: accepted_with_limitations_or_better
+  require_adapter_certified: true
+  require_latent_tensor_status: ready
+  keep_regimes_separate: true
+  legacy_behavioral_pipeline_status: legacy_behavioral_pipeline_excluded_from_v0

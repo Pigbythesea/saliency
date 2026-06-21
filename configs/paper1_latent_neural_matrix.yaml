@@ -15,6 +15,8 @@ roi_stream:
 outputs:
   encoding_scores: outputs/paper1_publication_v0/neural_encoding/encoding_scores.csv
   geometry_scores: outputs/paper1_publication_v0/geometry/geometry_scores.csv
+  geometry_method_agreement: outputs/paper1_publication_v0/geometry/geometry_method_agreement.csv
+  geometry_seed_stability: outputs/paper1_publication_v0/geometry/geometry_seed_stability.csv
   audit: outputs/paper1_publication_v0/audits/neural_geometry_audit.csv
   failure_log: outputs/paper1_publication_v0/logs/neural_geometry_clean_rerun_failure.log
 subjects:
@@ -80,19 +82,25 @@ encoding:
     method: voxel_specific_spatial_readout
     required_for: [representative_cnn, representative_vit, representative_ssl, representative_gaze_or_adaptive]
 geometry:
+  protocol: primary_deterministic_seed_stability_v1
   primary: [debiased_linear_cka, subset_rsa_spearman]
   secondary: [biased_linear_cka]
-  subset_sizes: [512, 1024, 2048]
+  subset_sizes: [1024]
   subset_seeds: [123, 456, 789]
   image_resampling:
-    method: paired_image_bootstrap
-    resamples: 2000
+    method: aggregate_level_only
+    resamples: 0
     seed: 123
     confidence: 0.95
+    rationale: per_cell_image_bootstrap_deferred_for_full_publication_rerun
   method_agreement:
     required: true
     methods: [debiased_linear_cka, subset_rsa_spearman]
-  controls: [paired_response_permutation, image_cluster_bootstrap]
+  aggregate_uncertainty:
+    required: true
+    outputs: [geometry_method_agreement, geometry_seed_stability]
+    unit: model_subject_roi_layer
+  controls: [paired_response_permutation, subset_seed_stability, method_agreement]
 admission:
   require_neural_gate: accepted_with_limitations_or_better
   require_geometry_gate: accepted_with_limitations_or_better

@@ -39,6 +39,7 @@ FORBIDDEN_INPUT_MARKERS = (
 
 AXIS_ELIGIBILITY_COLUMNS = {
     "behavioral": "eligible_behavioral_evidence",
+    "primary_behavioral_latent_to_fixation_encoding": "eligible_latent_neural_encoding",
     "latent_neural_encoding": "eligible_latent_neural_encoding",
     "geometry": "eligible_latent_geometry",
     "efficiency_resource": "eligible_efficiency_resource_evidence",

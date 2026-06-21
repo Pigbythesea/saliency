@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import traceback
 from pathlib import Path
+from typing import Any
 
 from PIL import Image
 
@@ -90,6 +92,63 @@ def profile_model(
     return output
 
 
+def write_failure_profile(
+    *,
+    model_id: str,
+    manifest_path: str | Path,
+    image_root: str | Path,
+    output_path: str | Path,
+    split: str,
+    subject_id: str | None,
+    roi: str | None,
+    device: str,
+    seed: int,
+    exc: BaseException,
+) -> Path:
+    output = resolve_path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    publication_model_id = output.parent.name or model_id
+    payload: dict[str, Any] = {
+        "schema_version": "hma.external.efficiency_profile.v2",
+        "model_id": model_id,
+        "publication_model_id": publication_model_id,
+        "profile_status": "profile_failed",
+        "status": "profile_failed",
+        "failure_type": type(exc).__name__,
+        "failure_message": str(exc),
+        "manifest_path": str(resolve_path(manifest_path)),
+        "image_root": str(resolve_path(image_root)),
+        "split": split,
+        "subject_id": subject_id or "",
+        "roi": roi or "",
+        "device": device,
+        "map_keys": [],
+        "preprocessing": {},
+        "seed": int(seed),
+        "latency_ms_per_image": "",
+        "peak_memory_bytes": "",
+        "parameter_count": "",
+        "theoretical_flops_or_macs": "",
+        "profiler_realized_flops_or_macs": "",
+        "total_cost_per_image": "",
+        "total_cost_per_task": "",
+        "sequential_step_count": "",
+        "stopping_behavior": "",
+        "resource_summary": {
+            "profile_failure": {
+                "status": "profile_failed",
+                "failure_type": type(exc).__name__,
+                "failure_message": str(exc),
+            }
+        },
+    }
+    output.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return output
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
@@ -105,21 +164,48 @@ def main() -> int:
     parser.add_argument("--roi")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed", type=int, default=123)
-    args = parser.parse_args()
-    print(
-        profile_model(
-            args.model,
-            manifest_path=args.manifest,
-            image_root=args.image_root,
-            output_path=args.output,
-            registry_path=args.registry,
-            split=args.split,
-            subject_id=args.subject_id,
-            roi=args.roi,
-            device=args.device,
-            seed=args.seed,
-        )
+    parser.add_argument(
+        "--allow-failure-profile",
+        action="store_true",
+        help=(
+            "Write an explicit failed-profile JSON and exit successfully when "
+            "the comparable profiling protocol cannot run."
+        ),
     )
+    args = parser.parse_args()
+    try:
+        print(
+            profile_model(
+                args.model,
+                manifest_path=args.manifest,
+                image_root=args.image_root,
+                output_path=args.output,
+                registry_path=args.registry,
+                split=args.split,
+                subject_id=args.subject_id,
+                roi=args.roi,
+                device=args.device,
+                seed=args.seed,
+            )
+        )
+    except Exception as exc:
+        if not args.allow_failure_profile:
+            raise
+        traceback.print_exc()
+        print(
+            write_failure_profile(
+                model_id=args.model,
+                manifest_path=args.manifest,
+                image_root=args.image_root,
+                output_path=args.output,
+                split=args.split,
+                subject_id=args.subject_id,
+                roi=args.roi,
+                device=args.device,
+                seed=args.seed,
+                exc=exc,
+            )
+        )
     return 0
 
 

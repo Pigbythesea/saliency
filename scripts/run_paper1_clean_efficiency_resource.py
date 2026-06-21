@@ -176,10 +176,14 @@ def materialize_efficiency_profiles(
             "evidence_status": "clean_publication_rerun",
         }
         resource_summary = dict(payload.get("resource_summary", {}))
+        profile_status = payload.get("profile_status") or payload.get("status", "")
         efficiency_rows.append(
             {
                 **base,
                 "schema_version": payload.get("schema_version", ""),
+                "profile_status": profile_status,
+                "failure_type": payload.get("failure_type", ""),
+                "failure_message": payload.get("failure_message", ""),
                 "latency_ms_per_image": payload.get("latency_ms_per_image", ""),
                 "peak_memory_bytes": payload.get("peak_memory_bytes", ""),
                 "parameter_count": payload.get("parameter_count", ""),

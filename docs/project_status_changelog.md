@@ -15,6 +15,7 @@ This file stores completed implementation milestones moved out of `docs/project_
 - Matched cross-level analysis: implemented model-level Spearman correlations and simple OLS regressions between corrected behavioral rows and the matched full-image `flatten_pca` neural panel; regenerated neural summary and paper inspection outputs.
 - Scalable representational geometry V1: implemented full-image linear CKA for all `24` matched cells, regenerated matched geometry summaries and paper inspection table 10, and added geometry fields to matched cross-level reporting.
 - Geometry Sensitivity And Cross-Axis Uncertainty V1: implemented method labels, subset RSA profiling, one-seed subset RSA across all `24` matched cells, geometry-method agreement, runtime summaries, leave-one-model/ROI sensitivity, model-label permutation calibration, decision labels, and paper-inspection figure/table upgrades.
+- Primary behavioral latent-to-fixation V0 lane: implemented `primary_behavioral_latent_to_fixation_encoding`, disabled the old behavioral-map/saliency/scanpath lane for V0 as `legacy_behavioral_pipeline_excluded_from_v0`, routed runner/preflight/expected outputs/cross-axis/cluster jobs through `latent_fixation_information_gain`, and produced the bounded local smoke output `outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv`.
 
 ## Current Historical Boundary
 

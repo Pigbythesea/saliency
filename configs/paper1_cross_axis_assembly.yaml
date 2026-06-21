@@ -5,12 +5,11 @@ execution_enabled: true
 model_eligibility_table: outputs/paper1_publication_v0/preflight/model_rerun_eligibility_table.csv
 model_certification_summary: outputs/paper1_publication_v0/preflight/model_certification_summary.csv
 inputs:
-  behavioral: outputs/paper1_publication_v0/behavioral/aggregate.csv
+  primary_behavioral_latent_to_fixation_encoding: outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv
   latent_neural_encoding: outputs/paper1_publication_v0/neural_encoding/encoding_scores.csv
   geometry: outputs/paper1_publication_v0/geometry/geometry_scores.csv
   efficiency_resource: outputs/paper1_publication_v0/efficiency/efficiency_profiles.csv
 optional_inputs:
-  behavioral_uncertainty: outputs/paper1_publication_v0/behavioral/uncertainty.csv
   resource_allocation: outputs/paper1_publication_v0/efficiency/resource_allocation_profiles.csv
 outputs:
   model_axis_scores: outputs/paper1_publication_v0/cross_axis/model_axis_scores.csv
@@ -34,3 +33,4 @@ admission:
   require_cross_axis_gate: accepted_with_limitations_or_better
   require_publication_root_inputs_only: true
   require_clean_upstream_outputs_before_actual_assembly: true
+  legacy_behavioral_pipeline_status: legacy_behavioral_pipeline_excluded_from_v0

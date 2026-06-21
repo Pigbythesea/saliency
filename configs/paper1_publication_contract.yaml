@@ -1,6 +1,6 @@
 schema_version: hma.paper1.publication_contract.v0
-contract_version: 0.1.0
-frozen_on: 2026-06-14
+contract_version: 0.2.0
+frozen_on: 2026-06-21
 execution_authorized: true
 method_position: controlled_benchmark_method
 claim:
@@ -19,8 +19,16 @@ evidence:
   scope_reset_root: outputs/paper1_scope_reset
   legacy_default: excluded
   legacy_admission_rule: explicit_equivalence_audit_only
+  primary_behavioral_lane: primary_behavioral_latent_to_fixation_encoding
+  legacy_behavioral_pipeline_status: legacy_behavioral_pipeline_excluded_from_v0
   output_map_neural_label: output_map_neural_control
   latent_neural_label: latent_feature_neural_encoding
+behavioral_encoding:
+  primary_method: flatten_pca_validation_selected_ridge_to_fixation_density
+  primary_score: latent_fixation_information_gain
+  primary_output: outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_encoding_scores.csv
+  image_output: outputs/paper1_publication_v0/behavioral_latent_fixation/fixation_image_scores.csv
+  legacy_map_saliency_scanpath_lane: legacy_behavioral_pipeline_excluded_from_v0
 behavioral_regimes:
   free_viewing:
     datasets: [salicon, cat2000]
@@ -34,15 +42,16 @@ behavioral_regimes:
     must_not_collapse_to_map_metrics: true
 behavioral_objects:
   primary:
-    - human_gaze_density
-    - conditional_next_fixation_distribution
-    - generated_scanpath
+    - latent_encoded_human_fixation_density
   controls:
     - center_prior
     - random_baseline
     - empirical_spatial_prior
     - task_prior
   diagnostic_only:
+    - human_gaze_density
+    - conditional_next_fixation_distribution
+    - generated_scanpath
     - posthoc_attribution_map
     - token_retention_map
     - token_merge_map
@@ -70,8 +79,10 @@ geometry:
     - biased_linear_cka
   controls:
     - paired_response_permutation
-    - image_resampling_interval
+    - subset_seed_stability
+    - aggregate_method_agreement
   rule: geometry_never_sole_neural_alignment_evidence
+  uncertainty_rule: per_cell_image_bootstrap_deferred_aggregate_stability_required
 roi_streams:
   primary_nonoverlapping:
     early_retinotopic: [V1, V2, V3, hV4]

@@ -1,7 +1,9 @@
-schema_version: hma.paper1.behavioral_rerun_plan.v0
-lane: behavioral
+schema_version: hma.paper1.legacy_behavioral_rerun_plan.v0
+lane: legacy_behavioral_pipeline
 contract: configs/paper1_publication_contract.yaml
-execution_enabled: true
+execution_enabled: false
+v0_status: legacy_behavioral_pipeline_excluded_from_v0
+allowed_use: diagnostic_expected_range_checks_only
 output_root: outputs/paper1_publication_v0/behavioral
 model_eligibility_table: outputs/paper1_publication_v0/preflight/model_rerun_eligibility_table.csv
 model_certification_summary: outputs/paper1_publication_v0/preflight/model_certification_summary.csv

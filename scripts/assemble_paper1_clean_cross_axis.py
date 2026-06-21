@@ -29,7 +29,14 @@ from paper1_clean_rerun_common import (
 
 LANE = "cross_axis"
 OUTPUT_KEYS = ["model_axis_scores", "clean_rerun_audit", "failure_log"]
-AXES = ["behavioral", "latent_neural_encoding", "geometry", "efficiency_resource"]
+PRIMARY_BEHAVIORAL_AXIS = "primary_behavioral_latent_to_fixation_encoding"
+AXES = [PRIMARY_BEHAVIORAL_AXIS, "latent_neural_encoding", "geometry", "efficiency_resource"]
+ELIGIBILITY_AXIS = {
+    PRIMARY_BEHAVIORAL_AXIS: "latent_neural_encoding",
+    "latent_neural_encoding": "latent_neural_encoding",
+    "geometry": "geometry",
+    "efficiency_resource": "efficiency_resource",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,7 +76,15 @@ def run(config_path: str, *, dry_run: bool) -> int:
             status="pass",
             artifact="cross_axis_inputs",
             path=pipe_join(str(path.relative_to(PROJECT_ROOT)) for path in input_paths.values()),
-            detail="all cross-axis inputs point to clean publication-root outputs, not legacy/admission paths",
+            detail="all cross-axis inputs point to clean publication-root outputs; primary behavioral input is latent fixation encoding, not legacy maps",
+        ),
+        audit_row(
+            lane=LANE,
+            check_id="legacy_behavioral_pipeline_excluded_from_v0",
+            status="pass",
+            artifact="cross_axis_behavioral_input",
+            path=str(input_paths[PRIMARY_BEHAVIORAL_AXIS].relative_to(PROJECT_ROOT)),
+            detail="cross-axis behavioral axis routes through primary_behavioral_latent_to_fixation_encoding",
         ),
         audit_row(
             lane=LANE,
@@ -119,10 +134,8 @@ def clean_input_paths(config: dict[str, Any]) -> dict[str, Path]:
 def build_planned_rows(input_paths: dict[str, Path]) -> list[dict[str, Any]]:
     rows = []
     models_by_axis = {
-        "behavioral": eligible_model_rows("behavioral"),
-        "latent_neural_encoding": eligible_model_rows("latent_neural_encoding"),
-        "geometry": eligible_model_rows("geometry"),
-        "efficiency_resource": eligible_model_rows("efficiency_resource"),
+        axis: eligible_model_rows(eligibility_axis)
+        for axis, eligibility_axis in ELIGIBILITY_AXIS.items()
     }
     all_models = sorted(
         {

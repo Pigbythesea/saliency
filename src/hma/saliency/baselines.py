@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 
+from hma.datasets.fixation_parsers import load_observer_fixations
 from hma.metrics.saliency_metrics import simple_center_bias_map
 from hma.datasets.fixation_utils import points_to_fixation_map
 from hma.saliency.postprocess import postprocess_saliency_map
@@ -107,20 +108,30 @@ class EmpiricalSpatialPrior:
         path = Path(manifest_path)
         with path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
-            missing = {"split", "width", "height", "fixation_points"} - set(
-                reader.fieldnames or []
-            )
+            fieldnames = set(reader.fieldnames or [])
+            missing = {"split", "width", "height"} - fieldnames
+            has_inline_points = "fixation_points" in fieldnames
+            has_points_path = "fixation_points_path" in fieldnames
+            if not has_inline_points and not has_points_path:
+                missing.add("fixation_points or fixation_points_path")
             if missing:
                 raise ValueError(
                     f"Empirical spatial prior manifest missing columns: {sorted(missing)}"
                 )
-            has_image_id = "image_id" in set(reader.fieldnames or [])
+            has_image_id = "image_id" in fieldnames
+            dataset_name = _infer_manifest_dataset(path)
+            dataset_root = _infer_manifest_dataset_root(path, dataset_name)
             for row in reader:
                 if row.get("split") != split:
                     continue
                 if has_image_id and str(row.get("image_id", "")) in excluded:
                     continue
-                points = _parse_manifest_points(row.get("fixation_points", ""))
+                points = _load_manifest_points(
+                    row,
+                    manifest_path=path,
+                    dataset_root=dataset_root,
+                    dataset_name=dataset_name,
+                )
                 if points.size == 0:
                     continue
                 point_sets.append(
@@ -256,6 +267,73 @@ def _parse_manifest_points(raw_points: str) -> np.ndarray:
     if points.size == 0:
         return np.zeros((0, 2), dtype=np.float32)
     return points.reshape(-1, 2)
+
+
+def _load_manifest_points(
+    row: dict[str, str],
+    *,
+    manifest_path: Path,
+    dataset_root: Path | None,
+    dataset_name: str | None,
+) -> np.ndarray:
+    inline_points = _parse_manifest_points(row.get("fixation_points", ""))
+    if inline_points.size:
+        return inline_points
+    points_path = row.get("fixation_points_path", "")
+    if not points_path:
+        return np.zeros((0, 2), dtype=np.float32)
+    resolved = _resolve_manifest_asset_path(
+        points_path,
+        manifest_path=manifest_path,
+        dataset_root=dataset_root,
+    )
+    if not resolved.is_file():
+        return np.zeros((0, 2), dtype=np.float32)
+    observers = load_observer_fixations(resolved, dataset=dataset_name)
+    if not observers:
+        return np.zeros((0, 2), dtype=np.float32)
+    return np.concatenate(observers, axis=0).astype(np.float32, copy=False)
+
+
+def _resolve_manifest_asset_path(
+    value: str,
+    *,
+    manifest_path: Path,
+    dataset_root: Path | None,
+) -> Path:
+    candidate = Path(value).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+    if dataset_root is not None:
+        rooted = (dataset_root / candidate).resolve()
+        if rooted.is_file():
+            return rooted
+    return (manifest_path.parent / candidate).resolve()
+
+
+def _infer_manifest_dataset(path: Path) -> str | None:
+    name = path.name.lower()
+    if "salicon" in name:
+        return "salicon"
+    if "cat2000" in name:
+        return "cat2000"
+    return None
+
+
+def _infer_manifest_dataset_root(path: Path, dataset_name: str | None) -> Path | None:
+    if dataset_name is None:
+        return None
+    root_name = {
+        "salicon": "SALICON",
+        "cat2000": "CAT2000",
+    }.get(dataset_name)
+    if root_name is None:
+        return None
+    for parent in (path.parent, *path.parents):
+        data_root = parent / "data" / "raw" / root_name
+        if data_root.exists():
+            return data_root.resolve()
+    return None
 
 
 def _scale_points(
